@@ -1,0 +1,11 @@
+{
+    "fields": [
+      {"name": "id_usuario", "type": "integer", "nullable": false},
+      {"name": "data_transacao", "type": "timestamp", "nullable": false},
+      {"name": "valor", "type": "double", "nullable": false},
+      {"name": "estabelecimento", "type": "string", "nullable": false},
+      {"name": "categoria", "type": "string", "nullable": false},
+      {"name": "status", "type": "string", "nullable": false}
+    ]
+  }
+  
