@@ -1,0 +1,12 @@
+{
+    "fields": [
+      {"name": "id_usuario", "type": "integer", "nullable": false},
+      {"name": "nome", "type": "string", "nullable": false},
+      {"name": "email", "type": "string", "nullable": false},
+      {"name": "data_nascimento", "type": "date", "nullable": false},
+      {"name": "endereco", "type": "string", "nullable": false},
+      {"name": "limite_credito", "type": "integer", "nullable": false},
+      {"name": "numero_cartao", "type": "string", "nullable": false}
+    ]
+  }
+  
