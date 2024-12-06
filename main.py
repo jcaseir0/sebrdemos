@@ -90,7 +90,7 @@ def main(tabelas):
         logger.info("Sessão Spark iniciada com sucesso.")
 
         # Criar banco de dados
-        database_name = config['database_name']
+        database_name = config['DEFAULT']['database_name']
         spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
         spark.sql(f"USE {database_name}")
         logger.info(f"Usando banco de dados: {database_name}")
