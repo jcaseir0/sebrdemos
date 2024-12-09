@@ -115,16 +115,33 @@ def main(tabelas, apenas_arquivos, formato_arquivo):
 
         spark = SparkSession.builder \
             .appName("SimulacaoDadosBancarios") \
-            .enableHiveSupport() \
-            .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
-            .config("hive.metastore.uris", "thrift://localhost:9083") \
-            .config("hive.metastore.warehouse.dir", "/user/hive/warehouse") \
-            .config("spark.sql.hive.convertMetastoreParquet", "false") \
-            .getOrCreate()
+            .enableHiveSupport()
+        
+        # Configurações de armazenamento
+        storage_type = config['storage']['storage_type']
+        if storage_type == 'ADLS':
+            spark_conf = spark_conf \
+                .config("fs.azure.account.key.%s.dfs.core.windows.net" % config['storage']['azure_account_name'],
+                        config['storage']['azure_account_key'])
+            base_path = config['storage']['adls_path']
+        else:
+            base_path = config['storage']['base_path']
+
+        # Configurações do Hive
+        hive_metastore_uri = config['DEFAULT']['metastore_uri']
+        spark_conf = spark_conf \
+            .config("hive.metastore.uris", "") \
+            .config("hive.server2.thrift.url", hive_metastore_uri) \
+            .config("spark.sql.hive.hiveserver2.jdbc.url", hive_metastore_uri) \
+            .config("spark.hadoop.hive.metastore.uris", "") \
+            .config("spark.sql.hive.metastore.jars", "builtin")
+        
+        # Iniciar sessão Spark
+        spark = spark_conf.getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
 
         if not apenas_arquivos:
-            database_name = config['DEFAULT'].get('database_name', 'bancodemo')
+            database_name = config['DEFAULT'].get('dbname', 'bancodemo')
             spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
             spark.sql(f"USE {database_name}")
             logger.info(f"Usando banco de dados: {database_name}")
