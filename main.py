@@ -7,13 +7,14 @@ from pyspark.sql.functions import current_date
 import json
 import logging
 import os
+import argparse
 
 # Configurar logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-logger.debug(f"Diretório de trabalho atual: {os.getcwd()}")
-logger.debug(f"Conteúdo do diretório /app/mount/: {os.listdir('/app/mount/')}")
+logger.info(f"Diretório de trabalho atual: {os.getcwd()}")
+logger.info(f"Conteúdo do diretório /app/mount/: {os.listdir('/app/mount/')}")
 
 # Adicionar o diretório /app/mount/ ao sys.path
 sys.path.append('/app/mount')
@@ -36,14 +37,14 @@ def carregar_configuracao(config_path='/app/mount/config.ini'):
 
 def tabela_existe(spark, nome_tabela):
     try:
-        existe = spark.sql(f"SHOW TABLES LIKE '{nome_tabela}'").count() > 0
+        existe = spark.catalog.tableExists(nome_tabela)
         logger.info(f"Verificação de existência da tabela '{nome_tabela}': {'Existe' if existe else 'Não existe'}")
         return existe
     except Exception as e:
         logger.error(f"Erro ao verificar existência da tabela '{nome_tabela}': {str(e)}")
         raise
 
-def criar_ou_atualizar_tabela(spark, nome_tabela, config):
+def criar_ou_atualizar_tabela(spark, nome_tabela, config, apenas_arquivos=False, formato_arquivo='parquet'):
     try:
         schema_base_path = '/app/mount/'
         schema_path = os.path.join(schema_base_path, f'{nome_tabela}.json')
@@ -66,62 +67,78 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
         df = df.withColumn("data_execucao", current_date())
         logger.info(f"Dados gerados para '{nome_tabela}': {num_records} registros")
 
-        if not tabela_existe(spark, nome_tabela):
-            if particionamento:
-                df.write.partitionBy("data_execucao").saveAsTable(nome_tabela)
-                logger.info(f"Tabela '{nome_tabela}' criada com particionamento por data_execucao")
-            elif bucketing:
-                df.write.bucketBy(num_buckets, "id_usuario").saveAsTable(nome_tabela)
-                logger.info(f"Tabela '{nome_tabela}' criada com bucketing por id_usuario em {num_buckets} buckets")
-            else:
-                df.write.saveAsTable(nome_tabela)
-                logger.info(f"Tabela '{nome_tabela}' criada sem particionamento ou bucketing")
+        storage = config['storage'].get('storage_type', 'S3')
+        if storage == 'S3':
+            base_path = "s3a://goes-se-sandbox/data/bancodemo/"
+        elif storage == 'ADLS':
+            base_path = config['storage']['base_path']
         else:
+            raise ValueError(f"Armazenamento não suportado: {storage}")
+
+        if apenas_arquivos:
+            output_path = f"{base_path}{nome_tabela}"
             if particionamento:
-                df.write.mode("append").partitionBy("data_execucao").saveAsTable(nome_tabela)
-                logger.info(f"Dados adicionados à tabela '{nome_tabela}' com particionamento por data_execucao")
+                df.write.partitionBy("data_execucao").format(formato_arquivo).save(output_path, mode="overwrite")
+                logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com particionamento por data_execucao em {output_path}")
             elif bucketing:
-                df.write.mode("append").bucketBy(num_buckets, "id_usuario").saveAsTable(nome_tabela)
-                logger.info(f"Dados adicionados à tabela '{nome_tabela}' com bucketing por id_usuario em {num_buckets} buckets")
+                df.write.bucketBy(num_buckets, "id_uf").format(formato_arquivo).save(output_path, mode="overwrite")
+                logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com bucketing por id_uf em {num_buckets} buckets em {output_path}")
             else:
-                df.write.mode("append").saveAsTable(nome_tabela)
-                logger.info(f"Dados adicionados à tabela '{nome_tabela}' sem particionamento ou bucketing")
+                df.write.format(formato_arquivo).save(output_path, mode="overwrite")
+                logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados sem particionamento ou bucketing em {output_path}")
+        else:
+            if not tabela_existe(spark, nome_tabela):
+                write_mode = "overwrite"
+            else:
+                write_mode = "append"
+                spark.sql(f"REFRESH TABLE {nome_tabela}")
+
+            if particionamento:
+                df.write.mode(write_mode).partitionBy("data_execucao").format("parquet").saveAsTable(nome_tabela)
+                logger.info(f"Tabela '{nome_tabela}' {write_mode} com particionamento por data_execucao")
+            elif bucketing:
+                df.write.mode(write_mode).bucketBy(num_buckets, "id_uf").format("parquet").saveAsTable(nome_tabela)
+                logger.info(f"Tabela '{nome_tabela}' {write_mode} com bucketing por id_uf em {num_buckets} buckets")
+            else:
+                df.write.mode(write_mode).format("parquet").saveAsTable(nome_tabela)
+                logger.info(f"Tabela '{nome_tabela}' {write_mode} sem particionamento ou bucketing")
 
     except Exception as e:
         logger.error(f"Erro ao criar ou atualizar tabela '{nome_tabela}': {str(e)}")
         raise
 
-def main(tabelas):
+def main(tabelas, apenas_arquivos, formato_arquivo):
     try:
         config_path = '/app/mount/config.ini'
         config = carregar_configuracao(config_path)
         erro_encontrado = False
 
-        logger.debug(f"Tabelas recebidas como argumento: {tabelas}")
-        logger.debug(f"Tipo de 'tabelas': {type(tabelas)}")
-
         spark = SparkSession.builder \
             .appName("SimulacaoDadosBancarios") \
             .enableHiveSupport() \
+            .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
+            .config("hive.metastore.uris", "thrift://localhost:9083") \
+            .config("hive.metastore.warehouse.dir", "/user/hive/warehouse") \
+            .config("spark.sql.hive.convertMetastoreParquet", "false") \
             .getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
 
-        database_name = config['DEFAULT'].get('database_name', 'bancodemo')
-        spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
-        spark.sql(f"USE {database_name}")
-        logger.info(f"Usando banco de dados: {database_name}")
+        if not apenas_arquivos:
+            database_name = config['DEFAULT'].get('database_name', 'bancodemo')
+            spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+            spark.sql(f"USE {database_name}")
+            logger.info(f"Usando banco de dados: {database_name}")
 
         for tabela in tabelas:
-            logger.debug(f"Processando tabela: '{tabela}'")
+            logger.info(f"Processando tabela: '{tabela}'")
             if tabela in config.sections():
                 try:
-                    criar_ou_atualizar_tabela(spark, tabela, config)
+                    criar_ou_atualizar_tabela(spark, tabela, config, apenas_arquivos, formato_arquivo)
                 except Exception as e:
                     logger.error(f"Erro ao processar a tabela '{tabela}': {str(e)}")
                     erro_encontrado = True
             else:
                 logger.warning(f"Configuração não encontrada para a tabela '{tabela}'")
-                logger.debug(f"Seções disponíveis na configuração: {config.sections()}")
                 erro_encontrado = True
 
         spark.stop()
@@ -138,12 +155,11 @@ def main(tabelas):
         sys.exit(1)
 
 if __name__ == "__main__":
-    logger.debug(f"Argumentos recebidos: {sys.argv}")
-    if len(sys.argv) < 2:
-        logger.error("Uso: python main.py <nome_tabela1> <nome_tabela2> ...")
-        sys.exit(1)
-    
-    tabelas = sys.argv[1].split()
-    logger.info(f"Iniciando processamento para as tabelas: {', '.join(tabelas)}")
-    logger.debug(f"Lista de tabelas a serem processadas: {tabelas}")
-    main(tabelas)
+    parser = argparse.ArgumentParser(description="Processador de dados bancários")
+    parser.add_argument("tabelas", nargs="+", help="Nomes das tabelas a serem processadas")
+    parser.add_argument("--onlyfiles", action="store_true", help="Criar apenas arquivos sem criar tabelas Hive")
+    parser.add_argument("--formato", choices=['parquet', 'orc', 'csv'], default='parquet', help="Formato dos arquivos a serem criados")
+    args = parser.parse_args()
+
+    logger.info(f"Iniciando processamento para as tabelas: {', '.join(args.tabelas)}")
+    main(args.tabelas, args.onlyfiles, args.formato)

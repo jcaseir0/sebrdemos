@@ -18,6 +18,7 @@ def gerar_transacao():
     }
 
 def gerar_cliente():
+    ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
     return {
         "id_usuario": random.randint(1, 1000),
         "nome": fake.name(),
@@ -25,7 +26,8 @@ def gerar_cliente():
         "data_nascimento": fake.date_of_birth(minimum_age=18, maximum_age=80).isoformat(),
         "endereco": fake.address().replace('\n', ', '),
         "limite_credito": random.choice([1000, 2000, 5000, 10000, 20000]),
-        "numero_cartao": gerar_numero_cartao()
+        "numero_cartao": gerar_numero_cartao(),
+        "id_uf": random.choice(ufs)
     }
 
 def gerar_dados(nome_tabela, num_records):

@@ -6,7 +6,9 @@
       {"name": "data_nascimento", "type": "date", "nullable": false},
       {"name": "endereco", "type": "string", "nullable": false},
       {"name": "limite_credito", "type": "integer", "nullable": false},
-      {"name": "numero_cartao", "type": "string", "nullable": false}
+      {"name": "numero_cartao", "type": "string", "nullable": false},
+      {"name": "id_uf", "type": "string", "nullable": false},
+      {"name": "data_execucao", "type": "date", "nullable": true}
     ]
   }
   

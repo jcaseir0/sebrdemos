@@ -104,6 +104,7 @@ Contém informações sobre os clientes:
 - `endereco`: Endereço do cliente
 - `limite_credito`: Limite de crédito do cliente
 - `numero_cartao`: Número do cartão de crédito do cliente
+- `id_uf`: Códigos dos estados brasileiros
 
 ## Customização
 
