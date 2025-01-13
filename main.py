@@ -113,7 +113,7 @@ def main(tabelas, apenas_arquivos, formato_arquivo):
         config = carregar_configuracao(config_path)
         erro_encontrado = False
 
-        spark = SparkSession.builder \
+        spark_conf = SparkSession.builder \
             .appName("SimulacaoDadosBancarios") \
             .enableHiveSupport()
         

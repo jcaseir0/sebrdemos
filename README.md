@@ -116,6 +116,8 @@ Contém informações sobre os clientes:
 
 Contribuições são bem-vindas! Por favor, sinta-se à vontade para submeter um Pull Request.
 
+## Configuração do Repositório do Cloudera Data Engineering
+
 ## Licença
 
 Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
