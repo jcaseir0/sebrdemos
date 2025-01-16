@@ -8,8 +8,8 @@ from pyspark.sql.functions import current_date
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-logger.info(f"Diretório de trabalho atual: {os.getcwd()}")
-logger.info(f"Conteúdo do diretório /app/mount/: {os.listdir('/app/mount/')}")
+logger.debug(f"Diretório de trabalho atual: {os.getcwd()}")
+logger.debug(f"Conteúdo do diretório /app/mount/: {os.listdir('/app/mount/')}")
 
 # Adicionar o diretório /app/mount/ ao sys.path
 sys.path.append('/app/mount')
@@ -39,7 +39,7 @@ def tabela_existe(spark, nome_tabela):
         logger.error(f"Erro ao verificar existência da tabela '{nome_tabela}': {str(e)}")
         raise
 
-def criar_ou_atualizar_tabela(spark, nome_tabela, config, apenas_arquivos=False, formato_arquivo='parquet'):
+def criar_ou_atualizar_tabela(spark, nome_tabela, config):
     try:
         schema_base_path = '/app/mount/'
         schema_path = os.path.join(schema_base_path, f'{nome_tabela}.json')
@@ -55,7 +55,9 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config, apenas_arquivos=False,
         particionamento = config.getboolean(nome_tabela, 'particionamento')
         bucketing = config.getboolean(nome_tabela, 'bucketing')
         num_buckets = config.getint(nome_tabela, 'num_buckets')
-        logger.info(f"Configurações para '{nome_tabela}': num_records={num_records}, particionamento={particionamento}, bucketing={bucketing}, num_buckets={num_buckets}")
+        apenas_arquivos = config.getboolean('DEFAULT', 'apenas_arquivos', fallback=False)
+        formato_arquivo = config['DEFAULT'].get('formato_arquivo', 'parquet')
+        logger.info(f"Configurações para '{nome_tabela}':\n num_records={num_records},\n particionamento={particionamento},\n bucketing={bucketing},\n num_buckets={num_buckets}, \n only_files={apenas_arquivos},\n formato={formato_arquivo}")
 
         dados = gerar_dados(nome_tabela, num_records)
         df = spark.createDataFrame(dados, schema=esquema)
@@ -64,7 +66,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config, apenas_arquivos=False,
 
         storage = config['storage'].get('storage_type', 'S3')
         if storage == 'S3':
-            base_path = "s3a://goes-se-sandbox/data/bancodemo/"
+            base_path = config['storage'].get('base_path')
         elif storage == 'ADLS':
             base_path = config['storage']['base_path']
         else:
@@ -103,7 +105,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config, apenas_arquivos=False,
         logger.error(f"Erro ao criar ou atualizar tabela '{nome_tabela}': {str(e)}")
         raise
 
-def main(tabelas, apenas_arquivos=False):
+def main():
     try:
         config_path = '/app/mount/config.ini'
         config = carregar_configuracao(config_path)
@@ -111,10 +113,11 @@ def main(tabelas, apenas_arquivos=False):
         # Iniciar sessão Spark
         spark = SparkSession \
             .builder \
-            .appName("Simulacao Dados Bancarios") \
+            .appName("SimulacaoDadosBancarios") \
             .getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
 
+        apenas_arquivos = config.getboolean('DEFAULT', 'apenas_arquivos', fallback=False)
         if not apenas_arquivos:
             database_name = config['DEFAULT'].get('dbname', 'bancodemo')
             spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
@@ -122,13 +125,14 @@ def main(tabelas, apenas_arquivos=False):
             logger.info(f"Usando banco de dados: {database_name}")
 
         # Processamento das tabelas
-        if args.tabelas:
-            tabelas = [tabela.strip() for tabela in args.tabelas.split(',')]
+        tabelas = config['DEFAULT'].get('tabelas', '').split(',')
+        if tabelas:
             for tabela in tabelas:
+                tabela = tabela.strip()
                 logger.info(f"Processando tabela: '{tabela}'")
                 if tabela in config.sections():
                     try:
-                        criar_ou_atualizar_tabela(spark, tabela, config, args.onlyfiles, args.formato)
+                        criar_ou_atualizar_tabela(spark, tabela, config)
                     except Exception as e:
                         logger.error(f"Erro ao processar a tabela '{tabela}': {str(e)}")
                 else:
@@ -141,18 +145,4 @@ def main(tabelas, apenas_arquivos=False):
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Imprimir os argumentos recebidos para depuração
-    print("Argumentos recebidos:", sys.argv)
-
-    # Processar os argumentos
-    parser = argparse.ArgumentParser(description='Processamento de tabelas')
-    parser.add_argument('--tabelas', type=str, required=True, help='Nomes das tabelas separados por vírgula')
-    parser.add_argument('--onlyfiles', action='store_true', help='Gerar apenas arquivos, sem criar tabelas')
-    parser.add_argument('--formato', type=str, default='parquet', choices=['parquet', 'orc', 'csv'], 
-                        help='Formato do arquivo de saída (padrão: parquet)')
-
-    # Analisar apenas os argumentos após o nome do script
-    args = parser.parse_args(sys.argv[1:])
-
-    logger.info(f"Iniciando processamento para as tabelas: {', '.join(args.tabelas)}")
-    main(args.tabelas, args.onlyfiles, args.formato)
+    main()
