@@ -42,15 +42,22 @@ def tabela_existe(spark, nome_tabela):
 def criar_ou_atualizar_tabela(spark, nome_tabela, config):
     try:
         schema_base_path = '/app/mount/'
-        schema_path = os.path.join(schema_base_path, f'{nome_tabela}.json')
-        logger.info(f"Carregando esquema da tabela '{nome_tabela}' de: {schema_path}")
-        
-        if not os.path.exists(schema_path):
-            raise FileNotFoundError(f"Arquivo de esquema não encontrado: {schema_path}")
-
-        with open(schema_path, 'r') as f:
-            esquema = StructType.fromJson(json.load(f))
-        logger.info(f"Esquema da tabela '{nome_tabela}' carregado com sucesso.")
+        schema_paths = [
+            os.path.join(schema_base_path, f'{nome_tabela}.json'),
+            os.path.join(schema_base_path, f'{nome_tabela}s.json')
+        ]
+        esquema = None
+        for schema_path in schema_paths:
+            logger.info(f"Tentando carregar esquema da tabela '{nome_tabela}' de: {schema_path}")
+            if os.path.exists(schema_path):
+                with open(schema_path, 'r') as f:
+                    schema_content = f.read()
+                    logger.info(f"Conteúdo do esquema de {nome_tabela}: {schema_content}")
+                    esquema = StructType.fromJson(json.loads(schema_content))
+                logger.info(f"Esquema da tabela '{nome_tabela}' carregado com sucesso de {schema_path}.")
+                break
+        if esquema is None:
+            raise FileNotFoundError(f"Nenhum arquivo de esquema encontrado para a tabela '{nome_tabela}'")
 
         num_records = config.getint(nome_tabela, 'num_records')
         particionamento = config.getboolean(nome_tabela, 'particionamento')
