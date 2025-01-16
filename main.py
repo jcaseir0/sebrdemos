@@ -141,14 +141,18 @@ def main(tabelas, apenas_arquivos=False):
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Configuração do parser de argumentos
-    parser = argparse.ArgumentParser(description='Processamento de tabelas')
-    parser.add_argument('--tabelas', type=str, required=True, help='Nomes das tabelas separados por vírgula (obrigatório)')
-    parser.add_argument('--onlyfiles', action='store_true', help='Gerar apenas arquivos, sem criar tabelas (opcional)')
-    parser.add_argument('--formato', type=str, default='parquet', choices=['parquet', 'orc', 'csv'], 
-                        help='Formato do arquivo de saída (opcional, padrão: parquet)')
+    # Imprimir os argumentos recebidos para depuração
+    print("Argumentos recebidos:", sys.argv)
 
-    args = parser.parse_args()
+    # Processar os argumentos
+    parser = argparse.ArgumentParser(description='Processamento de tabelas')
+    parser.add_argument('--tabelas', type=str, required=True, help='Nomes das tabelas separados por vírgula')
+    parser.add_argument('--onlyfiles', action='store_true', help='Gerar apenas arquivos, sem criar tabelas')
+    parser.add_argument('--formato', type=str, default='parquet', choices=['parquet', 'orc', 'csv'], 
+                        help='Formato do arquivo de saída (padrão: parquet)')
+
+    # Analisar apenas os argumentos após o nome do script
+    args = parser.parse_args(sys.argv[1:])
 
     logger.info(f"Iniciando processamento para as tabelas: {', '.join(args.tabelas)}")
     main(args.tabelas, args.onlyfiles, args.formato)
