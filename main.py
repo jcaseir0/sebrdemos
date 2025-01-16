@@ -3,6 +3,7 @@ import sys, json, logging, os, argparse, configparser
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark.sql.functions import current_date
+from pyspark.conf import SparkConf
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -118,10 +119,18 @@ def main():
         config_path = '/app/mount/config.ini'
         config = carregar_configuracao(config_path)
         
-        # Iniciar sessão Spark
-        spark = SparkSession \
-            .builder \
+        # Criar uma SparkConf com as configurações
+        spark_conf = SparkConf()
+        spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
+
+        # Configurar a URI do metastore como uma string de conexão JDBC
+        jdbc_url = config['DEFAULT'].get('hmsUrl')
+        spark_conf.set("hive.metastore.uris", jdbc_url)
+
+        # Criar a SparkSession usando a SparkConf
+        spark = SparkSession.builder \
             .appName("SimulacaoDadosBancarios") \
+            .config(conf=spark_conf) \
             .enableHiveSupport() \
             .getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
