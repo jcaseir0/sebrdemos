@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import sys, json, logging, os, argparse, configparser
+import sys, json, logging, os, time, configparser
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark.sql.functions import current_date
 from pyspark.conf import SparkConf
+from pyspark.sql.utils import AnalysisException
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -119,13 +120,14 @@ def main():
         config_path = '/app/mount/config.ini'
         config = carregar_configuracao(config_path)
         
+        # Configurar a URI do metastore como uma string de conexão JDBC
+        jdbc_url = config['DEFAULT'].get('hmsUrl')
+
         # Criar uma SparkConf com as configurações
         spark_conf = SparkConf()
         spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-
-        # Configurar a URI do metastore como uma string de conexão JDBC
-        jdbc_url = config['DEFAULT'].get('hmsUrl')
         spark_conf.set("hive.metastore.uris", jdbc_url)
+        spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
 
         # Criar a SparkSession usando a SparkConf
         spark = SparkSession.builder \
@@ -134,6 +136,22 @@ def main():
             .enableHiveSupport() \
             .getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
+
+        max_retries = 3
+        retry_delay = 5
+
+        for attempt in range(max_retries):
+            try:
+                spark.sql("SHOW DATABASES").show()
+                logger.info("Conexão com o Hive metastore estabelecida com sucesso")
+                break
+            except AnalysisException as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Tentativa {attempt + 1} falhou. Tentando novamente em {retry_delay} segundos...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error("Falha ao conectar ao Hive metastore após várias tentativas")
+                    raise
 
         apenas_arquivos = config.getboolean('DEFAULT', 'apenas_arquivos', fallback=False)
         if not apenas_arquivos:
