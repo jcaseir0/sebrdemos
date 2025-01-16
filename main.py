@@ -107,7 +107,6 @@ def main(tabelas, apenas_arquivos=False):
     try:
         config_path = '/app/mount/config.ini'
         config = carregar_configuracao(config_path)
-        erro_encontrado = False
         
         # Iniciar sessão Spark
         spark = SparkSession \
@@ -129,7 +128,7 @@ def main(tabelas, apenas_arquivos=False):
                 logger.info(f"Processando tabela: '{tabela}'")
                 if tabela in config.sections():
                     try:
-                        criar_ou_atualizar_tabela(spark, tabela, config, args.apenas_arquivos, args.formato_arquivo)
+                        criar_ou_atualizar_tabela(spark, tabela, config, args.onlyfiles, args.formato)
                     except Exception as e:
                         logger.error(f"Erro ao processar a tabela '{tabela}': {str(e)}")
                 else:
@@ -144,9 +143,11 @@ def main(tabelas, apenas_arquivos=False):
 if __name__ == "__main__":
     # Configuração do parser de argumentos
     parser = argparse.ArgumentParser(description='Processamento de tabelas')
-    parser.add_argument('--tabelas', type=str, help='Nomes das tabelas separados por vírgula')
-    parser.add_argument("--onlyfiles", action="store_true", help="Criar apenas arquivos sem criar tabelas Hive")
-    parser.add_argument("--formato", choices=['parquet', 'orc', 'csv'], default='parquet', help="Formato dos arquivos a serem criados")
+    parser.add_argument('--tabelas', type=str, required=True, help='Nomes das tabelas separados por vírgula (obrigatório)')
+    parser.add_argument('--onlyfiles', action='store_true', help='Gerar apenas arquivos, sem criar tabelas (opcional)')
+    parser.add_argument('--formato', type=str, default='parquet', choices=['parquet', 'orc', 'csv'], 
+                        help='Formato do arquivo de saída (opcional, padrão: parquet)')
+
     args = parser.parse_args()
 
     logger.info(f"Iniciando processamento para as tabelas: {', '.join(args.tabelas)}")
