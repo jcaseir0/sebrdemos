@@ -7,7 +7,7 @@ from pyspark.conf import SparkConf
 from pyspark.sql.utils import AnalysisException
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 logger.debug(f"Diretório de trabalho atual: {os.getcwd()}")
@@ -60,14 +60,14 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                 break
         if esquema is None:
             raise FileNotFoundError(f"Nenhum arquivo de esquema encontrado para a tabela '{nome_tabela}'")
-
+        
         num_records = config.getint(nome_tabela, 'num_records')
         particionamento = config.getboolean(nome_tabela, 'particionamento')
         bucketing = config.getboolean(nome_tabela, 'bucketing')
         num_buckets = config.getint(nome_tabela, 'num_buckets')
         apenas_arquivos = config.getboolean('DEFAULT', 'apenas_arquivos', fallback=False)
         formato_arquivo = config['DEFAULT'].get('formato_arquivo', 'parquet')
-        logger.info(f"Configurações para '{nome_tabela}':\n num_records={num_records},\n particionamento={particionamento},\n bucketing={bucketing},\n num_buckets={num_buckets}, \n only_files={apenas_arquivos},\n formato={formato_arquivo}")
+        logger.debug(f"Configurações para '{nome_tabela}':\n num_records={num_records},\n particionamento={particionamento},\n bucketing={bucketing},\n num_buckets={num_buckets}, \n only_files={apenas_arquivos},\n formato={formato_arquivo}")
 
         dados = gerar_dados(nome_tabela, num_records)
         df = spark.createDataFrame(dados, schema=esquema)
@@ -178,7 +178,8 @@ def main():
 
     except Exception as e:
         logger.error(f"Erro na execução principal: {str(e)}")
+        logger.debug("Detalhes do erro:", exc_info=True)
         sys.exit(1)
-
+        raise
 if __name__ == "__main__":
     main()
