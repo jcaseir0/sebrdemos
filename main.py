@@ -73,6 +73,8 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
         df = spark.createDataFrame(dados, schema=esquema)
         df = df.withColumn("data_execucao", current_date())
         logger.info(f"Dados gerados para '{nome_tabela}': {num_records} registros")
+        logger.info(f"Primeiras 10 linhas do DataFrame '{nome_tabela}':")
+        df.show(10, truncate=False)
 
         storage = config['storage'].get('storage_type', 'S3')
         if storage == 'S3':
@@ -96,21 +98,35 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                 df.write.options(**write_options).save(output_path)
                 logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados sem particionamento ou bucketing em {output_path}")
         else:
-            write_mode = "overwrite" if not tabela_existe(spark, nome_tabela) else "append"
+            existe = tabela_existe(spark, nome_tabela)
+            logger.debug(f"Tabela existe: {existe}")
+            if not existe:
+                write_mode = "overwrite"
+            else:
+                write_mode = "append"
+                
             if write_mode == "append":
                 spark.sql(f"REFRESH TABLE {nome_tabela}")
             write_options = {"mode": write_mode, "format": "parquet"}
 
             if particionamento:
-                df.write.partitionBy("data_execucao").options(**write_options).saveAsTable(nome_tabela)
-                logger.info(f"Tabela '{nome_tabela}' {write_mode} com particionamento por data_execucao")
+                try:
+                    df.write.partitionBy("data_execucao").options(**write_options).saveAsTable(nome_tabela)
+                    logger.info(f"Tabela '{nome_tabela}' {write_mode} com particionamento por data_execucao")
+                except Exception as e:
+                    logger.error(f"Erro ao criar tabela '{nome_tabela}' com particionamento por data_execucao: {str(e)}")
             elif bucketing:
-                df.write.bucketBy(num_buckets, "id_uf").options(**write_options).saveAsTable(nome_tabela)
-                logger.info(f"Tabela '{nome_tabela}' {write_mode} com bucketing por id_uf em {num_buckets} buckets")
+                try:
+                    df.write.bucketBy(num_buckets, "id_uf").options(**write_options).saveAsTable(nome_tabela)
+                    logger.info(f"Tabela '{nome_tabela}' {write_mode} com bucketing por id_uf em {num_buckets} buckets")
+                except Exception as e:
+                    logger.error(f"Erro ao criar tabela '{nome_tabela}' com bucketing por id_uf: {str(e)}")
             else:
-                df.write.options(**write_options).saveAsTable(nome_tabela)
-                logger.info(f"Tabela '{nome_tabela}' {write_mode} sem particionamento ou bucketing")
-
+                try:
+                    df.write.options(**write_options).saveAsTable(nome_tabela)
+                    logger.info(f"Tabela '{nome_tabela}' {write_mode} sem particionamento ou bucketing")
+                except Exception as e:
+                    logger.error(f"Erro ao criar tabela '{nome_tabela}' sem particionamento ou bucketing: {str(e)}")
     except Exception as e:
         logger.error(f"Erro ao criar ou atualizar tabela '{nome_tabela}': {str(e)}")
         raise
