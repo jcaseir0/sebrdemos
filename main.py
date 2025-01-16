@@ -43,6 +43,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
     try:
         schema_base_path = '/app/mount/'
         schema_path = os.path.join(schema_base_path, f'{nome_tabela}.json')
+        logger.info(f"Carregando esquema da tabela '{nome_tabela}' de: {schema_path}")
         
         if not os.path.exists(schema_path):
             raise FileNotFoundError(f"Arquivo de esquema não encontrado: {schema_path}")
@@ -114,6 +115,7 @@ def main():
         spark = SparkSession \
             .builder \
             .appName("SimulacaoDadosBancarios") \
+            .enableHiveSupport() \
             .getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
 
