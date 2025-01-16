@@ -72,37 +72,38 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config, apenas_arquivos=False,
 
         if apenas_arquivos:
             output_path = f"{base_path}{nome_tabela}"
+            write_options = {"mode": "overwrite", "format": formato_arquivo}
+            
             if particionamento:
-                df.write.partitionBy("data_execucao").format(formato_arquivo).save(output_path, mode="overwrite")
+                df.write.partitionBy("data_execucao").options(**write_options).save(output_path)
                 logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com particionamento por data_execucao em {output_path}")
             elif bucketing:
-                df.write.bucketBy(num_buckets, "id_uf").format(formato_arquivo).save(output_path, mode="overwrite")
+                df.write.bucketBy(num_buckets, "id_uf").options(**write_options).save(output_path)
                 logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com bucketing por id_uf em {num_buckets} buckets em {output_path}")
             else:
-                df.write.format(formato_arquivo).save(output_path, mode="overwrite")
+                df.write.options(**write_options).save(output_path)
                 logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados sem particionamento ou bucketing em {output_path}")
         else:
-            if not tabela_existe(spark, nome_tabela):
-                write_mode = "overwrite"
-            else:
-                write_mode = "append"
+            write_mode = "overwrite" if not tabela_existe(spark, nome_tabela) else "append"
+            if write_mode == "append":
                 spark.sql(f"REFRESH TABLE {nome_tabela}")
+            write_options = {"mode": write_mode, "format": "parquet"}
 
             if particionamento:
-                df.write.mode(write_mode).partitionBy("data_execucao").format("parquet").saveAsTable(nome_tabela)
+                df.write.partitionBy("data_execucao").options(**write_options).saveAsTable(nome_tabela)
                 logger.info(f"Tabela '{nome_tabela}' {write_mode} com particionamento por data_execucao")
             elif bucketing:
-                df.write.mode(write_mode).bucketBy(num_buckets, "id_uf").format("parquet").saveAsTable(nome_tabela)
+                df.write.bucketBy(num_buckets, "id_uf").options(**write_options).saveAsTable(nome_tabela)
                 logger.info(f"Tabela '{nome_tabela}' {write_mode} com bucketing por id_uf em {num_buckets} buckets")
             else:
-                df.write.mode(write_mode).format("parquet").saveAsTable(nome_tabela)
+                df.write.options(**write_options).saveAsTable(nome_tabela)
                 logger.info(f"Tabela '{nome_tabela}' {write_mode} sem particionamento ou bucketing")
 
     except Exception as e:
         logger.error(f"Erro ao criar ou atualizar tabela '{nome_tabela}': {str(e)}")
         raise
 
-def main(tabelas, apenas_arquivos, formato_arquivo):
+def main(tabelas, apenas_arquivos=False):
     try:
         config_path = '/app/mount/config.ini'
         config = carregar_configuracao(config_path)
@@ -111,7 +112,7 @@ def main(tabelas, apenas_arquivos, formato_arquivo):
         # Iniciar sessão Spark
         spark = SparkSession \
             .builder \
-            .appName("TELCO LAKEHOUSE SILVER LAYER") \
+            .appName("Simulacao Dados Bancarios") \
             .getOrCreate()
         logger.info("Sessão Spark iniciada com sucesso.")
 
@@ -121,34 +122,29 @@ def main(tabelas, apenas_arquivos, formato_arquivo):
             spark.sql(f"USE {database_name}")
             logger.info(f"Usando banco de dados: {database_name}")
 
-        for tabela in tabelas:
-            logger.info(f"Processando tabela: '{tabela}'")
-            if tabela in config.sections():
-                try:
-                    criar_ou_atualizar_tabela(spark, tabela, config, apenas_arquivos, formato_arquivo)
-                except Exception as e:
-                    logger.error(f"Erro ao processar a tabela '{tabela}': {str(e)}")
-                    erro_encontrado = True
-            else:
-                logger.warning(f"Configuração não encontrada para a tabela '{tabela}'")
-                erro_encontrado = True
-
-        spark.stop()
-        logger.info("Sessão Spark encerrada.")
-
-        if erro_encontrado:
-            logger.error("Execução concluída com erros ou avisos.")
-            sys.exit(1)
+        # Processamento das tabelas
+        if args.tabelas:
+            tabelas = [tabela.strip() for tabela in args.tabelas.split(',')]
+            for tabela in tabelas:
+                logger.info(f"Processando tabela: '{tabela}'")
+                if tabela in config.sections():
+                    try:
+                        criar_ou_atualizar_tabela(spark, tabela, config, args.apenas_arquivos, args.formato_arquivo)
+                    except Exception as e:
+                        logger.error(f"Erro ao processar a tabela '{tabela}': {str(e)}")
+                else:
+                    logger.warning(f"Configuração não encontrada para a tabela '{tabela}'")
         else:
-            logger.info("Execução concluída com sucesso.")
+            logger.error("Nenhuma tabela especificada. Use o argumento --tabelas.")
 
     except Exception as e:
         logger.error(f"Erro na execução principal: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Processador de dados bancários")
-    parser.add_argument("tabelas", nargs="+", help="Nomes das tabelas a serem processadas")
+    # Configuração do parser de argumentos
+    parser = argparse.ArgumentParser(description='Processamento de tabelas')
+    parser.add_argument('--tabelas', type=str, help='Nomes das tabelas separados por vírgula')
     parser.add_argument("--onlyfiles", action="store_true", help="Criar apenas arquivos sem criar tabelas Hive")
     parser.add_argument("--formato", choices=['parquet', 'orc', 'csv'], default='parquet', help="Formato dos arquivos a serem criados")
     args = parser.parse_args()
