@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import random, datetime
+import random
 from faker import Faker
+from datetime import datetime
 
 fake = Faker('pt_BR')
 
