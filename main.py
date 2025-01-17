@@ -155,12 +155,16 @@ def main():
         
         # Configurar a URI do metastore como uma string de conexão JDBC
         jdbc_url = config['DEFAULT'].get('hmsUrl')
+        thrift_server = config['DEFAULT'].get('thriftServer')
 
         # Criar uma SparkConf com as configurações
         spark_conf = SparkConf()
         spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-        spark_conf.set("hive.metastore.uris", jdbc_url)
+        spark_conf.set("hive.metastore.uris", thrift_server)
         spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
+        spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
+        spark_conf.set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
+        spark_conf.set("spark.sql.catalog.spark_catalog.type", "hive")
 
         # Criar a SparkSession usando a SparkConf
         spark = SparkSession.builder \

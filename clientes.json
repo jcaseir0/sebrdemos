@@ -1,14 +1,14 @@
 {
     "fields": [
-      {"name": "id_usuario", "type": "integer", "nullable": false},
-      {"name": "nome", "type": "string", "nullable": false},
-      {"name": "email", "type": "string", "nullable": false},
-      {"name": "data_nascimento", "type": "date", "nullable": false},
-      {"name": "endereco", "type": "string", "nullable": false},
-      {"name": "limite_credito", "type": "integer", "nullable": false},
-      {"name": "numero_cartao", "type": "string", "nullable": false},
-      {"name": "id_uf", "type": "string", "nullable": false},
-      {"name": "data_execucao", "type": "date", "nullable": true}
+      {"name": "id_usuario", "type": "integer", "nullable": false, "metadata":{}},
+      {"name": "nome", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "email", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "data_nascimento", "type": "date", "nullable": false, "metadata":{}},
+      {"name": "endereco", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "limite_credito", "type": "integer", "nullable": false, "metadata":{}},
+      {"name": "numero_cartao", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "id_uf", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "data_execucao", "type": "date", "nullable": false, "metadata":{}}
     ]
   }
   
