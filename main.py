@@ -89,7 +89,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
             df.createOrReplaceTempView("temp_view")
             if particionamento:
                 spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {nome_tabela}
+                    CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
                     USING {formato_arquivo}
                     PARTITIONED BY (data_execucao)
                     LOCATION '{output_path}'
@@ -98,7 +98,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                 logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com particionamento por data_execucao em {output_path}")
             elif bucketing:
                 spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {nome_tabela}
+                    CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
                     USING {formato_arquivo}
                     CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
                     LOCATION '{output_path}'
@@ -107,7 +107,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                 logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com bucketing por id_uf em {num_buckets} buckets em {output_path}")
             else:
                 spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {nome_tabela}
+                    CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
                     USING {formato_arquivo}
                     LOCATION '{output_path}'
                     AS SELECT * FROM temp_view
@@ -119,7 +119,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
             if not existe:
                 if particionamento:
                     spark.sql(f"""
-                        CREATE TABLE IF NOT EXISTS {nome_tabela}
+                        CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
                         USING parquet
                         PARTITIONED BY (data_execucao)
                         AS SELECT * FROM temp_view
@@ -127,7 +127,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                     logger.info(f"Tabela '{nome_tabela}' criada com particionamento por data_execucao")
                 elif bucketing:
                     spark.sql(f"""
-                        CREATE TABLE IF NOT EXISTS {nome_tabela}
+                        CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
                         USING parquet
                         CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
                         AS SELECT * FROM temp_view
@@ -135,13 +135,13 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                     logger.info(f"Tabela '{nome_tabela}' criada com bucketing por id_uf em {num_buckets} buckets")
                 else:
                     spark.sql(f"""
-                        CREATE TABLE IF NOT EXISTS {nome_tabela}
+                        CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
                         USING parquet
                         AS SELECT * FROM temp_view
                     """)
                     logger.info(f"Tabela '{nome_tabela}' criada sem particionamento ou bucketing")
             else:
-                spark.sql(f"INSERT INTO {nome_tabela} SELECT * FROM temp_view")
+                spark.sql(f"INSERT INTO SPARK_CATALOG.{nome_tabela} SELECT * FROM temp_view")
                 logger.info(f"Dados inseridos na tabela '{nome_tabela}'")
 
     except Exception as e:
@@ -189,7 +189,7 @@ def main():
         apenas_arquivos = config.getboolean('DEFAULT', 'apenas_arquivos', fallback=False)
         if not apenas_arquivos:
             database_name = config['DEFAULT'].get('dbname', 'bancodemo')
-            spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+            spark.sql(f"CREATE DATABASE IF NOT EXISTS SPARK_CATALOG.{database_name}")
             spark.sql(f"USE {database_name}")
             logger.info(f"Usando banco de dados: {database_name}")
 
@@ -207,7 +207,7 @@ def main():
                 else:
                     logger.warning(f"Configuração não encontrada para a tabela '{tabela}'")
         else:
-            logger.error("Nenhuma tabela especificada. Use o argumento --tabelas.")
+            logger.error("Nenhuma tabela especificada.")
 
     except Exception as e:
         logger.error(f"Erro na execução principal: {str(e)}")
