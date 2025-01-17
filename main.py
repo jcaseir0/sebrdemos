@@ -91,26 +91,31 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
             return f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com sucesso em {output_path}"
             
         else:
-            if particionamento:
-                spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
-                    USING parquet
-                    PARTITIONED BY (data_execucao)
-                    AS SELECT * FROM temp_view
-                """)
-            elif bucketing:
-                spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
-                    USING parquet
-                    CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
-                    AS SELECT * FROM temp_view
-                """)
-            else:
-                spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
-                    USING parquet
-                    AS SELECT * FROM temp_view
-                """)
+            database_name = config['DEFAULT'].get('dbname')
+            spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+            spark.sql(f"USE {database_name}")
+            table_exists = spark.sql(f"SHOW TABLES IN {db_name} LIKE '{nome_tabela}'").count() > 0
+            if not table_exists:
+                if particionamento:
+                    spark.sql(f"""
+                        CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
+                        USING parquet
+                        PARTITIONED BY (data_execucao)
+                        AS SELECT * FROM temp_view
+                    """)
+                elif bucketing:
+                    spark.sql(f"""
+                        CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
+                        USING parquet
+                        CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
+                        AS SELECT * FROM temp_view
+                    """)
+                else:
+                    spark.sql(f"""
+                        CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
+                        USING parquet
+                        AS SELECT * FROM temp_view
+                    """)
 
         # Insert data into the table
         spark.sql(f"INSERT INTO {db_name}.{nome_tabela} SELECT * FROM temp_view")
@@ -161,13 +166,6 @@ def main():
                 else:
                     logger.error("Falha ao conectar ao Hive metastore após várias tentativas")
                     raise
-
-        apenas_arquivos = config.getboolean('DEFAULT', 'apenas_arquivos', fallback=False)
-        if not apenas_arquivos:
-            database_name = config['DEFAULT'].get('dbname', 'bancodemo')
-            spark.sql(f"CREATE DATABASE IF NOT EXISTS SPARK_CATALOG.{database_name}")
-            spark.sql(f"USE {database_name}")
-            logger.info(f"Usando banco de dados: {database_name}")
 
         # Processamento das tabelas
         tabelas = config['DEFAULT'].get('tabelas', '').split(',')
