@@ -142,6 +142,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                     """)
                     logger.info(f"Tabela '{nome_tabela}' criada sem particionamento ou bucketing")
             else:
+                df.createOrReplaceTempView("temp_view")
                 spark.sql(f"INSERT INTO SPARK_CATALOG.{nome_tabela} SELECT * FROM temp_view")
                 logger.info(f"Dados inseridos na tabela '{nome_tabela}'")
 

@@ -8,7 +8,7 @@
       {"name": "limite_credito", "type": "integer", "nullable": false, "metadata":{}},
       {"name": "numero_cartao", "type": "string", "nullable": false, "metadata":{}},
       {"name": "id_uf", "type": "string", "nullable": false, "metadata":{}},
-      {"name": "data_execucao", "type": "date", "nullable": false, "metadata":{}}
+      {"name": "data_execucao", "type": "timestamp", "nullable": false, "metadata":{}}
     ]
   }
   
