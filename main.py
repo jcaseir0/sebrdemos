@@ -32,15 +32,6 @@ def carregar_configuracao(config_path='/app/mount/config.ini'):
         logger.error(f"Erro ao carregar configuração: {str(e)}")
         raise
 
-def tabela_existe(spark, nome_tabela):
-    try:
-        result = spark.sql(f"SHOW TABLES LIKE '{nome_tabela}'").count() > 0
-        logger.info(f"Verificação de existência da tabela '{nome_tabela}': {'Existe' if result else 'Não existe'}")
-        return result
-    except Exception as e:
-        logger.error(f"Erro ao verificar existência da tabela '{nome_tabela}': {str(e)}")
-        raise
-
 def criar_ou_atualizar_tabela(spark, nome_tabela, config):
     try:
         schema_base_path = '/app/mount/'
@@ -76,6 +67,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
         logger.info(f"Primeiras 10 linhas do DataFrame '{nome_tabela}':")
         df.show(10, truncate=False)
 
+        # Configurações de armazenamento:
         storage = config['storage'].get('storage_type', 'S3')
         if storage == 'S3':
             base_path = config['storage'].get('base_path')
@@ -84,67 +76,44 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
         else:
             raise ValueError(f"Armazenamento não suportado: {storage}")
 
+        # Criar ou atualizar a View temporária:
+        df.createOrReplaceTempView("temp_view")
+
         if apenas_arquivos:
             output_path = f"{base_path}{nome_tabela}"
-            df.createOrReplaceTempView("temp_view")
+            if particionamento:
+                df.write.partitionBy("data_execucao").format(formato_arquivo).mode("overwrite").save(output_path)
+            elif bucketing:
+                df.write.bucketBy(num_buckets, "id_uf").format(formato_arquivo).mode("overwrite").save(output_path)
+            else:
+                df.write.format(formato_arquivo).mode("overwrite").save(output_path)
+            return f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com sucesso em {output_path}"
+            
+        else:
             if particionamento:
                 spark.sql(f"""
                     CREATE TABLE IF NOT EXISTS {nome_tabela}
-                    USING {formato_arquivo}
+                    USING parquet
                     PARTITIONED BY (data_execucao)
-                    LOCATION '{output_path}'
                     AS SELECT * FROM temp_view
                 """)
-                logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com particionamento por data_execucao em {output_path}")
             elif bucketing:
                 spark.sql(f"""
                     CREATE TABLE IF NOT EXISTS {nome_tabela}
-                    USING {formato_arquivo}
+                    USING parquet
                     CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
-                    LOCATION '{output_path}'
                     AS SELECT * FROM temp_view
                 """)
-                logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados com bucketing por id_uf em {num_buckets} buckets em {output_path}")
             else:
                 spark.sql(f"""
                     CREATE TABLE IF NOT EXISTS {nome_tabela}
-                    USING {formato_arquivo}
-                    LOCATION '{output_path}'
+                    USING parquet
                     AS SELECT * FROM temp_view
                 """)
-                logger.info(f"Arquivos {formato_arquivo.upper()} para '{nome_tabela}' criados sem particionamento ou bucketing em {output_path}")
-        else:
-            existe = tabela_existe(spark, nome_tabela)
-            logger.debug(f"Tabela existe: {existe}")
-            if not existe:
-                df.createOrReplaceTempView("temp_view")
-                if particionamento:
-                    spark.sql(f"""
-                        CREATE TABLE IF NOT EXISTS {nome_tabela}
-                        USING parquet
-                        PARTITIONED BY (data_execucao)
-                        AS SELECT * FROM temp_view
-                    """)
-                    logger.info(f"Tabela '{nome_tabela}' criada com particionamento por data_execucao")
-                elif bucketing:
-                    spark.sql(f"""
-                        CREATE TABLE IF NOT EXISTS {nome_tabela}
-                        USING parquet
-                        CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
-                        AS SELECT * FROM temp_view
-                    """)
-                    logger.info(f"Tabela '{nome_tabela}' criada com bucketing por id_uf em {num_buckets} buckets")
-                else:
-                    spark.sql(f"""
-                        CREATE TABLE IF NOT EXISTS {nome_tabela}
-                        USING parquet
-                        AS SELECT * FROM temp_view
-                    """)
-                    logger.info(f"Tabela '{nome_tabela}' criada sem particionamento ou bucketing")
-            else:
-                df.createOrReplaceTempView("temp_view")
-                spark.sql(f"INSERT INTO {nome_tabela} SELECT * FROM temp_view")
-                logger.info(f"Dados inseridos na tabela '{nome_tabela}'")
+
+        # Insert data into the table
+        spark.sql(f"INSERT INTO {nome_tabela} SELECT * FROM temp_view")
+        logger.info(f"Dados inseridos na tabela '{nome_tabela}'")
 
     except Exception as e:
         logger.error(f"Erro ao criar ou atualizar tabela '{nome_tabela}': {str(e)}")
