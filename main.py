@@ -95,6 +95,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
             spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
             spark.sql(f"USE {database_name}")
             table_exists = spark.sql(f"SHOW TABLES IN {db_name} LIKE '{nome_tabela}'").count() > 0
+            logger.info(f"table_exists: '{table_exists}':")
             if not table_exists:
                 if particionamento:
                     spark.sql(f"""
@@ -116,7 +117,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
                         USING parquet
                         AS SELECT * FROM temp_view
                     """)
-
+        spark.sql(f"REFRESH TABLE {db_name}.{nome_tabela}")
         # Insert data into the table
         spark.sql(f"INSERT INTO {db_name}.{nome_tabela} SELECT * FROM temp_view")
         logger.info(f"Dados inseridos na tabela '{nome_tabela}'")
@@ -140,8 +141,6 @@ def main():
         spark_conf.set("hive.metastore.uris", thrift_server)
         spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
         spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
-        spark_conf.set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
-        spark_conf.set("spark.sql.catalog.spark_catalog.type", "hive")
 
         # Criar a SparkSession usando a SparkConf
         spark = SparkSession.builder \
