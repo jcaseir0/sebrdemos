@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import random
+import random, datetime
 from faker import Faker
 
 fake = Faker('pt_BR')
@@ -23,7 +23,7 @@ def gerar_cliente():
         "id_usuario": random.randint(1, 1000),
         "nome": fake.name(),
         "email": fake.email(),
-        "data_nascimento": fake.date_of_birth(minimum_age=18, maximum_age=80).isoformat(),
+        "data_nascimento": datetime.strptime(fake.date_of_birth(minimum_age=18, maximum_age=90).isoformat(), "%Y-%m-%d").date(),
         "endereco": fake.address().replace('\n', ', '),
         "limite_credito": random.choice([1000, 2000, 5000, 10000, 20000]),
         "numero_cartao": gerar_numero_cartao(),

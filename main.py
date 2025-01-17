@@ -117,6 +117,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
             existe = tabela_existe(spark, nome_tabela)
             logger.debug(f"Tabela existe: {existe}")
             if not existe:
+                df.createOrReplaceTempView("temp_view")
                 if particionamento:
                     spark.sql(f"""
                         CREATE TABLE IF NOT EXISTS SPARK_CATALOG.{nome_tabela}
