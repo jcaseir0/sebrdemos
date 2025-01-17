@@ -7,7 +7,7 @@ from pyspark.conf import SparkConf
 from pyspark.sql.utils import AnalysisException
 
 # Configurar logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 logger.debug(f"Diretório de trabalho atual: {os.getcwd()}")
@@ -34,9 +34,9 @@ def carregar_configuracao(config_path='/app/mount/config.ini'):
 
 def tabela_existe(spark, nome_tabela):
     try:
-        existe = spark.catalog.tableExists(nome_tabela)
-        logger.info(f"Verificação de existência da tabela '{nome_tabela}': {'Existe' if existe else 'Não existe'}")
-        return existe
+        result = spark.sql(f"SHOW TABLES LIKE '{nome_tabela}'").count() > 0
+        logger.info(f"Verificação de existência da tabela '{nome_tabela}': {'Existe' if result else 'Não existe'}")
+        return result
     except Exception as e:
         logger.error(f"Erro ao verificar existência da tabela '{nome_tabela}': {str(e)}")
         raise
