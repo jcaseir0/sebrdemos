@@ -52,6 +52,7 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
         if esquema is None:
             raise FileNotFoundError(f"Nenhum arquivo de esquema encontrado para a tabela '{nome_tabela}'")
         
+        db_name = config['DEFAULT'].get('dbname')
         num_records = config.getint(nome_tabela, 'num_records')
         particionamento = config.getboolean(nome_tabela, 'particionamento')
         bucketing = config.getboolean(nome_tabela, 'bucketing')
@@ -92,27 +93,27 @@ def criar_ou_atualizar_tabela(spark, nome_tabela, config):
         else:
             if particionamento:
                 spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {nome_tabela}
+                    CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
                     USING parquet
                     PARTITIONED BY (data_execucao)
                     AS SELECT * FROM temp_view
                 """)
             elif bucketing:
                 spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {nome_tabela}
+                    CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
                     USING parquet
                     CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
                     AS SELECT * FROM temp_view
                 """)
             else:
                 spark.sql(f"""
-                    CREATE TABLE IF NOT EXISTS {nome_tabela}
+                    CREATE TABLE IF NOT EXISTS {db_name}.{nome_tabela}
                     USING parquet
                     AS SELECT * FROM temp_view
                 """)
 
         # Insert data into the table
-        spark.sql(f"INSERT INTO {nome_tabela} SELECT * FROM temp_view")
+        spark.sql(f"INSERT INTO {db_name}.{nome_tabela} SELECT * FROM temp_view")
         logger.info(f"Dados inseridos na tabela '{nome_tabela}'")
 
     except Exception as e:
