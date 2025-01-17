@@ -10,7 +10,7 @@ def gerar_numero_cartao():
 def gerar_transacao():
     return {
         "id_usuario": random.randint(1, 1000),
-        "data_transacao": fake.date_time_this_year().isoformat(),
+        "data_transacao": fake.date_time_this_year(),
         "valor": round(random.uniform(10, 1000), 2),
         "estabelecimento": fake.company(),
         "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação"]),
