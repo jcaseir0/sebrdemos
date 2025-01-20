@@ -1,9 +1,30 @@
-# -*- coding: utf-8 -*-
+import os
+import json
 import random
-from faker import Faker
 from datetime import datetime
+import logging
+from faker import Faker
+
+logger = logging.getLogger(__name__)
 
 fake = Faker('pt_BR')
+
+def load_config(config_path='/app/mount/config.ini'):
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    logger.info("Configuration loaded successfully.")
+    return config
+
+def table_exists(spark, table_name):
+    try:
+        result = spark.sql(f"SHOW TABLES LIKE '{table_name}'").count() > 0
+        logger.info(f"Table '{table_name}' exists: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error checking table existence '{table_name}': {str(e)}")
+        raise
 
 def gerar_numero_cartao():
     return ''.join([str(random.randint(0, 9)) for _ in range(16)])
