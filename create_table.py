@@ -96,12 +96,12 @@ def main():
     for table_name in tables:
         partition = config.getboolean(table_name, 'particionamento', fallback=False)
         partition_by = config.get(table_name, 'partition_by', fallback=None)
-        table_name = database_name.table_name
-        validate_partition_and_bucketing(config, table_name)
-        schema_path = get_schema_path(base_path, table_name)
+        table = database_name.table_name
+        validate_partition_and_bucketing(config, table)
+        schema_path = get_schema_path(base_path, table)
 
         if not os.path.exists(schema_path):
-            logger.error(f"Schema file not found for table '{table_name}': {schema_path}")
+            logger.error(f"Schema file not found for table '{table}': {schema_path}")
             continue
 
         with open(schema_path, 'r') as f:
