@@ -7,6 +7,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
 from pyspark.sql.utils import AnalysisException
+from pyspark.sql.functions import lit
 from common_functions import load_config, gerar_dados, table_exists
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -179,7 +180,7 @@ def main():
             data = gerar_dados(table_name, num_records)
             df = spark.createDataFrame(data, schema=StructType.fromJson(schema))
             if partition:
-                df = df.withColumn(partition_by, current_date)
+                df = df.withColumn(partition_by, lit(current_date))
             df.createOrReplaceTempView("temp_view")
             create_table(spark, table, config)
         else:
