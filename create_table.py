@@ -75,7 +75,7 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
     return False
 
 def main():
-    # Configurar a URI do metastore como uma string de conexão JDBC
+    config = load_config()
     jdbc_url = config['DEFAULT'].get('hmsUrl')
     thrift_server = config['DEFAULT'].get('thriftServer')
     # Criar uma SparkConf com as configurações
@@ -89,7 +89,6 @@ def main():
     
     validate_hive_metastore(spark)
 
-    config = load_config()
     database_name = config['DEFAULT'].get('dbname')
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
@@ -97,8 +96,6 @@ def main():
     for table_name in tables:
         partition = config.getboolean(table_name, 'particionamento', fallback=False)
         partition_by = config.get(table_name, 'partition_by', fallback=None)
-        bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
-        clustered_by = config.get(table_name, 'clustered_by', fallback=None)
         table_name = database_name.table_name
         validate_partition_and_bucketing(config, table_name)
         schema_path = get_schema_path(base_path, table_name)
