@@ -1,5 +1,5 @@
 import os
-import json
+import configparser
 import random
 from datetime import datetime
 import logging
@@ -12,10 +12,14 @@ fake = Faker('pt_BR')
 def load_config(config_path='/app/mount/config.ini'):
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
-    with open(config_path, 'r') as f:
-        config = json.load(f)
-    logger.info("Configuration loaded successfully.")
-    return config
+    try:
+        config = configparser.ConfigParser()
+        config.read(config_path)
+        logger.info("Configuration loaded successfully.")
+        return config
+    except Exception as e:
+        logger.error(f"Erro ao carregar configuração: {str(e)}")
+        raise
 
 def table_exists(spark, table_name):
     try:
