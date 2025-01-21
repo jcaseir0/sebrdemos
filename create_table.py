@@ -2,9 +2,11 @@ import os
 import json
 import logging
 import sys
+import time
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
+from pyspark.sql.utils import AnalysisException
 from common_functions import load_config, gerar_dados, table_exists
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -12,22 +14,24 @@ logger = logging.getLogger(__name__)
 
 def create_table(spark, table_name, config):
     try:
-        partition_by = config.getboolean(table_name, 'particionamento', fallback=False)
+        partition = config.getboolean(table_name, 'particionamento', fallback=False)
+        partition_by = config.get(table_name, 'partition_by', fallback=None)
         bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
+        clustered_by = config.get(table_name, 'clustered_by', fallback=None)
         num_buckets = config.getint(table_name, 'num_buckets', fallback=0)
 
-        if partition_by and not bucketing:
+        if partition and not bucketing:
             spark.sql(f"""
                 CREATE TABLE IF NOT EXISTS {table_name}
                 USING parquet
-                PARTITIONED BY (data_execucao)
+                PARTITIONED BY (${partition_by})
                 AS SELECT * FROM temp_view
             """)
-        elif bucketing and not partition_by:
+        elif bucketing and not partition:
             spark.sql(f"""
                 CREATE TABLE IF NOT EXISTS {table_name}
                 USING parquet
-                CLUSTERED BY (id_uf) INTO {num_buckets} BUCKETS
+                CLUSTERED BY (${clustered_by}) INTO {num_buckets} BUCKETS
                 AS SELECT * FROM temp_view
             """)
         else:
@@ -52,6 +56,24 @@ def validate_partition_and_bucketing(config, table_name):
 def get_schema_path(base_path, table_name):
     return f"{base_path}/{table_name}.json"
 
+def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
+    logger = logging.getLogger(__name__)
+    
+    for attempt in range(max_retries):
+        try:
+            spark.sql("SHOW DATABASES").show()
+            logger.info("Conexão com o Hive metastore estabelecida com sucesso")
+            return True
+        except AnalysisException as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Tentativa {attempt + 1} falhou. Tentando novamente em {retry_delay} segundos...")
+                time.sleep(retry_delay)
+            else:
+                logger.error("Falha ao conectar ao Hive metastore após várias tentativas")
+                raise
+
+    return False
+
 def main():
     # Configurar a URI do metastore como uma string de conexão JDBC
     jdbc_url = config['DEFAULT'].get('hmsUrl')
@@ -62,14 +84,21 @@ def main():
     spark_conf.set("hive.metastore.uris", thrift_server)
     spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
     spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
-    spark = SparkSession.builder.spark_conf.appName("CreateTable").enableHiveSupport().getOrCreate()
-    config = load_config()
+    
+    spark = SparkSession.builder.config(conf=spark_conf).appName("CreateTable").enableHiveSupport().getOrCreate()
+    
+    validate_hive_metastore(spark)
 
+    config = load_config()
     database_name = config['DEFAULT'].get('dbname')
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
 
     for table_name in tables:
+        partition = config.getboolean(table_name, 'particionamento', fallback=False)
+        partition_by = config.get(table_name, 'partition_by', fallback=None)
+        bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
+        clustered_by = config.get(table_name, 'clustered_by', fallback=None)
         table_name = database_name.table_name
         validate_partition_and_bucketing(config, table_name)
         schema_path = get_schema_path(base_path, table_name)
@@ -82,9 +111,13 @@ def main():
             schema = json.load(f)
 
         if not table_exists(spark, table_name):
+            current_date = time.strftime("%d-%m-%Y")
             num_records = config.getint(table_name, 'num_records', fallback=100)
+            partition_by = config.get(table_name, 'partition_by', fallback=None)
             data = gerar_dados(table_name, num_records)
             df = spark.createDataFrame(data, schema=StructType.fromJson(schema))
+            if partition:
+                df.withColumn(partition_by, current_date)
             df.createOrReplaceTempView("temp_view")
             create_table(spark, table_name, config)
         else:
