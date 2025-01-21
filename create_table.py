@@ -98,7 +98,7 @@ def main():
         partition_by = config.get(table_name, 'partition_by', fallback=None)
         table = f"{database_name}.{table_name}"
         validate_partition_and_bucketing(config, table_name)
-        schema_path = get_schema_path(base_path, table)
+        schema_path = get_schema_path(base_path, table_name)
 
         if not os.path.exists(schema_path):
             logger.error(f"Schema file not found for table '{table}': {schema_path}")
@@ -116,9 +116,9 @@ def main():
             if partition:
                 df.withColumn(partition_by, current_date)
             df.createOrReplaceTempView("temp_view")
-            create_table(spark, table_name, config)
+            create_table(spark, table, config)
         else:
-            logger.info(f"Table '{table_name}' already exists. Skipping creation.")
+            logger.info(f"Table '{table}' already exists. Skipping creation.")
 
     spark.stop()
 
