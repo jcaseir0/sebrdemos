@@ -10,7 +10,7 @@ from pyspark.sql.utils import AnalysisException
 from pyspark.sql.functions import lit
 from common_functions import load_config, gerar_dados, table_exists
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def create_table(spark, table_name, config):
