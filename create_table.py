@@ -10,7 +10,7 @@ from pyspark.sql.utils import AnalysisException
 from pyspark.sql.functions import lit
 from common_functions import load_config, gerar_dados, table_exists
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def create_table(spark, table_name, config):
@@ -128,59 +128,62 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
 
 def validate_table_creation(spark, database_name, table_name):
     """
-    Validate the creation of a table in the Hive Metastore and provide a summary of its structure and content.
-
-    This function checks if the table exists, retrieves its structure, counts the number of records,
-    and displays the first 10 rows.
+    Validate the creation of all tables in the specified database and provide a summary of their structure and content.
 
     Args:
         spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database containing the table.
-        table_name (str): The name of the table to validate.
+        database_name (str): The name of the database containing the tables.
 
     Returns:
-        dict: A dictionary containing the table's existence status, structure, record count, and sample rows.
-              Returns False if an error occurs during validation.
+        list: A list of dictionaries containing each table's existence status, structure, record count, and sample rows.
     """
+    results = []
     try:
-        full_table_name = f"{database_name}.{table_name}"
-        logger.debug(f"Validating table: {full_table_name}")
+        # Get all tables in the database
+        tables = spark.sql(f"SHOW TABLES IN {database_name}").collect()
 
-        result = spark.sql(f"SHOW TABLES IN {database_name} LIKE '{table_name}'").count() > 0
+        for table in tables:
+            table_name = table.tableName
+            full_table_name = f"{database_name}.{table_name}"
+            
+            try:
+                # Get table structure
+                table_structure = spark.sql(f"SHOW CREATE TABLE {full_table_name}").collect()[0][0]
 
-        if result:
-            logger.info(f"Table '{full_table_name}' exists in the Hive Metastore.")
+                # Count records
+                record_count = spark.sql(f"SELECT COUNT(*) FROM {full_table_name}").collect()[0][0]
 
-            # Get table structure
-            logger.debug(f"Retrieving structure for table: {full_table_name}")
-            table_structure = spark.sql(f"SHOW CREATE TABLE {full_table_name}").collect()[0][0]
-            logger.info(f"Table structure for '{full_table_name}':\n{table_structure}")
+                # Get first 10 rows
+                sample_rows = spark.sql(f"SELECT * FROM {full_table_name} LIMIT 10").collect()
 
-            # Count records
-            logger.debug(f"Counting records in table: {full_table_name}")
-            record_count = spark.sql(f"SELECT COUNT(*) FROM {full_table_name}").collect()[0][0]
-            logger.info(f"Table '{full_table_name}' contains {record_count} records.")
+                results.append({
+                    "table_name": full_table_name,
+                    "exists": True,
+                    "structure": table_structure,
+                    "record_count": record_count,
+                    "sample_rows": [row.asDict() for row in sample_rows]
+                })
+                
+                logger.info(f"Validated table: {full_table_name}")
+                logger.info(f"Record count: {record_count}")
+                logger.info(f"Table structure:\n{table_structure}")
+                logger.info("Sample rows:")
+                for row in sample_rows:
+                    logger.info(str(row))
+                
+            except Exception as e:
+                results.append({
+                    "table_name": full_table_name,
+                    "exists": False,
+                    "error": str(e)
+                })
+                logger.error(f"Error validating table {full_table_name}: {str(e)}")
 
-            # Get first 10 rows
-            logger.debug(f"Retrieving sample rows from table: {full_table_name}")
-            sample_rows = spark.sql(f"SELECT * FROM {full_table_name} LIMIT 10").collect()
-            logger.info(f"First 10 rows of '{full_table_name}':")
-            for row in sample_rows:
-                logger.info(str(row))
+        return results
 
-            return {
-                "exists": True,
-                "structure": table_structure,
-                "record_count": record_count,
-                "sample_rows": sample_rows
-            }
-        else:
-            logger.warning(f"Table '{full_table_name}' does not exist in the Hive Metastore.")
-            return {"exists": False}
-
-    except AnalysisException as e:
-        logger.error(f"Error validating table '{table_name}' in database '{database_name}': {str(e)}")
-        return False
+    except Exception as e:
+        logger.error(f"Failed to retrieve tables from database '{database_name}': {str(e)}")
+        return [{"error": f"Failed to retrieve tables from database '{database_name}': {str(e)}"}]
 
 def remove_database_and_tables(spark: SparkSession, database_name: str):
     """
