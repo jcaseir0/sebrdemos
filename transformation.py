@@ -1,6 +1,7 @@
 import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, rand
+from common_functions import load_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,7 +20,7 @@ def initialize_spark_session(app_name="Transformation"):
     logger.info("Initializing Spark session")
     return SparkSession.builder.appName(app_name).getOrCreate()
 
-def load_tables(spark):
+def load_tables(spark, database_name):
     """
     Load the clientes and transacoes_cartao tables.
 
@@ -30,8 +31,8 @@ def load_tables(spark):
         tuple: A tuple containing the clientes and transacoes_cartao DataFrames.
     """
     logger.info("Loading tables")
-    clientes = spark.sql("SELECT id_usuario FROM clientes")
-    transacoes_cartao = spark.sql("SELECT * FROM transacoes_cartao")
+    clientes = spark.sql(f"SELECT id_usuario FROM {database_name}.clientes")
+    transacoes_cartao = spark.sql("SELECT * FROM {database_name}transacoes_cartao")
     logger.debug(f"Loaded {clientes.count()} records from clientes")
     logger.debug(f"Loaded {transacoes_cartao.count()} records from transacoes_cartao")
     return clientes, transacoes_cartao
@@ -59,7 +60,7 @@ def repeat_clientes(clientes, transacoes_count):
         clientes_repeated = clientes
     return clientes_repeated
 
-def update_transacoes_cartao(spark, clientes_repeated):
+def update_transacoes_cartao(spark, database_name, clientes_repeated):
     """
     Update the transacoes_cartao table with id_usuario from clientes_repeated.
 
@@ -72,15 +73,15 @@ def update_transacoes_cartao(spark, clientes_repeated):
     """
     logger.info("Updating transacoes_cartao with id_usuario from clientes_repeated")
     clientes_repeated.createOrReplaceTempView("clientes_repeated")
-    updated_transacoes = spark.sql("""
+    updated_transacoes = spark.sql(f"""
         SELECT t.*, c.id_usuario
-        FROM transacoes_cartao t
+        FROM {database_name}.transacoes_cartao t
         JOIN clientes_repeated c
         ON RAND() < 1.0 / (SELECT COUNT(*) FROM clientes_repeated)
     """)
     return updated_transacoes
 
-def save_updated_transacoes(updated_transacoes):
+def save_updated_transacoes(updated_transacoes, database_name):
     """
     Overwrite the existing transacoes_cartao table with the updated data.
 
@@ -88,7 +89,7 @@ def save_updated_transacoes(updated_transacoes):
         updated_transacoes (DataFrame): The updated transacoes_cartao DataFrame.
     """
     logger.info("Saving updated transacoes_cartao table")
-    updated_transacoes.write.mode("overwrite").saveAsTable("transacoes_cartao")
+    updated_transacoes.write.mode("overwrite").saveAsTable(f"{database_name}.transacoes_cartao")
     logger.info("Updated transacoes_cartao table saved successfully")
 
 def main():
@@ -96,10 +97,12 @@ def main():
     Main function to execute the transformation script.
     """
     spark = initialize_spark_session()
-    clientes, transacoes_cartao = load_tables(spark)
+    config = load_config()
+    database_name = config['DEFAULT'].get('dbname')
+    clientes, transacoes_cartao = load_tables(spark, database_name)
     clientes_repeated = repeat_clientes(clientes, transacoes_cartao.count())
-    updated_transacoes = update_transacoes_cartao(spark, clientes_repeated)
-    save_updated_transacoes(updated_transacoes)
+    updated_transacoes = update_transacoes_cartao(spark, database_name, clientes_repeated)
+    save_updated_transacoes(updated_transacoes, database_name)
     logger.info("Transformation completed successfully")
 
 if __name__ == "__main__":

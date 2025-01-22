@@ -123,7 +123,7 @@ def gerar_dados(nome_tabela, num_records):
     Raises:
         ValueError: If the table name is unknown.
     """
-    logger.info(f"Generating {num_records} records for table: {nome_tabela}")
+    logger.info(f"Generating {num_records} records for table: {nome_tabela}\n")
     if nome_tabela == 'transacoes_cartao':
         return [gerar_transacao() for _ in range(num_records)]
     elif nome_tabela == 'clientes':

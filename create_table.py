@@ -149,6 +149,9 @@ def validate_table_creation(spark, database_name, table_name):
             table_name = table.tableName
             full_table_name = f"{database_name}.{table_name}"
 
+            if table_name == "temp_view":
+                continue
+
             try:
                 # Get table structure
                 table_structure = spark.sql(f"SHOW CREATE TABLE {full_table_name}").collect()[0][0]
@@ -157,7 +160,7 @@ def validate_table_creation(spark, database_name, table_name):
                 record_count = spark.sql(f"SELECT COUNT(*) FROM {full_table_name}").collect()[0][0]
 
                 # Get first 10 rows
-                sample_rows = spark.sql(f"SELECT * FROM {full_table_name} LIMIT 10").collect()
+                sample_rows = spark.sql(f"SELECT * FROM {full_table_name} LIMIT 3").collect()
 
                 results.append({
                     "table_name": full_table_name,
@@ -302,17 +305,15 @@ def main():
             if partition:
                 df = df.withColumn(partition_by, lit(current_date))
             df.createOrReplaceTempView("temp_view")
-            sample_rows = spark.sql(f"SELECT * FROM temp_view LIMIT 10").collect()
+            logger.info("temp_view sample rows with new column:")
+            sample_rows = spark.sql(f"SELECT * FROM temp_view LIMIT 3").collect()
             for row in sample_rows:
                     logger.info(str(row))
             create_table(spark, database_name, table_name, config)
-            if "temp_view" in spark.catalog.listTables():
-                spark.catalog.dropTempView("temp_view")
-                logger.info(f"Temporary Table temp_view dropped.\n")
-            validate_table_creation(spark, database_name, table_name)
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
+    validate_table_creation(spark, database_name, table_name)
     logger.info("Table creation process completed.")
     spark.stop()
 
