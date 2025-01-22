@@ -152,6 +152,8 @@ def main():
     validate_hive_metastore(spark)
 
     database_name = config['DEFAULT'].get('dbname')
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+    
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
 
