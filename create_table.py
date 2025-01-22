@@ -210,7 +210,7 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
     try:
         # Check if the database exists
         databases = spark.sql("SHOW DATABASES").collect()
-        logger.info(f"Attempting to remove database: '{database_name}'")
+        logger.debug(f"Attempting to remove database: '{database_name}'")
         if database_name not in [row.namespace for row in databases]:
             logger.warning(f"Database '{database_name}' does not exist. Nothing to remove.")
             return True
@@ -223,7 +223,7 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
         for table in tables:
             table_name = table.tableName
             full_table_name = f"{database_name}.{table_name}"
-            logger.info(f"Attempting to drop table '{full_table_name}'")
+            logger.debug(f"Attempting to drop table '{full_table_name}'")
             try:
                 spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
                 logger.info(f"Successfully dropped table '{full_table_name}'")
@@ -231,7 +231,7 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
                 logger.error(f"Failed to drop table '{full_table_name}': {str(e)}")
 
         # Drop the database
-        logger.info(f"Attempting to drop database '{database_name}'")
+        logger.debug(f"Attempting to drop database '{database_name}'")
         spark.sql(f"DROP DATABASE IF EXISTS {database_name} CASCADE")
         logger.info(f"Successfully dropped database '{database_name}'")
 
@@ -268,11 +268,12 @@ def main():
 
     database_name = config['DEFAULT'].get('dbname')
     if remove_database_and_tables(spark, database_name):
-        logger.info(f"Successfully removed database '{database_name}' and all its tables")
+        logger.info(f"Successfully removed database '{database_name}' and all its table\n")
     else:
-        logger.error(f"Failed to remove database '{database_name}' and all its tables")
-    logger.info(f"Creating database: {database_name}")
+        logger.error(f"Failed to remove database '{database_name}' and all its tables\n")
+    logger.debug(f"Creating database: {database_name}")
     spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+    logger.info(f"Database: {database_name} created successfully\n")
 
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
@@ -294,7 +295,7 @@ def main():
         with open(schema_path, 'r') as f:
             schema = json.load(f)
 
-        if not table_exists(spark, table_name):
+        if not table_exists(spark, database_name, table_name):
             logger.info(f"Table '{table}' does not exist. Creating...")
             current_date = time.strftime("%d-%m-%Y")
             num_records = config.getint(table_name, 'num_records', fallback=100)

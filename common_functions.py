@@ -37,12 +37,13 @@ def load_config(config_path='/app/mount/config.ini'):
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
-def table_exists(spark, table_name):
+def table_exists(spark, database_name, table_name):
     """
     Check if a table exists in the Hive Metastore.
 
     Args:
         spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
         table_name (str): The name of the table to check.
 
     Returns:
@@ -51,14 +52,15 @@ def table_exists(spark, table_name):
     Raises:
         Exception: If there is an error checking the table existence.
     """
-    logger.debug(f"Checking existence of table: {table_name}")
+    logger.debug(f"Checking existence of table: {database_name}.{table_name}")
     try:
-        result = spark.sql(f"SHOW TABLES LIKE '{table_name}'").count() > 0
-        logger.info(f"Table '{table_name}' exists: {result}")
+        result = spark.sql(f"SHOW TABLES IN {database_name} LIKE '{table_name}'").count() > 0
+        logger.info(f"Table '{database_name}.{table_name}' exists: {result}")
         return result
     except Exception as e:
-        logger.error(f"Error checking table existence '{table_name}': {str(e)}")
+        logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
+
 
 def gerar_numero_cartao():
     """
