@@ -35,7 +35,7 @@ def create_table(spark, table_name, config):
 
         logger.debug(f"Table configuration: partition={partition}, partition_by={partition_by}, bucketing={bucketing}, clustered_by={clustered_by}, num_buckets={num_buckets}")
 
-        if partition and not bucketing:
+        if partition:
             logger.info(f"Creating partitioned table: {table_name}")
             spark.sql(f"""
                 CREATE TABLE IF NOT EXISTS {table_name}
@@ -43,7 +43,7 @@ def create_table(spark, table_name, config):
                 PARTITIONED BY ({partition_by})
                 AS SELECT * FROM temp_view
             """)
-        elif bucketing and not partition:
+        elif bucketing:
             logger.info(f"Creating bucketed table: {table_name}")
             spark.sql(f"""
                 CREATE TABLE IF NOT EXISTS {table_name}
@@ -58,7 +58,7 @@ def create_table(spark, table_name, config):
                 USING parquet
                 AS SELECT * FROM temp_view
             """)
-        logger.info(f"Table '{table_name}' created successfully.")
+        logger.info(f"Table '{table_name}' created successfully.\n")
     except Exception as e:
         logger.error(f"Error creating table '{table_name}': {str(e)}")
         raise
@@ -126,6 +126,112 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
                 raise
     return False
 
+def validate_table_creation(spark, database_name, table_name):
+    """
+    Validate the creation of a table in the Hive Metastore and provide a summary of its structure and content.
+
+    This function checks if the table exists, retrieves its structure, counts the number of records,
+    and displays the first 10 rows.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
+        table_name (str): The name of the table to validate.
+
+    Returns:
+        dict: A dictionary containing the table's existence status, structure, record count, and sample rows.
+              Returns False if an error occurs during validation.
+    """
+    try:
+        full_table_name = f"{database_name}.{table_name}"
+        logger.debug(f"Validating table: {full_table_name}")
+
+        result = spark.sql(f"SHOW TABLES IN {database_name} LIKE '{table_name}'").count() > 0
+
+        if result:
+            logger.info(f"Table '{full_table_name}' exists in the Hive Metastore.")
+
+            # Get table structure
+            logger.debug(f"Retrieving structure for table: {full_table_name}")
+            table_structure = spark.sql(f"SHOW CREATE TABLE {full_table_name}").collect()[0][0]
+            logger.info(f"Table structure for '{full_table_name}':\n{table_structure}")
+
+            # Count records
+            logger.debug(f"Counting records in table: {full_table_name}")
+            record_count = spark.sql(f"SELECT COUNT(*) FROM {full_table_name}").collect()[0][0]
+            logger.info(f"Table '{full_table_name}' contains {record_count} records.")
+
+            # Get first 10 rows
+            logger.debug(f"Retrieving sample rows from table: {full_table_name}")
+            sample_rows = spark.sql(f"SELECT * FROM {full_table_name} LIMIT 10").collect()
+            logger.info(f"First 10 rows of '{full_table_name}':")
+            for row in sample_rows:
+                logger.info(str(row))
+
+            return {
+                "exists": True,
+                "structure": table_structure,
+                "record_count": record_count,
+                "sample_rows": sample_rows
+            }
+        else:
+            logger.warning(f"Table '{full_table_name}' does not exist in the Hive Metastore.")
+            return {"exists": False}
+
+    except AnalysisException as e:
+        logger.error(f"Error validating table '{table_name}' in database '{database_name}': {str(e)}")
+        return False
+
+def remove_database_and_tables(spark: SparkSession, database_name: str):
+    """
+    Remove a database and all its tables from the Hive Metastore.
+
+    This function attempts to drop all tables within the specified database
+    and then drops the database itself. It logs the process and any errors encountered.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database to be removed.
+
+    Returns:
+        bool: True if the database and all its tables were successfully removed, False otherwise.
+    """
+    logger.info(f"Starting removal of database '{database_name}' and all its tables")
+    
+    try:
+        # Check if the database exists
+        databases = spark.sql("SHOW DATABASES").collect()
+        if database_name not in [row.databaseName for row in databases]:
+            logger.warning(f"Database '{database_name}' does not exist. Nothing to remove.")
+            return True
+
+        # List all tables in the database
+        logger.debug(f"Listing tables in database '{database_name}'")
+        tables = spark.sql(f"SHOW TABLES IN {database_name}").collect()
+        
+        # Drop each table
+        for table in tables:
+            table_name = table.tableName
+            full_table_name = f"{database_name}.{table_name}"
+            logger.info(f"Attempting to drop table '{full_table_name}'")
+            try:
+                spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
+                logger.info(f"Successfully dropped table '{full_table_name}'")
+            except AnalysisException as e:
+                logger.error(f"Failed to drop table '{full_table_name}': {str(e)}")
+                return False
+
+        # Drop the database
+        logger.info(f"Attempting to drop database '{database_name}'")
+        spark.sql(f"DROP DATABASE IF EXISTS {database_name}")
+        logger.info(f"Successfully dropped database '{database_name}'")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"An error occurred while removing database '{database_name}': {str(e)}")
+        return False
+
 def main():
     """
     Main function to create tables based on configuration.
@@ -152,8 +258,13 @@ def main():
     validate_hive_metastore(spark)
 
     database_name = config['DEFAULT'].get('dbname')
+    if remove_database_and_tables(spark, database_name):
+        logger.info(f"Successfully removed database '{database_name}' and all its tables")
+    else:
+        logger.error(f"Failed to remove database '{database_name}' and all its tables")
+    logger.info(f"Creating database: {database_name}")
     spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
-    
+
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
 
@@ -189,6 +300,9 @@ def main():
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
     logger.info("Table creation process completed.")
+
+    validate_table_creation(spark, database_name, table_name)
+
     spark.stop()
 
 if __name__ == "__main__":
