@@ -6,7 +6,7 @@ import logging
 from faker import Faker
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # Set logging level to DEBUG
+logger.setLevel(logging.INFO)  # Set logging level to DEBUG
 
 fake = Faker('pt_BR')
 

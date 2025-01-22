@@ -133,9 +133,11 @@ def validate_table_creation(spark, database_name, table_name):
     Args:
         spark (SparkSession): The active Spark session.
         database_name (str): The name of the database containing the tables.
+        table_name (str): The name of the table to validate.
 
     Returns:
         list: A list of dictionaries containing each table's existence status, structure, record count, and sample rows.
+              Returns a list with a single error dictionary if an error occurs during validation.
     """
     results = []
     try:
@@ -146,6 +148,10 @@ def validate_table_creation(spark, database_name, table_name):
             table_name = table.tableName
             full_table_name = f"{database_name}.{table_name}"
             
+            # Skip temp_view table
+            if table_name == "temp_view":
+                continue
+
             try:
                 # Get table structure
                 table_structure = spark.sql(f"SHOW CREATE TABLE {full_table_name}").collect()[0][0]
@@ -222,11 +228,10 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
                 logger.info(f"Successfully dropped table '{full_table_name}'")
             except AnalysisException as e:
                 logger.error(f"Failed to drop table '{full_table_name}': {str(e)}")
-                return False
 
         # Drop the database
         logger.info(f"Attempting to drop database '{database_name}'")
-        spark.sql(f"DROP DATABASE IF EXISTS {database_name}")
+        spark.sql(f"DROP DATABASE IF EXISTS {database_name} CASCADE")
         logger.info(f"Successfully dropped database '{database_name}'")
 
         return True
