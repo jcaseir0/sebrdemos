@@ -13,7 +13,7 @@ from common_functions import load_config, gerar_dados, table_exists
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def create_table(spark, table_name, config):
+def create_table(spark, database_name, table_name, config):
     """
     Create a table in Hive with the specified configuration.
 
@@ -32,35 +32,36 @@ def create_table(spark, table_name, config):
         bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
         clustered_by = config.get(table_name, 'clustered_by', fallback=None)
         num_buckets = config.getint(table_name, 'num_buckets', fallback=0)
+        database_name = config['DEFAULT'].get('dbname')
 
         logger.debug(f"Table configuration: partition={partition}, partition_by={partition_by}, bucketing={bucketing}, clustered_by={clustered_by}, num_buckets={num_buckets}")
 
         if partition:
-            logger.info(f"Creating partitioned table: {table_name}")
+            logger.info(f"Creating partitioned table: {database_name}.{table_name}")
             spark.sql(f"""
-                CREATE TABLE IF NOT EXISTS {table_name}
+                CREATE TABLE IF NOT EXISTS {database_name}.{table_name}
                 USING parquet
                 PARTITIONED BY ({partition_by})
                 AS SELECT * FROM temp_view
             """)
         elif bucketing:
-            logger.info(f"Creating bucketed table: {table_name}")
+            logger.info(f"Creating bucketed table: {database_name}.{table_name}")
             spark.sql(f"""
-                CREATE TABLE IF NOT EXISTS {table_name}
+                CREATE TABLE IF NOT EXISTS {database_name}.{table_name}
                 USING parquet
                 CLUSTERED BY ({clustered_by}) INTO {num_buckets} BUCKETS
                 AS SELECT * FROM temp_view
             """)
         else:
-            logger.info(f"Creating standard table: {table_name}")
+            logger.info(f"Creating standard table: {database_name}.{table_name}")
             spark.sql(f"""
-                CREATE TABLE IF NOT EXISTS {table_name}
+                CREATE TABLE IF NOT EXISTS {database_name}.{table_name}
                 USING parquet
                 AS SELECT * FROM temp_view
             """)
-        logger.info(f"Table '{table_name}' created successfully.\n")
+        logger.info(f"Table '{database_name}.{table_name}' created successfully.\n")
     except Exception as e:
-        logger.error(f"Error creating table '{table_name}': {str(e)}")
+        logger.error(f"Error creating table '{database_name}.{table_name}': {str(e)}")
         raise
 
 def validate_partition_and_bucketing(config, table_name):
@@ -301,14 +302,16 @@ def main():
             if partition:
                 df = df.withColumn(partition_by, lit(current_date))
             df.createOrReplaceTempView("temp_view")
-            create_table(spark, table_name, config)
+            sample_rows = spark.sql(f"SELECT * FROM temp_view LIMIT 10").collect()
+            for row in sample_rows:
+                    logger.info(str(row))
+            create_table(spark, database_name, table_name, config)
+            if "temp_view" in spark.catalog.listTables():
+                spark.catalog.dropTempView("temp_view")
+                logger.info(f"Temporary Table temp_view dropped.\n")
+            validate_table_creation(spark, database_name, table_name)
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
-
-    if "temp_view" in spark.catalog.listTables():
-        spark.catalog.dropTempView("temp_view")
-
-    validate_table_creation(spark, database_name, table_name)
 
     logger.info("Table creation process completed.")
     spark.stop()
