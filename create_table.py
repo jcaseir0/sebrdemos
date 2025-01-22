@@ -210,6 +210,9 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
     try:
         # Check if the database exists
         databases = spark.sql("SHOW DATABASES").collect()
+        for row in databases:
+            logger.info(f"Database: {row.databaseName}")
+        logger.info(f"Attempting to remove database: '{database_name}'")
         if database_name not in [row.databaseName for row in databases]:
             logger.warning(f"Database '{database_name}' does not exist. Nothing to remove.")
             return True
@@ -303,7 +306,7 @@ def main():
             if partition:
                 df = df.withColumn(partition_by, lit(current_date))
             df.createOrReplaceTempView("temp_view")
-            create_table(spark, table, config)
+            create_table(spark, table_name, config)
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
