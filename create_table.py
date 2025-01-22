@@ -79,7 +79,7 @@ def validate_partition_and_bucketing(config, table_name):
     bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
 
     if partitioning and bucketing:
-        logger.error(f"Erro: A tabela '{table_name}' não pode ter particionamento e bucketing ativados ao mesmo tempo.")
+        logger.error(f"Error: The '{table_name}' table cannot have partition and bucketing True.")
         sys.exit(1)
 
 def get_schema_path(base_path, table_name):
@@ -115,14 +115,14 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
     for attempt in range(max_retries):
         try:
             spark.sql("SHOW DATABASES").show()
-            logger.info("Conexão com o Hive metastore estabelecida com sucesso")
+            logger.info("Hive metastore connection stabilished successfully")
             return True
         except AnalysisException as e:
             if attempt < max_retries - 1:
-                logger.warning(f"Tentativa {attempt + 1} falhou. Tentando novamente em {retry_delay} segundos...")
+                logger.warning(f"Trying {attempt + 1} failed. Trying again in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             else:
-                logger.error("Falha ao conectar ao Hive metastore após várias tentativas")
+                logger.error("Failure trying to stabilish connection with Hive Metastore after several tries")
                 raise
     return False
 
@@ -147,10 +147,6 @@ def validate_table_creation(spark, database_name, table_name):
         for table in tables:
             table_name = table.tableName
             full_table_name = f"{database_name}.{table_name}"
-            
-            # Skip temp_view table
-            if table_name == "temp_view":
-                continue
 
             try:
                 # Get table structure
@@ -309,10 +305,12 @@ def main():
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
-    logger.info("Table creation process completed.")
+    if "temp_view" in spark.catalog.listTables():
+        spark.catalog.dropTempView("temp_view")
 
     validate_table_creation(spark, database_name, table_name)
 
+    logger.info("Table creation process completed.")
     spark.stop()
 
 if __name__ == "__main__":
