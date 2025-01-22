@@ -210,10 +210,8 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
     try:
         # Check if the database exists
         databases = spark.sql("SHOW DATABASES").collect()
-        for row in databases:
-            logger.info(f"Database: {row.databaseName}")
         logger.info(f"Attempting to remove database: '{database_name}'")
-        if database_name not in [row.databaseName for row in databases]:
+        if database_name not in [row.namespace for row in databases]:
             logger.warning(f"Database '{database_name}' does not exist. Nothing to remove.")
             return True
 
