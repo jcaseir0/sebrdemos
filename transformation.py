@@ -85,7 +85,7 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
     """)
     return updated_transacoes
 
-def save_updated_transacoes(updated_transacoes, database_name):
+def save_updated_transacoes(spark, updated_transacoes, database_name):
     """
     Overwrite the existing transacoes_cartao table with the updated data.
 
@@ -93,7 +93,13 @@ def save_updated_transacoes(updated_transacoes, database_name):
         updated_transacoes (DataFrame): The updated transacoes_cartao DataFrame.
     """
     logger.info("Saving updated transacoes_cartao table")
-    updated_transacoes.write.mode("overwrite").saveAsTable(f"{database_name}.transacoes_cartao")
+    temp_table_name = f"{database_name}.temp_transacoes_cartao"
+    updated_transacoes.createOrReplaceTempView("temp_transacoes_view")
+    spark.sql(f"CREATE TABLE {temp_table_name} AS SELECT * FROM temp_transacoes_view")
+    
+    spark.sql(f"DROP TABLE IF EXISTS {database_name}.transacoes_cartao")
+    spark.sql(f"ALTER TABLE {temp_table_name} RENAME TO {database_name}.transacoes_cartao")
+
     logger.info("Updated transacoes_cartao table saved successfully")
 
 def main():
