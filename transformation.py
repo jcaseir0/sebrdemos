@@ -74,13 +74,22 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
     logger.info("Updating transacoes_cartao with id_usuario from clientes_repeated")
     clientes_repeated.createOrReplaceTempView("clientes_repeated")
 
+    # Load the transacoes_cartao table
+    df_transacoes = spark.sql(f"SELECT * FROM {database_name}.transacoes_cartao")
+
+    # Drop the old id_usuario column
+    df_transacoes_cleaned = df_transacoes.drop("id_usuario")
+
+    # Create a temporary view without the old id_usuario column
+    df_transacoes_cleaned.createOrReplaceTempView(f"{database_name}.transacoes_cartao_cleaned")
+
     # Pré-calcular a fração
     frac = 1.0 / clientes_repeated.count()
     percentage = round(frac * 100, 6)
 
     updated_transacoes = spark.sql(f"""
         SELECT t.*, c.id_usuario
-        FROM {database_name}.transacoes_cartao t
+        FROM {database_name}.transacoes_cartao_cleaned t
         CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({percentage:.6f} PERCENT)) c
     """)
     return updated_transacoes
