@@ -104,7 +104,7 @@ def save_updated_transacoes(spark, updated_transacoes, database_name):
     logger.info("Saving updated transacoes_cartao table")
     temp_table_name = f"{database_name}.temp_transacoes_cartao"
 
-    updated_transacoes.partitionBy('data_execucao').createOrReplaceTempView("temp_transacoes_view")
+    updated_transacoes.createOrReplaceTempView("temp_transacoes_view")
 
     spark.sql(f"""
         CREATE TABLE {temp_table_name}
@@ -116,8 +116,9 @@ def save_updated_transacoes(spark, updated_transacoes, database_name):
             valor,
             estabelecimento,
             categoria,
-            status
-        FROM temp_transacoes_view t
+            status,
+            data_execucao
+        FROM temp_transacoes_view
     """)
     
     spark.sql(f"DROP TABLE IF EXISTS {database_name}.transacoes_cartao")
