@@ -32,7 +32,7 @@ def load_tables(spark, database_name):
     """
     logger.info("Loading tables")
     clientes = spark.sql(f"SELECT id_usuario FROM {database_name}.clientes")
-    transacoes_cartao = spark.sql("SELECT * FROM {database_name}transacoes_cartao")
+    transacoes_cartao = spark.sql(f"SELECT * FROM {database_name}.transacoes_cartao")
     logger.debug(f"Loaded {clientes.count()} records from clientes")
     logger.debug(f"Loaded {transacoes_cartao.count()} records from transacoes_cartao")
     return clientes, transacoes_cartao

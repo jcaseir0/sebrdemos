@@ -309,6 +309,7 @@ def main():
             sample_rows = spark.sql(f"SELECT * FROM temp_view LIMIT 3").collect()
             for row in sample_rows:
                     logger.info(str(row))
+            print()
             create_table(spark, database_name, table_name, config)
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
