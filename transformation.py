@@ -73,11 +73,14 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
     """
     logger.info("Updating transacoes_cartao with id_usuario from clientes_repeated")
     clientes_repeated.createOrReplaceTempView("clientes_repeated")
+
+    # Pré-calcular a fração
+    frac = 1.0 / clientes_repeated.count()
+
     updated_transacoes = spark.sql(f"""
         SELECT t.*, c.id_usuario
         FROM {database_name}.transacoes_cartao t
-        JOIN clientes_repeated c
-        ON RAND() < 1.0 / (SELECT COUNT(*) FROM clientes_repeated)
+        CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({frac*100} PERCENT)) c
     """)
     return updated_transacoes
 
