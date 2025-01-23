@@ -94,6 +94,8 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
         FROM {database_name}.transacoes_cartao_cleaned t
         CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({percentage:.6f} PERCENT)) c
     """)
+    updated_transacoes.show(10, False)
+    
     return updated_transacoes
 
 def save_updated_transacoes(spark, updated_transacoes, database_name):
