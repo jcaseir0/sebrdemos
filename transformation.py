@@ -77,6 +77,7 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
 
     # Load the transacoes_cartao table
     df_transacoes = spark.sql(f"SELECT * FROM {database_name}.transacoes_cartao")
+    df_transacoes.show(10, False)
 
     # Drop the old id_usuario column
     df_transacoes_cleaned = df_transacoes.drop("id_usuario")
