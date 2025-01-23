@@ -96,10 +96,19 @@ def save_updated_transacoes(spark, updated_transacoes, database_name):
     temp_table_name = f"{database_name}.temp_transacoes_cartao"
     updated_transacoes.createOrReplaceTempView("temp_transacoes_view")
     spark.sql(f"""
-        CREATE TABLE {temp_table_name} AS 
-        SELECT t.id_usuario, data_transacao, valor, estabelecimento, categoria, status, data_execucao 
+        CREATE TABLE {temp_table_name}
+        USING parquet
+        PARTITIONED BY (data_execucao)
+        AS SELECT 
+            COALESCE(c.id_usuario, t.id_usuario) AS id_usuario,
+            t.data_transacao,
+            t.valor,
+            t.estabelecimento,
+            t.categoria,
+            t.status,
+            t.data_execucao
         FROM temp_transacoes_view t
-    """) 
+    """)
     
     spark.sql(f"DROP TABLE IF EXISTS {database_name}.transacoes_cartao")
     spark.sql(f"ALTER TABLE {temp_table_name} RENAME TO {database_name}.transacoes_cartao")
