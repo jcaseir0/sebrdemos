@@ -76,11 +76,12 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
 
     # Pré-calcular a fração
     frac = 1.0 / clientes_repeated.count()
+    percentage = round(frac * 100, 6)
 
     updated_transacoes = spark.sql(f"""
         SELECT t.*, c.id_usuario
         FROM {database_name}.transacoes_cartao t
-        CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({frac*100} PERCENT)) c
+        CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({percentage:.6f} PERCENT)) c
     """)
     return updated_transacoes
 
