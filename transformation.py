@@ -112,7 +112,7 @@ def main():
     clientes, transacoes_cartao = load_tables(spark, database_name)
     clientes_repeated = repeat_clientes(clientes, transacoes_cartao.count())
     updated_transacoes = update_transacoes_cartao(spark, database_name, clientes_repeated)
-    save_updated_transacoes(updated_transacoes, database_name)
+    save_updated_transacoes(spark, updated_transacoes, database_name)
     logger.info("Transformation completed successfully")
 
 if __name__ == "__main__":
