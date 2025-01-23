@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, rand
+from pyspark.sql.functions import col, rand, count
 from common_functions import load_config
 
 # Configure logging
@@ -96,6 +96,9 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
         CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({percentage:.6f} PERCENT)) c
     """)
     updated_transacoes.show(10, False)
+    
+    logger.info("Show id_usuario distribution")
+    updated_transacoes.groupBy("id_usuario").agg(count("*").alias("count")).show(10, False)
 
     return updated_transacoes
 
@@ -111,7 +114,7 @@ def save_updated_transacoes(spark, updated_transacoes, database_name):
     logger.info("Saving updated transacoes_cartao table")
     temp_table_name = f"{database_name}.temp_transacoes_cartao"
 
-    updated_transacoes.createOrReplaceTempView("temp_transacoes_view")
+    updated_transacoes.partitionBy('data_execucao').createOrReplaceTempView("temp_transacoes_view")
 
     spark.sql(f"""
         CREATE TABLE {temp_table_name}
