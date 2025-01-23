@@ -72,6 +72,7 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
         DataFrame: The updated transacoes_cartao DataFrame.
     """
     logger.info("Updating transacoes_cartao with id_usuario from clientes_repeated")
+
     clientes_repeated.createOrReplaceTempView("clientes_repeated")
 
     # Load the transacoes_cartao table
@@ -79,6 +80,7 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
 
     # Drop the old id_usuario column
     df_transacoes_cleaned = df_transacoes.drop("id_usuario")
+    df_transacoes_cleaned.show(10, False)
 
     # Create a temporary view without the old id_usuario column
     df_transacoes_cleaned.createOrReplaceTempView(f"{database_name}.transacoes_cartao_cleaned")
@@ -99,23 +101,26 @@ def save_updated_transacoes(spark, updated_transacoes, database_name):
     Overwrite the existing transacoes_cartao table with the updated data.
 
     Args:
+        spark (SparkSession): The active Spark session.
         updated_transacoes (DataFrame): The updated transacoes_cartao DataFrame.
+        database_name (str): The name of the database.
     """
     logger.info("Saving updated transacoes_cartao table")
     temp_table_name = f"{database_name}.temp_transacoes_cartao"
+
     updated_transacoes.createOrReplaceTempView("temp_transacoes_view")
+
     spark.sql(f"""
         CREATE TABLE {temp_table_name}
         USING parquet
         PARTITIONED BY (data_execucao)
         AS SELECT 
-            COALESCE(c.id_usuario, t.id_usuario) AS id_usuario,
-            t.data_transacao,
-            t.valor,
-            t.estabelecimento,
-            t.categoria,
-            t.status,
-            t.data_execucao
+            id_usuario,
+            data_transacao,
+            valor,
+            estabelecimento,
+            categoria,
+            status
         FROM temp_transacoes_view t
     """)
     
