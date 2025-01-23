@@ -1,7 +1,8 @@
 import logging
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, rand, count
+from pyspark.sql.functions import col, rand, count, monotonically_increasing_id, row_number
 from common_functions import load_config
+from pyspark.sql.window import Window
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,14 +51,17 @@ def repeat_clientes(clientes, transacoes_count):
     """
     clientes_count = clientes.count()
     logger.debug(f"Clientes count: {clientes_count}, Transacoes count: {transacoes_count}")
+
     if clientes_count < transacoes_count:
         logger.info("Repeating and randomizing id_usuario from clientes")
         repetition_factor = (transacoes_count // clientes_count) + 1
         clientes_repeated = clientes.withColumn("repeat", rand()).repartition("repeat")
         clientes_repeated = clientes_repeated.selectExpr("id_usuario").rdd.flatMap(lambda x: [x] * repetition_factor).toDF(["id_usuario"])
+
     else:
         logger.info("No need to repeat clientes")
         clientes_repeated = clientes
+
     return clientes_repeated
 
 def update_transacoes_cartao(spark, database_name, clientes_repeated):
@@ -73,32 +77,18 @@ def update_transacoes_cartao(spark, database_name, clientes_repeated):
     """
     logger.info("Updating transacoes_cartao with id_usuario from clientes_repeated")
 
-    clientes_repeated.createOrReplaceTempView("clientes_repeated")
+    # Load the transacoes_cartao table and drop the old id_usuario column
+    df_transacoes_cleaned = spark.sql(f"SELECT * FROM {database_name}.transacoes_cartao").drop("id_usuario")
 
-    # Load the transacoes_cartao table
-    df_transacoes = spark.sql(f"SELECT * FROM {database_name}.transacoes_cartao")
-    df_transacoes.show(10, False)
+    # Add row numbers to both DataFrames
+    df_transacoes_cleaned = df_transacoes_cleaned.withColumn("row_num", row_number().over(Window.orderBy(monotonically_increasing_id())))
+    clientes_repeated = clientes_repeated.withColumn("row_num", row_number().over(Window.orderBy(monotonically_increasing_id())))
 
-    # Drop the old id_usuario column
-    df_transacoes_cleaned = df_transacoes.drop("id_usuario")
-    df_transacoes_cleaned.show(10, False)
+    # Join the DataFrames based on row numbers
+    updated_transacoes = df_transacoes_cleaned.join(clientes_repeated, on="row_num", how="left").drop("row_num")
 
-    # Create a temporary view without the old id_usuario column
-    df_transacoes_cleaned.createOrReplaceTempView("transacoes_cartao_cleaned")
-
-    # Pré-calcular a fração
-    frac = 1.0 / clientes_repeated.count()
-    percentage = round(frac * 100, 6)
-
-    updated_transacoes = spark.sql(f"""
-        SELECT t.*, c.id_usuario
-        FROM transacoes_cartao_cleaned t
-        CROSS JOIN (SELECT * FROM clientes_repeated TABLESAMPLE ({percentage:.6f} PERCENT)) c
-    """)
-    updated_transacoes.show(10, False)
-    
     logger.info("Show id_usuario distribution")
-    updated_transacoes.groupBy("id_usuario").agg(count("*").alias("count")).show(10, False)
+    updated_transacoes.groupBy("id_usuario").agg(count("*").alias("count")).orderBy("count", ascending=False).show(10, False)
 
     return updated_transacoes
 
