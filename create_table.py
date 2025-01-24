@@ -271,6 +271,7 @@ def main():
         logger.info(f"Successfully removed database '{database_name}' and all its table\n")
     else:
         logger.error(f"Failed to remove database '{database_name}' and all its tables\n")
+    
     logger.debug(f"Creating database: {database_name}")
     spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
     logger.info(f"Database: {database_name} created successfully\n")
@@ -279,6 +280,12 @@ def main():
     base_path = "/app/mount"
 
     logger.info(f"Processing tables: {tables}")
+
+    # Generate clientes data first
+    clientes_table = [table for table in tables if 'clientes' in table][0]
+    clientes_num_records = config.getint(clientes_table, 'num_records', fallback=100)
+    clientes_data = gerar_dados(clientes_table, clientes_num_records)
+    clientes_id_usuarios = [cliente['id_usuario'] for cliente in clientes_data]
 
     for table_name in tables:
         logger.info(f"Processing table: {table_name}")
@@ -300,8 +307,14 @@ def main():
             current_date = time.strftime("%d-%m-%Y")
             num_records = config.getint(table_name, 'num_records', fallback=100)
             partition_by = config.get(table_name, 'partition_by', fallback=None)
-            data = gerar_dados(table_name, num_records)
+            
+            if 'transacoes_cartao' in table_name:
+                data = gerar_dados(table_name, num_records, clientes_id_usuarios)
+            else:
+                data = gerar_dados(table_name, num_records)
+
             df = spark.createDataFrame(data, schema=StructType.fromJson(schema))
+            
             if partition:
                 df = df.withColumn(partition_by, lit(current_date))
             df.createOrReplaceTempView("temp_view")
