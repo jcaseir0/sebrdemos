@@ -1,0 +1,13 @@
+{
+    "fields": [
+      {"name": "id_usuario", "type": "integer", "nullable": false, "metadata":{}},
+      {"name": "nome", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "email", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "data_nascimento", "type": "date", "nullable": false, "metadata":{}},
+      {"name": "endereco", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "limite_credito", "type": "integer", "nullable": false, "metadata":{}},
+      {"name": "numero_cartao", "type": "string", "nullable": false, "metadata":{}},
+      {"name": "id_uf", "type": "string", "nullable": false, "metadata":{}}
+    ]
+  }
+  
