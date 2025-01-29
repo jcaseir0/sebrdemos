@@ -225,7 +225,7 @@ FROM
 JOIN 
   bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
 WHERE 
-  t.data_transacao BETWEEN '2024-01-01' AND '2025-01-28'
+  t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
 ORDER BY 
   t.data_transacao DESC, t.valor DESC
 LIMIT 10000
@@ -245,7 +245,7 @@ FROM
 JOIN 
   bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
 WHERE 
-  t.data_transacao BETWEEN '2024-01-01' AND '2025-01-28'
+  t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
   AND t.valor > 100
 GROUP BY 
   c.id_uf, t.categoria
@@ -253,7 +253,7 @@ HAVING
   COUNT(*) > 50
 ORDER BY 
   valor_total DESC
-LIMIT 1000
+LIMIT 1000;
 
 -- Slow Aggregate
 SELECT 
@@ -380,3 +380,5 @@ GROUP BY
 ORDER BY 
   valor_total DESC
 LIMIT 1000;
+
+-- 
