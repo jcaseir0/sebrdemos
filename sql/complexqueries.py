@@ -21,12 +21,20 @@ logger.info("Spark session initialized successfully")
 clientes = spark.table("bancodemo.clientes")
 transacoes = spark.table("bancodemo.transacoes_cartao")
 
+# Exibir amostras das tabelas para verificar os dados
+transacoes.show(5)
+clientes.show(5)
+
 # 1. Análise de gastos por cliente e categoria, com ranking
 def gastos_por_cliente_categoria():
+    # Verificar se as tabelas foram carregadas corretamente
+    if 'id_usuario' not in transacoes.columns or 'categoria' not in transacoes.columns:
+        raise ValueError("As colunas esperadas não estão presentes na tabela transacoes_cartao.")
+    
     return transacoes.groupBy("id_usuario", "categoria") \
         .agg(sum("valor").alias("total_gastos")) \
         .join(clientes, "id_usuario") \
-        .withColumn("ranking_categoria", rank().over(Window.partitionBy("categoria").orderBy(sum("valor").desc())))
+        .withColumn("ranking_categoria", rank().over(Window.partitionBy("categoria").orderBy(sum("total_gastos").desc())))
 
 # 2. Detecção de padrões de gastos anômalos
 def gastos_anomalos():
