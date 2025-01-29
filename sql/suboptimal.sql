@@ -471,3 +471,24 @@ ORDER BY
 LIMIT 1000000;
 
 -- 16. Slow Write Speed
+INSERT INTO bancodemo.transacoes_cartao
+SELECT 
+  c.id_usuario,
+  CURRENT_TIMESTAMP() AS data_transacao,
+  ROUND(RAND() * 1000, 2) AS valor,
+  CONCAT('Estabelecimento_', CAST(FLOOR(RAND() * 1000) AS STRING)) AS estabelecimento,
+  CASE FLOOR(RAND() * 5)
+    WHEN 0 THEN 'Alimentação'
+    WHEN 1 THEN 'Transporte'
+    WHEN 2 THEN 'Entretenimento'
+    WHEN 3 THEN 'Saúde'
+    ELSE 'Educação'
+  END AS categoria,
+  CASE WHEN RAND() > 0.9 THEN 'Negada' ELSE 'Aprovada' END AS status,
+  CURRENT_DATE() AS data_execucao
+FROM 
+  bancodemo.clientes c
+CROSS JOIN 
+  (SELECT 1 AS n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5) t
+WHERE 
+  RAND() < 0.1
