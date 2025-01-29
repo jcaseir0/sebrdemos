@@ -53,7 +53,7 @@ ORDER BY
   valor_total DESC
 LIMIT 1000
 
--- Criar uma nova tabela com distribuição desigual de dados
+-- Outra opçào seria criar uma nova tabela com distribuição desigual de dados
 CREATE TABLE bancodemo.skewed_transacoes STORED AS PARQUET AS
 SELECT 
   c.id_usuario,
@@ -100,7 +100,7 @@ GROUP BY
 ORDER BY 
   total_transacoes DESC;
 
--- Corrupt Table Statistics
+-- 3. Corrupt Table Statistics
 -- Criar e preencher a tabela
 CREATE TABLE bancodemo.corrupttblstats AS
 SELECT * FROM bancodemo.transacoes_cartao
@@ -134,7 +134,7 @@ FROM bancodemo.bancodemo.corrupttblstats
 GROUP BY categoria
 ORDER BY valor_medio DESC;
 
--- Duration Skew
+-- 4. Duration Skew
 SELECT 
   c.id_uf,
   t.categoria,
@@ -158,7 +158,7 @@ ORDER BY
   valor_total DESC, num_clientes_unicos DESC
 LIMIT 1000;
 
--- HashJoin Spilled Partitions
+-- 5. HashJoin Spilled Partitions
 SELECT 
   c.id_usuario,
   c.nome,
@@ -181,7 +181,7 @@ ORDER BY
   valor_total DESC
 LIMIT 10000;
 
--- Insufficient Partitioning
+-- 6. Insufficient Partitioning
 SELECT 
   c.id_usuario,
   c.nome,
@@ -198,7 +198,7 @@ WHERE
 ORDER BY 
   t.data_transacao, t.valor DESC
 
--- Many Materialized Columns
+-- 7. Many Materialized Columns
 SELECT 
   c.id_usuario,
   c.nome,
@@ -230,7 +230,7 @@ ORDER BY
   t.data_transacao DESC, t.valor DESC
 LIMIT 10000
 
--- Missing Table Statistics
+-- 8. Missing Table Statistics
 SELECT 
   c.id_uf,
   t.categoria,
@@ -255,7 +255,7 @@ ORDER BY
   valor_total DESC
 LIMIT 1000;
 
--- Slow Aggregate
+-- 9. Slow Aggregate
 WITH transacoes_com_rank AS (
     SELECT 
         c.id_usuario,
@@ -291,7 +291,7 @@ ORDER BY
     num_clientes DESC, valor_medio DESC
 LIMIT 1000;
 
--- Slow Client
+-- 10. Slow Client
 SELECT 
   c.id_usuario,
   c.nome,
@@ -315,7 +315,7 @@ WHERE
 ORDER BY 
   t.data_transacao DESC, t.valor DESC
 
--- Slow Code Generation
+-- 11. Slow Code Generation
 SELECT 
   c.id_usuario,
   c.nome,
@@ -342,7 +342,7 @@ FROM
 JOIN 
   bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
 WHERE 
-  t.data_transacao BETWEEN '2025-01-01' AND '2025-01-01'
+  t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
 GROUP BY 
   c.id_usuario, c.nome, c.email, c.data_nascimento, c.endereco, 
   c.limite_credito, c.numero_cartao, c.id_uf, t.data_transacao, 
@@ -351,7 +351,7 @@ ORDER BY
   percentual_limite_usado DESC
 LIMIT 1000;
 
--- Slow HDFS Scan
+-- 12. Slow HDFS Scan
 SELECT 
   c.id_usuario,
   c.nome,
@@ -373,7 +373,7 @@ WHERE
 ORDER BY 
   t.data_transacao DESC, t.valor DESC;
 
--- Slow Hash Join
+-- 13. Slow Hash Join
 SELECT 
   c.id_usuario,
   c.nome,
@@ -393,7 +393,7 @@ ORDER BY
   valor_total DESC
 LIMIT 1000;
 
--- Slow Query Planning
+-- 14. Slow Query Planning
 WITH subquery1 AS (
     SELECT 
         t.id_usuario,
@@ -434,7 +434,7 @@ GROUP BY
 ORDER BY 
     media_valor_total DESC;
 
--- Slow Row Materialization
+-- 15. Slow Row Materialization
 SELECT 
     c.id_usuario,
     c.nome,
@@ -469,3 +469,5 @@ WHERE
 ORDER BY 
     t.data_transacao DESC, t.valor DESC
 LIMIT 1000000;
+
+-- 16. Slow Write Speed

@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col
+from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col, countDistinct
 from pyspark.sql.window import Window
 import logging
 
@@ -22,8 +22,10 @@ clientes = spark.table("bancodemo.clientes")
 transacoes = spark.table("bancodemo.transacoes_cartao")
 
 # Exibir amostras das tabelas para verificar os dados
-logger.info("\nDisplaying sample data from tables")
+logger.info("Displaying sample data from tables\n")
+logger.info("Transações")
 transacoes.show(5)
+logger.info("Clientes")
 clientes.show(5)
 
 # 1. Análise de gastos por cliente e categoria, com ranking
@@ -65,16 +67,18 @@ def tendencias_gastos():
 # 4. Segmentação de clientes com base em padrões de gastos
 def segmentacao_clientes():
     cliente_metricas = transacoes.groupBy("id_usuario") \
-        .agg(count(date_trunc("month", "data_transacao").alias("meses_ativos")),
-             sum("valor").alias("total_gastos"),
-             avg("valor").alias("media_gasto_por_transacao"),
-             count("*").alias("num_transacoes")) \
+        .agg(
+            countDistinct(date_trunc("month", "data_transacao")).alias("meses_ativos"),
+            sum("valor").alias("total_gastos"),
+            avg("valor").alias("media_gasto_por_transacao"),
+            count("*").alias("num_transacoes")
+        ) \
         .join(clientes, "id_usuario")
     
     return cliente_metricas.withColumn("segmento_cliente", 
-        when((cliente_metricas.meses_ativos >= 10) & (cliente_metricas.total_gastos > 50000), "VIP")
-        .when((cliente_metricas.meses_ativos >= 6) & (cliente_metricas.total_gastos > 25000), "Regular")
-        .when((cliente_metricas.meses_ativos >= 3) & (cliente_metricas.total_gastos > 10000), "Ocasional")
+        when((col("meses_ativos") >= 10) & (col("total_gastos") > 50000), "VIP")
+        .when((col("meses_ativos") >= 6) & (col("total_gastos") > 25000), "Regular")
+        .when((col("meses_ativos") >= 3) & (col("total_gastos") > 10000), "Ocasional")
         .otherwise("Inativo"))
 
 # 5. Análise de correlação entre limite de crédito e gastos
@@ -87,18 +91,18 @@ def correlacao_limite_gastos():
         .withColumn("correlacao_limite_gastos", corr(clientes.limite_credito, gastos_cliente.total_gastos).over())
 
 # Execute and show results
-logger.info("\nExecuting financial analysis queries")
+logger.info("Executing financial analysis queries")
 
-logger.info("\n1. Gastos por cliente e categoria, com ranking")
+logger.info("1. Gastos por cliente e categoria, com ranking")
 gastos_por_cliente_categoria().show()
-logger.info("\n2. Detecção de padrões de gastos anômalos")
+logger.info("2. Detecção de padrões de gastos anômalos")
 gastos_anomalos().show()
-logger.info("\n3. Análise de tendências de gastos ao longo do tempo")
+logger.info("3. Análise de tendências de gastos ao longo do tempo")
 tendencias_gastos().show()
-logger.info("\n4. Segmentação de clientes com base em padrões de gastos")
+logger.info("4. Segmentação de clientes com base em padrões de gastos")
 segmentacao_clientes().show()
-logger.info("\n5. Análise de correlação entre limite de crédito e gastos")
+logger.info("5. Análise de correlação entre limite de crédito e gastos")
 correlacao_limite_gastos().show()
 
-logger.info("\nFinancial analysis completed")
+logger.info("Financial analysis completed")
 spark.stop()
