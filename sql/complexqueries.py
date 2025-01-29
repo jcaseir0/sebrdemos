@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col, countDistinct
+from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col, countDistinct, lit
 from pyspark.sql.window import Window
 import logging
 
@@ -86,12 +86,15 @@ def correlacao_limite_gastos():
     gastos_cliente = transacoes.groupBy("id_usuario") \
         .agg(sum("valor").alias("total_gastos"), count("*").alias("num_transacoes"))
     
-    return clientes.join(gastos_cliente, "id_usuario") \
-        .withColumn("percentual_limite_utilizado", (gastos_cliente.total_gastos / clientes.limite_credito) * 100) \
-        .withColumn("correlacao_limite_gastos", corr(clientes.limite_credito, gastos_cliente.total_gastos).over())
+    df_joined = clientes.join(gastos_cliente, "id_usuario") \
+        .withColumn("percentual_limite_utilizado", (gastos_cliente.total_gastos / clientes.limite_credito) * 100)
+    
+    correlacao = df_joined.select(corr("limite_credito", "total_gastos")).collect()[0][0]
+    
+    return df_joined.withColumn("correlacao_limite_gastos", lit(correlacao))
 
 # Execute and show results
-logger.info("Executing financial analysis queries")
+logger.info("Executing financial analysis queries\n")
 
 logger.info("1. Gastos por cliente e categoria, com ranking")
 gastos_por_cliente_categoria().show()
