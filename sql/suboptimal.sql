@@ -172,14 +172,14 @@ FROM
 JOIN 
   bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
 WHERE 
-  t.data_transacao BETWEEN '2024-01-01' AND '2025-01-28'
+  t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
 GROUP BY 
   c.id_usuario, c.nome, c.email, t.categoria
 HAVING 
   COUNT(*) > 100
 ORDER BY 
   valor_total DESC
-LIMIT 10000
+LIMIT 10000;
 
 -- Insufficient Partitioning
 SELECT 
@@ -277,7 +277,7 @@ HAVING
   COUNT(*) > 1000
 ORDER BY 
   num_clientes DESC, valor_medio DESC
-LIMIT 1000
+LIMIT 1000;
 
 -- Slow Client
 SELECT 
@@ -360,3 +360,23 @@ WHERE
   AND t.valor > 0
 ORDER BY 
   t.data_transacao DESC, t.valor DESC;
+
+-- Slow Hash Join
+SELECT 
+  c.id_usuario,
+  c.nome,
+  t.categoria,
+  COUNT(*) AS num_transacoes,
+  SUM(t.valor) AS valor_total,
+  AVG(t.valor) AS valor_medio
+FROM 
+  bancodemo.clientes c
+JOIN 
+  bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
+WHERE 
+  t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
+GROUP BY 
+  c.id_usuario, c.nome, t.categoria
+ORDER BY 
+  valor_total DESC
+LIMIT 1000;
