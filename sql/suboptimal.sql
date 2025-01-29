@@ -42,7 +42,7 @@ FROM
 JOIN 
   bancodemo.clientes c ON t.id_usuario = c.id_usuario
 WHERE 
-  t.data_transacao BETWEEN '2023-01-01' AND '2023-12-31'
+  t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
   AND c.id_uf IN ('SP', 'RJ', 'MG')  -- Estados com provável maior volume de dados
   AND t.valor > 1000  -- Filtragem adicional para potencializar o skew
 GROUP BY 
@@ -256,27 +256,39 @@ ORDER BY
 LIMIT 1000;
 
 -- Slow Aggregate
+WITH transacoes_com_rank AS (
+    SELECT 
+        c.id_usuario,
+        c.id_uf,
+        t.categoria,
+        t.valor,
+        c.limite_credito,
+        ROW_NUMBER() OVER (PARTITION BY c.id_uf, t.categoria ORDER BY t.valor) AS rank,
+        COUNT(*) OVER (PARTITION BY c.id_uf, t.categoria) AS total_count
+    FROM 
+        bancodemo.clientes c
+    JOIN 
+        bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
+    WHERE 
+        t.data_transacao BETWEEN '2025-01-01' AND '2025-12-31'
+        AND LOWER(t.estabelecimento) LIKE '%a%'
+)
 SELECT 
-  c.id_uf,
-  t.categoria,
-  COUNT(DISTINCT c.id_usuario) AS num_clientes,
-  AVG(t.valor) AS valor_medio,
-  PERCENTILE(t.valor, 0.5) AS valor_mediano,
-  STDDEV(t.valor) AS desvio_padrao,
-  CORR(t.valor, c.limite_credito) AS correlacao_valor_limite
+    id_uf,
+    categoria,
+    COUNT(DISTINCT id_usuario) AS num_clientes,
+    AVG(valor) AS valor_medio,
+    MAX(CASE WHEN rank = FLOOR(total_count / 2) THEN valor END) AS valor_mediano, -- Aproximação da mediana
+    STDDEV(valor) AS desvio_padrao,
+    CORR(valor, limite_credito) AS correlacao_valor_limite
 FROM 
-  bancodemo.clientes c
-JOIN 
-  bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
-WHERE 
-  t.data_transacao BETWEEN '2024-01-01' AND '2025-01-28'
-  AND LOWER(t.estabelecimento) LIKE '%a%'
+    transacoes_com_rank
 GROUP BY 
-  c.id_uf, t.categoria
+    id_uf, categoria
 HAVING 
-  COUNT(*) > 1000
+    COUNT(*) > 1000
 ORDER BY 
-  num_clientes DESC, valor_medio DESC
+    num_clientes DESC, valor_medio DESC
 LIMIT 1000;
 
 -- Slow Client
@@ -381,4 +393,79 @@ ORDER BY
   valor_total DESC
 LIMIT 1000;
 
--- 
+-- Slow Query Planning
+WITH subquery1 AS (
+    SELECT 
+        t.id_usuario,
+        t.categoria,
+        t.data_transacao,
+        SUM(t.valor) AS total_valor,
+        COUNT(*) AS num_transacoes
+    FROM 
+        bancodemo.transacoes_cartao t
+    WHERE 
+        t.data_transacao BETWEEN '2020-01-01' AND '2025-01-01'
+    GROUP BY 
+        t.id_usuario, t.categoria, t.data_transacao
+),
+subquery2 AS (
+    SELECT 
+        c.id_usuario,
+        c.id_uf,
+        c.limite_credito,
+        COUNT(DISTINCT c.email) AS num_emails
+    FROM 
+        bancodemo.clientes c
+    GROUP BY 
+        c.id_usuario, c.id_uf, c.limite_credito
+)
+SELECT 
+    s1.categoria,
+    s2.id_uf,
+    AVG(s1.total_valor) AS media_valor_total,
+    MAX(s1.num_transacoes) AS max_transacoes,
+    SUM(s2.num_emails) AS total_emails
+FROM 
+    subquery1 s1
+JOIN 
+    subquery2 s2 ON s1.id_usuario = s2.id_usuario
+GROUP BY 
+    s1.categoria, s2.id_uf
+ORDER BY 
+    media_valor_total DESC;
+
+-- Slow Row Materialization
+SELECT 
+    c.id_usuario,
+    c.nome,
+    c.email,
+    c.data_nascimento,
+    c.endereco,
+    c.limite_credito,
+    c.numero_cartao,
+    c.id_uf,
+    t.data_transacao,
+    t.valor,
+    t.estabelecimento,
+    t.categoria,
+    t.status,
+    YEAR(t.data_transacao) AS ano_transacao,
+    MONTH(t.data_transacao) AS mes_transacao,
+    DAY(t.data_transacao) AS dia_transacao,
+    CASE 
+        WHEN t.valor > c.limite_credito THEN 'Acima do Limite'
+        ELSE 'Dentro do Limite'
+    END AS status_limite,
+    CONCAT(c.nome, ' - ', c.id_uf) AS cliente_estado,
+    ROUND(t.valor / c.limite_credito * 100, 2) AS percentual_limite_usado,
+    DATEDIFF(CURRENT_DATE(), c.data_nascimento) / 365 AS idade_aproximada
+FROM 
+    bancodemo.clientes c
+JOIN 
+    bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
+WHERE 
+    t.data_transacao BETWEEN '2020-01-01' AND '2025-12-31'
+    AND t.valor > 100
+ORDER BY 
+    t.data_transacao DESC, t.valor DESC
+LIMIT 1000000;
