@@ -22,6 +22,7 @@ clientes = spark.table("bancodemo.clientes")
 transacoes = spark.table("bancodemo.transacoes_cartao")
 
 # Exibir amostras das tabelas para verificar os dados
+logger.info("\nDisplaying sample data from tables")
 transacoes.show(5)
 clientes.show(5)
 
@@ -59,7 +60,7 @@ def tendencias_gastos():
              sum("valor").alias("total_gastos"), 
              avg("valor").alias("media_gasto")) \
         .withColumn("media_gasto_proximo_mes", lead("media_gasto").over(Window.partitionBy("categoria").orderBy("mes"))) \
-        .withColumn("variacao_percentual", (lead("media_gasto").over(Window.partitionBy("categoria").orderBy("mes")) - avg("valor")) / avg("valor") * 100)
+        .withColumn("variacao_percentual", ((col("media_gasto_proximo_mes") - col("media_gasto")) / col("media_gasto") * 100))
 
 # 4. Segmentação de clientes com base em padrões de gastos
 def segmentacao_clientes():
@@ -86,13 +87,18 @@ def correlacao_limite_gastos():
         .withColumn("correlacao_limite_gastos", corr(clientes.limite_credito, gastos_cliente.total_gastos).over())
 
 # Execute and show results
-logger.info("Executing financial analysis queries")
+logger.info("\nExecuting financial analysis queries")
 
+logger.info("\n1. Gastos por cliente e categoria, com ranking")
 gastos_por_cliente_categoria().show()
+logger.info("\n2. Detecção de padrões de gastos anômalos")
 gastos_anomalos().show()
+logger.info("\n3. Análise de tendências de gastos ao longo do tempo")
 tendencias_gastos().show()
+logger.info("\n4. Segmentação de clientes com base em padrões de gastos")
 segmentacao_clientes().show()
+logger.info("\n5. Análise de correlação entre limite de crédito e gastos")
 correlacao_limite_gastos().show()
 
-logger.info("Financial analysis completed")
+logger.info("\nFinancial analysis completed")
 spark.stop()

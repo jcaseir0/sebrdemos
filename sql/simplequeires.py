@@ -68,16 +68,28 @@ gastos_mensais = clientes.join(transacoes, "id_usuario") \
     .orderBy("id_usuario", "mes")
 
 # Show results (first 10 rows for each query)
+print("\nTotal de gastos por cliente:")
 total_gastos.show(10)
+print("\nNúmero de transações por cliente:")
 num_transacoes.show(10)
+print("\nMédia de gastos por transação para cada cliente:")
 media_gastos.show(10)
+print("\nClientes com maior valor de transação única:")
 maior_transacao.show(10)
+print("\nTotal de gastos por categoria:")
 gastos_categoria.show(10)
+print("\nNúmero de transações por status:")
 transacoes_status.show(10)
+print("\nClientes com transações na categoria 'Alimentação':")
 clientes_alimentacao.show(10)
+print("\nTotal de gastos por cliente na categoria 'Transporte':")
 gastos_transporte.show(10)
+print("\nClientes com transações negadas:")
 clientes_negados.show(10)
+print("\nTotal de gastos mensais por cliente:")
 gastos_mensais.show(10)
+
+print("\nConsultas simples executadas com sucesso!")
 
 # Stop Spark session
 spark.stop()
