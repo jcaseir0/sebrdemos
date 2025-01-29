@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr
+from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col
 from pyspark.sql.window import Window
 import logging
 
@@ -31,10 +31,17 @@ def gastos_por_cliente_categoria():
     if 'id_usuario' not in transacoes.columns or 'categoria' not in transacoes.columns:
         raise ValueError("As colunas esperadas não estão presentes na tabela transacoes_cartao.")
     
-    return transacoes.groupBy("id_usuario", "categoria") \
-        .agg(sum("valor").alias("total_gastos")) \
-        .join(clientes, "id_usuario") \
-        .withColumn("ranking_categoria", rank().over(Window.partitionBy("categoria").orderBy(sum("total_gastos").desc())))
+    # Calcular o total de gastos por usuário e categoria
+    gastos_agregados = transacoes.groupBy("id_usuario", "categoria") \
+        .agg(sum("valor").alias("total_gastos"))
+    
+    # Criar uma janela para o ranking por categoria
+    window_spec = Window.partitionBy("categoria").orderBy(col("total_gastos").desc())
+    
+    # Aplicar o ranking e juntar com a tabela de clientes
+    return gastos_agregados \
+        .withColumn("ranking_categoria", rank().over(window_spec)) \
+        .join(clientes, "id_usuario")
 
 # 2. Detecção de padrões de gastos anômalos
 def gastos_anomalos():
