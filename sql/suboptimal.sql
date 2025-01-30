@@ -470,7 +470,24 @@ ORDER BY
     t.data_transacao DESC, t.valor DESC
 LIMIT 1000000;
 
--- 16. Slow Write Speed
+-- 16. Slow Sorting
+SELECT 
+  c.id_usuario,
+  c.nome,
+  t.data_transacao,
+  t.valor,
+  t.categoria
+FROM 
+  bancodemo.clientes c
+JOIN 
+  bancodemo.transacoes_cartao t ON c.id_usuario = t.id_usuario
+WHERE 
+  t.data_transacao BETWEEN '2020-01-01' AND '2025-12-31'
+ORDER BY 
+  t.valor DESC, t.data_transacao DESC
+LIMIT 1000000;
+
+-- 17. Slow Write Speed
 INSERT INTO bancodemo.transacoes_cartao
 SELECT 
   c.id_usuario,
