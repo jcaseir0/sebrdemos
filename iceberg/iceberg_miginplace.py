@@ -5,7 +5,7 @@ import logging
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # Adiciona o diretório pai ao sys.path
-from common_functions import load_config, table_exists, validate_hive_metastore
+from common_functions import load_config, validate_hive_metastore
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
