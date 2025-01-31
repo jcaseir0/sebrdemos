@@ -11,9 +11,11 @@ GROUP BY
 ORDER BY
     TRANSACOES_COUNT DESC;
 
--- Melhorias
+-- Coleta de estatísticas
 compute stats bancodemo.clientes;
 compute stats bancodemo.transacoes_cartao;
+
+-- Verificar desempenho
 SELECT
   c.id_usuario AS cliente_id,
   COUNT(DISTINCT t.id_usuario) AS transacoes_count
