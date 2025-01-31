@@ -237,7 +237,7 @@ def main():
     spark_conf.set("spark.sql.catalog.spark_catalog.type", "hive")
     spark_conf.set("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
 
-    spark = SparkSession.builder.appName("ICEBERG LOAD").spark_conf.getOrCreate()
+    spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").getOrCreate()
 
     validate_hive_metastore(spark)
 
