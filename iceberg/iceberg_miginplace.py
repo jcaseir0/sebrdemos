@@ -1,15 +1,69 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.utils import AnalysisException
 from pyspark import SparkConf
-from datetime import datetime
-import logging
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # Adiciona o diretório pai ao sys.path
-from common_functions import load_config, validate_hive_metastore
+import logging, os
+import configparser
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+def load_config(config_path='/app/mount/config.ini'):
+    """
+    Load configuration from a specified file.
+
+    Args:
+        config_path (str): Path to the configuration file.
+
+    Returns:
+        ConfigParser: Loaded configuration object.
+
+    Raises:
+        FileNotFoundError: If the configuration file does not exist.
+        Exception: If there is an error loading the configuration.
+    """
+    logger.debug(f"Attempting to load configuration from: {config_path}")
+    if not os.path.exists(config_path):
+        logger.error(f"Configuration file not found: {config_path}")
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    try:
+        config = configparser.ConfigParser()
+        config.read(config_path)
+        logger.info("Configuration loaded successfully.")
+        return config
+    except Exception as e:
+        logger.error(f"Error loading configuration: {str(e)}")
+        raise
+
+def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
+    """
+    Validate the connection to the Hive metastore with retry logic.
+
+    Args:
+        spark (SparkSession): The Spark session.
+        max_retries (int): Maximum number of retries.
+        retry_delay (int): Delay between retries in seconds.
+
+    Returns:
+        bool: True if the connection is successful, False otherwise.
+
+    Raises:
+        AnalysisException: If the connection fails after all retries.
+    """
+    logger.info("Validating Hive metastore connection")
+    for attempt in range(max_retries):
+        try:
+            spark.sql("SHOW DATABASES").show()
+            logger.info("Hive metastore connection stabilished successfully")
+            return True
+        except AnalysisException as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Trying {attempt + 1} failed. Trying again in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                logger.error("Failure trying to stabilish connection with Hive Metastore after several tries")
+                raise
+    return False
 
 def iceberg_migration_snaptable(spark, database_name, table_name):
     logger.info("Create a Iceberg snapshot table:\n")
