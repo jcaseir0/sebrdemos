@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import AnalysisException
 from pyspark import SparkConf
-import logging, os
+import logging, os, re, time
 import configparser
 
 # Configuração do logging
@@ -65,6 +65,38 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
                 raise
     return False
 
+def analyze_table_structure(spark, database_name, tables):
+    results = []
+    for table_name in tables:
+        table_info = spark.sql(f"DESCRIBE FORMATTED {database_name}.{table_name}").collect()
+        
+        is_partitioned = False
+        is_bucketed = False
+        
+        for row in table_info:
+            col_name = row['col_name'].strip()
+            if col_name == '# Partition Information':
+                is_partitioned = True
+            elif col_name == '# Bucket Columns':
+                is_bucketed = True
+        
+        if is_partitioned and is_bucketed:
+            structure = "Particionada e Bucketed"
+        elif is_partitioned:
+            structure = "Particionada"
+        elif is_bucketed:
+            structure = "Bucketed"
+        else:
+            structure = "Nenhuma"
+        
+        results.append({
+            "database": database_name,
+            "table": table_name,
+            "structure": structure
+        })
+    
+    return results
+
 def iceberg_migration_snaptable(spark, database_name, table_name):
     logger.info("Create a Iceberg snapshot table:\n")
     snaptbl = f"{database_name}.{table_name}_SNPICEBERG"
@@ -109,6 +141,13 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
     checks_passed = True
 
     try:
+        # Analyze table structure
+        original_structure = analyze_table_structure(spark, database_name, [table_name])[0]
+        snapshot_structure = analyze_table_structure(spark, database_name, [snaptable])[0]
+
+        logger.info(f"Original table structure: {original_structure['structure']}")
+        logger.info(f"Snapshot table structure: {snapshot_structure['structure']}")
+
         # Compare row counts
         count_query1 = f"SELECT COUNT(*) as count FROM {snaptable}"
         count_query2 = f"SELECT COUNT(*) as count FROM {database_name}.{table_name}"
@@ -130,13 +169,13 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
             logger.info(row)
 
         # Compare table descriptions (just log, don't affect checks_passed)
-        describe_query = "DESCRIBE TABLE"
+        describe_query = "DESCRIBE FORMATTED"
         describe1 = spark.sql(f"{describe_query} {snaptable}").collect()
         describe2 = spark.sql(f"{describe_query} {database_name}.{table_name}").collect()
-        logger.info("Snapshot Iceberg DESCRIBE TABLE:")
+        logger.info("Snapshot Iceberg DESCRIBE FORMATTED:")
         for row in describe1:
             logger.info(row)
-        logger.info("Original DESCRIBE TABLE:")
+        logger.info("Original DESCRIBE FORMATTED:")
         for row in describe2:
             logger.info(row)
 
@@ -149,18 +188,52 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.info("Original SHOW CREATE TABLE:")
         logger.info(create2[0]['createtab_stmt'])
 
-        # Compare partitions
-        partition_query1 = f"SELECT * FROM {snaptable}.PARTITIONS"
-        partition_query2 = f"SHOW PARTITIONS {database_name}.{table_name}"
-        partitions1, partitions2, partitions_match = compare_query_results(spark, partition_query1, partition_query2, "Partitions")
-        checks_passed = checks_passed and partitions_match
-        
-        logger.info("Iceberg snapshot table PARTITIONS:")
-        for row in partitions1:
-            logger.info(row)
-        logger.info("Original table PARTITIONS:")
-        for row in partitions2:
-            logger.info(row)
+        # Check structure-specific details
+        if original_structure['structure'] == "Particionada":
+            # Compare partitions
+            partition_query1 = f"SELECT * FROM {snaptable}.PARTITIONS"
+            partition_query2 = f"SHOW PARTITIONS {database_name}.{table_name}"
+            partitions1 = spark.sql(partition_query1).collect()
+            partitions2 = spark.sql(partition_query2).collect()
+            
+            iceberg_partitions = [row.partition.data_execucao for row in partitions1 if row.partition.data_execucao is not None]
+            original_partitions = [row.partition.split('=')[1] for row in partitions2 if row.partition.split('=')[1] != '__HIVE_DEFAULT_PARTITION__']
+            
+            partitions_match = set(iceberg_partitions) == set(original_partitions)
+            checks_passed = checks_passed and partitions_match
+            
+            logger.info(f"Iceberg snapshot table partitions count: {len(iceberg_partitions)}")
+            logger.info(f"Original table partitions count: {len(original_partitions)}")
+            logger.info("Iceberg snapshot table PARTITIONS:")
+            for partition in iceberg_partitions:
+                logger.info(f"data_execucao='{partition}'")
+            logger.info("Original table PARTITIONS:")
+            for partition in original_partitions:
+                logger.info(f"data_execucao={partition}")
+            
+            if partitions_match:
+                logger.info("Partitions match between Iceberg snapshot and original table.")
+            else:
+                logger.warning("Partitions do not match between Iceberg snapshot and original table.")
+
+        elif original_structure['structure'] == "Bucketed":
+            # Extract bucketing information from CREATE TABLE statements
+            def extract_bucket_info(create_stmt):
+                bucket_info = re.search(r'CLUSTERED BY \((.*?)\) INTO (\d+) BUCKETS', create_stmt)
+                if bucket_info:
+                    return bucket_info.group(1), int(bucket_info.group(2))
+                return None, None
+
+            original_bucket_cols, original_num_buckets = extract_bucket_info(create2[0]['createtab_stmt'])
+            snapshot_bucket_cols, snapshot_num_buckets = extract_bucket_info(create1[0]['createtab_stmt'])
+
+            logger.info(f"Original table bucketing: Columns: {original_bucket_cols}, Num buckets: {original_num_buckets}")
+            logger.info(f"Snapshot table bucketing: Columns: {snapshot_bucket_cols}, Num buckets: {snapshot_num_buckets}")
+
+            checks_passed = checks_passed and (original_bucket_cols == snapshot_bucket_cols) and (original_num_buckets == snapshot_num_buckets)
+
+        elif original_structure['structure'] == "Nenhuma":
+            logger.info("Table has no partitioning or bucketing. No additional checks needed.")
 
     except Exception as e:
         logger.error(f"An error occurred while checking tables: {str(e)}")
@@ -172,6 +245,18 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.warning("Some sanity checks failed. Please review the logs for details.")
 
     return checks_passed
+
+def get_bucket_info(describe_result):
+    bucket_columns = None
+    num_buckets = None
+    for row in describe_result:
+        if row['col_name'].strip() == '# Bucket Columns':
+            bucket_columns = row['data_type'].strip()
+        elif row['col_name'].strip() == '# Num Buckets':
+            num_buckets = row['data_type'].strip()
+        if bucket_columns and num_buckets:
+            break
+    return f"Bucket Columns: {bucket_columns}, Num Buckets: {num_buckets}"
 
 def drop_snaptable(spark, snaptable):
     try:
