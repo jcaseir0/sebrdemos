@@ -1,8 +1,4 @@
-import os
-import json
-import logging
-import sys
-import time
+import os, json, logging, sys, time, argparse
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
@@ -249,9 +245,22 @@ def main():
     defined in the configuration, and creates them if they do not already exist.
     """
     logger.info("Starting main function")
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Create Hive tables')
+    parser.add_argument('-jurl', '--jdbc_url', required=True, help='JDBC URL for Hive connection')
+    args = parser.parse_args()
+
+    # JDBC URL is now passed as a command line argument
+    jdbc_url = args.jdbc_url
+    logger.debug(f"JDBC URL: {jdbc_url}")
+
+    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
+    server_dns = jdbc_url.split('//')[1].split('/')[0]
+    thrift_server = f"thrift://{server_dns}:9083"
+    logger.debug(f"Thrift Server: {thrift_server}")
+
     config = load_config()
-    jdbc_url = config['DEFAULT'].get('hmsUrl')
-    thrift_server = config['DEFAULT'].get('thriftServer')
 
     logger.debug(f"JDBC URL: {jdbc_url}")
     logger.debug(f"Thrift Server: {thrift_server}")
