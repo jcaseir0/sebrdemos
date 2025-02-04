@@ -1,4 +1,5 @@
-import os, json, logging, sys, time
+import os, json, logging, sys
+from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
@@ -308,7 +309,7 @@ def main():
 
         if not table_exists(spark, database_name, table_name):
             logger.info(f"Table '{table}' does not exist. Creating...")
-            current_date = time.strftime("%d-%m-%Y")
+            current_date = datetime.now().strftime("%d-%m-%Y")
             num_records = config.getint(table_name, 'num_records', fallback=100)
             partition_by = config.get(table_name, 'partition_by', fallback=None)
             
