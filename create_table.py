@@ -1,4 +1,4 @@
-import os, json, logging, sys, time, argparse
+import os, json, logging, sys, time
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
@@ -6,7 +6,7 @@ from pyspark.sql.utils import AnalysisException
 from pyspark.sql.functions import lit
 from common_functions import load_config, gerar_dados, table_exists
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def create_table(spark, database_name, table_name, config):
@@ -246,13 +246,8 @@ def main():
     """
     logger.info("Starting main function")
 
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Create Hive tables')
-    parser.add_argument('-jurl', '--jdbc_url', required=True, help='JDBC URL for Hive connection')
-    args = parser.parse_args()
-
     # JDBC URL is now passed as a command line argument
-    jdbc_url = args.jdbc_url
+    jdbc_url = sys.argv[1]
     logger.debug(f"JDBC URL: {jdbc_url}")
 
     # Extract the server DNS from the JDBC URL to construct the Thrift server URL
