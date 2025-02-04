@@ -1,7 +1,7 @@
 import os
 import configparser
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from faker import Faker
 
@@ -61,7 +61,6 @@ def table_exists(spark, database_name, table_name):
         logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
 
-
 def gerar_numero_cartao():
     """
     Generate a random credit card number.
@@ -72,21 +71,29 @@ def gerar_numero_cartao():
     logger.debug("Generating credit card number")
     return ''.join([str(random.randint(0, 9)) for _ in range(16)])
 
-def gerar_transacao():
+def gerar_transacao(clientes_id_usuarios=None):
     """
     Generate a random transaction record.
+
+    Args:
+        clientes_id_usuarios (list): Optional list of client user IDs.
 
     Returns:
         dict: A dictionary containing transaction details.
     """
     logger.debug("Generating transaction record")
+
+    # Calculate the date range for the last 10 years
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=365 * 10)
+
     return {
-        "id_usuario": random.randint(1, 1000),
-        "data_transacao": fake.date_time_this_year(),
-        "valor": round(random.uniform(10, 1000), 2),
+        "id_usuario": random.choice(clientes_id_usuarios) if clientes_id_usuarios else random.randint(1, 1000),
+        "data_transacao": fake.date_time_between(start_date=start_date, end_date=end_date),
+        "valor": round(random.uniform(10, 100000), 2),
         "estabelecimento": fake.company(),
-        "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação"]),
-        "status": random.choice(["Aprovada", "Negada", "Pendente"])
+        "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação", "Outros"]),
+        "status": random.choice(["Aprovada", "Negada", "Pendente", "Estornada", "Cancelada", "Fraude"])
     }
 
 def gerar_cliente():
@@ -109,13 +116,14 @@ def gerar_cliente():
         "id_uf": random.choice(ufs)
     }
 
-def gerar_dados(nome_tabela, num_records):
+def gerar_dados(nome_tabela, num_records, clientes_id_usuarios=None):
     """
-    Generate random data for the specified table.
+    Generate random data for a given table.
 
     Args:
         nome_tabela (str): The name of the table to generate data for.
         num_records (int): The number of records to generate.
+        clientes_id_usuarios (list): Optional list of client user IDs.
 
     Returns:
         list: A list of dictionaries containing generated data.
@@ -125,7 +133,7 @@ def gerar_dados(nome_tabela, num_records):
     """
     logger.info(f"Generating {num_records} records for table: {nome_tabela}\n")
     if nome_tabela == 'transacoes_cartao':
-        return [gerar_transacao() for _ in range(num_records)]
+        return [gerar_transacao(clientes_id_usuarios) for _ in range(num_records)]
     elif nome_tabela == 'clientes':
         return [gerar_cliente() for _ in range(num_records)]
     else:
