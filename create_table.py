@@ -272,7 +272,7 @@ def main():
 
     database_name = config['DEFAULT'].get('dbname')
     if remove_database_and_tables(spark, database_name):
-        logger.info(f"Successfully removed database '{database_name}' and all its table\n")
+        logger.info(f"Successfully removed database '{database_name}' and all its table or does not exist.\n")
     else:
         logger.error(f"Failed to remove database '{database_name}' and all its tables\n")
     
