@@ -79,7 +79,7 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
     for attempt in range(max_retries):
         try:
             spark.sql("SHOW DATABASES").show()
-            logger.info("Hive metastore connection stabilished successfully")
+            logger.info("Hive metastore connection stabilished successfully\n")
             return True
         except AnalysisException as e:
             if attempt < max_retries - 1:
@@ -91,34 +91,52 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
     return False
 
 def analyze_table_structure(spark, database_name, tables):
+    """
+    Analyze the structure of given tables in a database.
+
+    This function examines each table's structure to determine if it's partitioned,
+    bucketed, both, or neither.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the tables.
+        tables (list): A list of table names to analyze.
+
+    Returns:
+        list: A list of dictionaries containing the structure information for each table.
+
+    Raises:
+        Exception: If an error occurs while analyzing table structure.
+    """
     results = []
     for table_name in tables:
-        table_info = spark.sql(f"DESCRIBE FORMATTED {database_name}.{table_name}").collect()
-        
-        is_partitioned = False
-        is_bucketed = False
-        
-        for row in table_info:
-            col_name = row['col_name'].strip()
-            if col_name == '# Partition Information':
-                is_partitioned = True
-            elif col_name == '# Bucket Columns':
-                is_bucketed = True
-        
-        if is_partitioned and is_bucketed:
-            structure = "Particionada e Bucketed"
-        elif is_partitioned:
-            structure = "Particionada"
-        elif is_bucketed:
-            structure = "Bucketed"
-        else:
-            structure = "Nenhuma"
-        
-        results.append({
-            "database": database_name,
-            "table": table_name,
-            "structure": structure
-        })
+        logger.info(f"Analyzing structure of table: {database_name}.{table_name}")
+        try:
+            create_table_stmt = spark.sql(f"SHOW CREATE TABLE {database_name}.{table_name}").collect()[0]['createtab_stmt']
+            
+            is_partitioned = 'PARTITIONED BY' in create_table_stmt
+            is_bucketed = 'CLUSTERED BY' in create_table_stmt and 'INTO' in create_table_stmt and 'BUCKETS' in create_table_stmt
+            
+            if is_partitioned and is_bucketed:
+                structure = "Particionada e Bucketed"
+            elif is_partitioned:
+                structure = "Particionada"
+            elif is_bucketed:
+                structure = "Bucketed"
+            else:
+                structure = "Nenhuma"
+            
+            logger.debug(f"Table structure for {table_name}: {structure}")
+            
+            results.append({
+                "database": database_name,
+                "table": table_name,
+                "structure": structure
+            })
+            
+            logger.info(f"Structure analysis completed for {database_name}.{table_name}")
+        except Exception as e:
+            logger.error(f"Error analyzing structure of {database_name}.{table_name}: {str(e)}", exc_info=True)
     
     return results
 

@@ -34,12 +34,12 @@ def drop_snapshot_table_if_exists(spark, database_name, table_name):
         logger.info(f"Snapshot table {full_snapshot_table_name} exists. Dropping it.")
         try:
             spark.sql(f"DROP TABLE IF EXISTS {full_snapshot_table_name}")
-            logger.info(f"Successfully dropped snapshot table {full_snapshot_table_name}")
+            logger.info(f"Successfully dropped snapshot table {full_snapshot_table_name}\n")
         except Exception as e:
-            logger.error(f"Failed to drop snapshot table {full_snapshot_table_name}: {str(e)}")
+            logger.error(f"Failed to drop snapshot table {full_snapshot_table_name}: {str(e)}\n")
             raise
     else:
-        logger.info(f"Snapshot table {full_snapshot_table_name} does not exist. No action needed.")
+        logger.info(f"Snapshot table {full_snapshot_table_name} does not exist. No action needed.\n")
 
 def iceberg_migration_snaptable(spark, database_name, table_name):
     """
@@ -67,12 +67,12 @@ def iceberg_migration_snaptable(spark, database_name, table_name):
     try:
         logger.debug(f"Executing Iceberg snapshot system call")
         spark.sql(f"CALL spark_catalog.system.snapshot('{database_name}.{table_name}', '{full_snaptbl}')")
-        logger.info(f"Iceberg snapshot table created successfully: {full_snaptbl}")
+        logger.info(f"Iceberg snapshot table created successfully: {full_snaptbl}\n")
     except Exception as e:
-        logger.error(f"Failed to create Iceberg snapshot table: {str(e)}")
+        logger.error(f"Failed to create Iceberg snapshot table: {str(e)}\n")
         raise
 
-    logger.debug(f"Returning snapshot table name: {snaptbl}")
+    logger.debug(f"Returning snapshot table name: {snaptbl}\n")
     return snaptbl
 
 def compare_query_results(spark, query1, query2, description):
@@ -117,7 +117,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         snapshot_structure = analyze_table_structure(spark, database_name, [snaptable])[0]
 
         logger.info(f"Original table structure: {original_structure['structure']}")
-        logger.info(f"Snapshot table structure: {snapshot_structure['structure']}")
+        logger.info(f"Snapshot table structure: {snapshot_structure['structure']}\n")
 
         # Compare row counts
         count_query1 = f"SELECT COUNT(*) as count FROM {database_name}.{snaptable}"
@@ -126,7 +126,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         checks_passed = checks_passed and counts_match
         
         logger.info(f"Iceberg snapshot table row count: {count1[0]['count']}")
-        logger.info(f"Original table row count: {count2[0]['count']}")
+        logger.info(f"Original table row count: {count2[0]['count']}\n")
 
         # Compare sample rows (just log, don't affect checks_passed)
         sample_query = f"SELECT * FROM"
@@ -135,10 +135,11 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.info("Iceberg snapshot table sample rows:")
         for row in sample1:
             logger.info(row)
+        print()
         logger.info("Original table sample rows:")
         for row in sample2:
             logger.info(row)
-
+        print()
         # Compare table descriptions (just log, don't affect checks_passed)
         describe_query = "DESCRIBE FORMATTED"
         describe1 = spark.sql(f"{describe_query} {database_name}.{snaptable}").collect()
@@ -146,10 +147,11 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.info("Snapshot Iceberg DESCRIBE FORMATTED:")
         for row in describe1:
             logger.info(row)
+        print()
         logger.info("Original DESCRIBE FORMATTED:")
         for row in describe2:
             logger.info(row)
-
+        print()
         # Compare CREATE TABLE statements (just log, don't affect checks_passed)
         create_query = "SHOW CREATE TABLE"
         create1 = spark.sql(f"{create_query} {database_name}.{snaptable}").collect()
@@ -229,53 +231,166 @@ def get_bucket_info(describe_result):
             break
     return f"Bucket Columns: {bucket_columns}, Num Buckets: {num_buckets}"
 
-def drop_snaptable(spark, snaptable):
+def drop_snaptable(spark, database_name, snaptable):
+    """
+    Drop the specified snapshot table from the database.
+
+    This function attempts to drop the given snapshot table and logs the process.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the snapshot table.
+        snaptable (str): The name of the snapshot table to be dropped.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs while dropping the table, it's caught and logged.
+    """
+    full_table_name = f"spark_catalog.{database_name}.{snaptable}"
+    
+    logger.info(f"Attempting to drop table: {full_table_name}")
+    
     try:
-        logger.info(f"DROP TABLE {snaptable}:")
-        spark.sql("fDROP TABLE spark_catalog.{snaptable}").show()
+        logger.debug(f"Executing SQL: DROP TABLE IF EXISTS {full_table_name}")
+        spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
+        logger.info(f"Successfully dropped table: {full_table_name}\n")
     except Exception as e:
-        logger.error(f"An error ocurred while removing table: {str(e)}")
+        logger.error(f"Failed to drop table {full_table_name}: {str(e)}", exc_info=True)
+        raise
 
 def migrate_inplace_to_iceberg(spark, database_name, table_name):
-    logger.info("Starting Iceberg Migration In-place...")
+    """
+    Migrate a Hive table to Iceberg format in-place.
+
+    This function performs an in-place migration of a Hive table to Iceberg format.
+    It first unsets the 'TRANSLATED_TO_EXTERNAL' table property and then calls the
+    Iceberg migration procedure.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
+        table_name (str): The name of the table to be migrated.
+
+    Raises:
+        Exception: If an error occurs during the migration process.
+
+    Returns:
+        None
+    """
+    logger.info(f"Starting Iceberg Migration In-place for table {database_name}.{table_name}")
+    
     try:
-        logger.info("This ensures that a table backup is created by renaming the table in Hive metastore (HMS) instead of moving the physical location of the table:")
-        logger.info(f"ALTER TABLE {database_name}.{table_name} UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')\n")
-        spark.sql(f"ALTER TABLE {database_name}.{table_name} UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')")
-        logger.info("Starting Iceberg table migration in-place:")
-        logger.info(f"CALL spark_catalog.system.migrate('{database_name}.{table_name}')\n")
-        spark.sql(f"CALL spark_catalog.system.migrate('{database_name}.{table_name}')")
-        logger.info(f"{database_name}.{table_name} table migrated to Iceberg Format.\n")
+        # Unset TRANSLATED_TO_EXTERNAL property
+        logger.info("Unsetting 'TRANSLATED_TO_EXTERNAL' table property")
+        unset_query = f"ALTER TABLE {database_name}.{table_name} UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')"
+        logger.debug(f"Executing query: {unset_query}")
+        spark.sql(unset_query)
+        logger.info("Successfully unset 'TRANSLATED_TO_EXTERNAL' property")
+
+        # Perform Iceberg migration
+        logger.info("Initiating Iceberg table migration")
+        migrate_query = f"CALL spark_catalog.system.migrate('{database_name}.{table_name}')"
+        logger.debug(f"Executing query: {migrate_query}")
+        spark.sql(migrate_query)
+        logger.info(f"Successfully migrated {database_name}.{table_name} to Iceberg format")
+
     except Exception as e:
-        logger.info(f"Error occurred while migrating to Iceberg table: {str(e)}")
-    logger.info("Iceberg Migration In-place finished.\n")
+        logger.error(f"Error occurred while migrating {database_name}.{table_name} to Iceberg: {str(e)}", exc_info=True)
+        raise
+
+    logger.info(f"Iceberg Migration In-place finished for table {database_name}.{table_name}\n")
 
 def checks_on_migrated_to_iceberg(spark, database_name, table_name):
-    logger.info("Iceberg migrated DESCRIBE TABLE:\n")
+    """
+    Perform checks on a table that has been migrated to Iceberg format.
+
+    This function executes various SQL queries to inspect the structure,
+    partitions, history, and snapshots of the migrated Iceberg table.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
+        table_name (str): The name of the table that was migrated to Iceberg.
+
+    Raises:
+        Exception: If an error occurs during any of the check operations.
+
+    Returns:
+        None
+    """
+    full_table_name = f"spark_catalog.{database_name}.{table_name}"
+    logger.info(f"Performing checks on Iceberg migrated table: {full_table_name}")
+
     try:
-        spark.sql(f"DESCRIBE TABLE spark_catalog.{database_name}.{table_name}").show(30, False)
-        logger.info("Iceberg migrated SHOW CREATE TABLE:\n")
-        spark.sql(f"SHOW CREATE TABLE spark_catalog.{database_name}.{table_name}").show(truncate=False)
-        logger.info("Post-Iceberg migration table partitions:\n")
-        spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.partitions").show()
-        logger.info("Iceberg migrated table history:\n")
-        spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.history").show(20, False)
-        logger.info("Iceberg migrated table snapshots:\n")
-        spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.snapshots").show(20, False)
+        # Describe table
+        logger.info("Executing DESCRIBE TABLE command")
+        describe_result = spark.sql(f"DESCRIBE TABLE {full_table_name}")
+        logger.debug("DESCRIBE TABLE result:")
+        describe_result.show(30, False)
+
+        # Show create table
+        logger.info("Executing SHOW CREATE TABLE command")
+        create_table_result = spark.sql(f"SHOW CREATE TABLE {full_table_name}")
+        logger.debug("SHOW CREATE TABLE result:")
+        create_table_result.show(truncate=False)
+
+        # Show partitions
+        logger.info("Retrieving table partitions")
+        partitions_result = spark.sql(f"SELECT * FROM {full_table_name}.partitions")
+        logger.debug("Table partitions:")
+        partitions_result.show()
+
+        # Show table history
+        logger.info("Retrieving table history")
+        history_result = spark.sql(f"SELECT * FROM {full_table_name}.history")
+        logger.debug("Table history:")
+        history_result.show(20, False)
+
+        # Show table snapshots
+        logger.info("Retrieving table snapshots")
+        snapshots_result = spark.sql(f"SELECT * FROM {full_table_name}.snapshots")
+        logger.debug("Table snapshots:")
+        snapshots_result.show(20, False)
+
+        logger.info(f"All checks completed successfully for table: {full_table_name}\n")
+
     except Exception as e:
-        logger.info(f"Error occurred while checking Iceberg migrated table: {str(e)}")
+        logger.error(f"Error occurred while checking Iceberg migrated table {full_table_name}: {str(e)}", exc_info=True)
+        raise
 
 def rename_migrated_table(spark, database_name, table_name):
-    logger.info("Changing table name to keep data life cycle")
+    """
+    Rename a migrated table to maintain data lifecycle.
+
+    This function renames the original table to a new name with 'iceberg_' prefix.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
+        table_name (str): The name of the table to be renamed.
+
+    Returns:
+        str or None: The new table name if successful, None if an error occurs.
+
+    Raises:
+        Exception: If an error occurs during the renaming process.
+    """
+    logger.info(f"Initiating table rename process for {database_name}.{table_name}")
+    
+    iceberg_table = f"{database_name}.iceberg_{table_name}"
+    
     try:
-        iceberg_table = f"{database_name}.iceberg_{table_name}"
-        logger.info(f"Change table name from original to {iceberg_table}:\n")
-        logger.info(f"ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}\n")
+        logger.debug(f"Constructing ALTER TABLE query: ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
+        
         spark.sql(f"ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
-        logger.info(f"Table {table_name} renamed to {iceberg_table}.\n")
+        
+        logger.info(f"Successfully renamed table from {database_name}.{table_name} to {iceberg_table}\n")
         return iceberg_table
+    
     except Exception as e:
-        logger.info(f"Error occurred while renaming table: {str(e)}")
+        logger.error(f"Failed to rename table {database_name}.{table_name}: {str(e)}\n", exc_info=True)
         return None
 
 def main():
@@ -308,7 +423,7 @@ def main():
     
         if result:
             logger.info("All sanity checks passed!")
-            drop_snaptable(spark, snaptable)
+            drop_snaptable(spark, database_name, snaptable)
             migrate_inplace_to_iceberg(spark, database_name, table_name)
             checks_on_migrated_to_iceberg(spark, database_name, table_name)
             new_table_name = rename_migrated_table(spark, database_name, table_name)
