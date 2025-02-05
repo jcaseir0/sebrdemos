@@ -1,11 +1,14 @@
-import os, json, logging, sys
-from datetime import datetime
+import os
+import json
+import logging
+import sys
+import time
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql.functions import lit
-from common_functions import load_config, gerar_dados, table_exists, get_schema_path
+from common_functions import load_config, gerar_dados, table_exists, validate_hive_metastore
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -80,35 +83,19 @@ def validate_partition_and_bucketing(config, table_name):
         logger.error(f"Error: The '{table_name}' table cannot have partition and bucketing True.")
         sys.exit(1)
 
-def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
+def get_schema_path(base_path, table_name):
     """
-    Validate the connection to the Hive metastore with retry logic.
+    Get the schema file path for a given table.
 
     Args:
-        spark (SparkSession): The Spark session.
-        max_retries (int): Maximum number of retries.
-        retry_delay (int): Delay between retries in seconds.
+        base_path (str): The base path where schema files are stored.
+        table_name (str): The name of the table.
 
     Returns:
-        bool: True if the connection is successful, False otherwise.
-
-    Raises:
-        AnalysisException: If the connection fails after all retries.
+        str: The full path to the schema file.
     """
-    logger.info("Validating Hive metastore connection")
-    for attempt in range(max_retries):
-        try:
-            spark.sql("SHOW DATABASES").show()
-            logger.info("Hive metastore connection stabilished successfully")
-            return True
-        except AnalysisException as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Trying {attempt + 1} failed. Trying again in {retry_delay} seconds...")
-                time.sleep(retry_delay)
-            else:
-                logger.error("Failure trying to stabilish connection with Hive Metastore after several tries")
-                raise
-    return False
+    logger.info(f"Getting schema path for table: {table_name}")
+    return f"{base_path}/{table_name}.json"
 
 def validate_table_creation(spark, database_name, table_name):
     """
@@ -174,38 +161,36 @@ def validate_table_creation(spark, database_name, table_name):
         logger.error(f"Failed to retrieve tables from database '{database_name}': {str(e)}")
         return [{"error": f"Failed to retrieve tables from database '{database_name}': {str(e)}"}]
 
-def remove_database_and_tables(spark: SparkSession, database_name: str):
+def remove_specified_tables(spark: SparkSession, database_name: str, config):
     """
-    Remove a database and all its tables from the Hive Metastore.
+    Remove specified tables from the Hive Metastore.
 
-    This function attempts to drop all tables within the specified database
-    and then drops the database itself. It logs the process and any errors encountered.
+    This function attempts to drop the tables specified in the config file
+    within the given database. It logs the process and any errors encountered.
 
     Args:
         spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database to be removed.
+        database_name (str): The name of the database containing the tables.
+        config (ConfigParser): The configuration object containing table names.
 
     Returns:
-        bool: True if the database and all its tables were successfully removed, False otherwise.
+        bool: True if all specified tables were successfully removed, False otherwise.
     """
-    logger.info(f"Starting removal of database '{database_name}' and all its tables")
+    logger.info(f"Starting removal of specified tables in database '{database_name}'")
     
     try:
+        # Get the list of tables to remove from config
+        tables_to_remove = config['DEFAULT']['tables'].split(',')
+        
         # Check if the database exists
         databases = spark.sql("SHOW DATABASES").collect()
-        logger.debug(f"Attempting to remove database: '{database_name}'")
         if database_name not in [row.namespace for row in databases]:
-            logger.warning(f"Database '{database_name}' does not exist. Nothing to remove.")
-            return True
+            logger.warning(f"Database '{database_name}' does not exist. Cannot remove tables.")
+            return False
 
-        # List all tables in the database
-        logger.debug(f"Listing tables in database '{database_name}'")
-        tables = spark.sql(f"SHOW TABLES IN {database_name}").collect()
-        
-        # Drop each table
-        for table in tables:
-            table_name = table.tableName
-            full_table_name = f"{database_name}.{table_name}"
+        # Drop each specified table
+        for table_name in tables_to_remove:
+            full_table_name = f"{database_name}.{table_name.strip()}"
             logger.debug(f"Attempting to drop table '{full_table_name}'")
             try:
                 spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
@@ -213,15 +198,10 @@ def remove_database_and_tables(spark: SparkSession, database_name: str):
             except AnalysisException as e:
                 logger.error(f"Failed to drop table '{full_table_name}': {str(e)}")
 
-        # Drop the database
-        logger.debug(f"Attempting to drop database '{database_name}'")
-        spark.sql(f"DROP DATABASE IF EXISTS {database_name} CASCADE")
-        logger.info(f"Successfully dropped database '{database_name}'")
-
         return True
 
     except Exception as e:
-        logger.error(f"An error occurred while removing database '{database_name}': {str(e)}")
+        logger.error(f"An error occurred while removing specified tables in database '{database_name}': {str(e)}")
         return False
 
 def main():
@@ -232,17 +212,12 @@ def main():
     defined in the configuration, and creates them if they do not already exist.
     """
     logger.info("Starting main function")
-
-    # JDBC URL is now passed as a command line argument
-    jdbc_url = sys.argv[1]
-    logger.debug(f"JDBC URL: {jdbc_url}")
-
-    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
-    server_dns = jdbc_url.split('//')[1].split('/')[0]
-    thrift_server = f"thrift://{server_dns}:9083"
-    logger.debug(f"Thrift Server: {thrift_server}")
-
     config = load_config()
+    jdbc_url = config['DEFAULT'].get('hmsUrl')
+    thrift_server = config['DEFAULT'].get('thriftServer')
+
+    logger.debug(f"JDBC URL: {jdbc_url}")
+    logger.debug(f"Thrift Server: {thrift_server}")
 
     spark_conf = SparkConf()
     spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
@@ -256,7 +231,7 @@ def main():
 
     database_name = config['DEFAULT'].get('dbname')
     if remove_database_and_tables(spark, database_name):
-        logger.info(f"Successfully removed database '{database_name}' and all its table or does not exist.\n")
+        logger.info(f"Successfully removed database '{database_name}' and all its table\n")
     else:
         logger.error(f"Failed to remove database '{database_name}' and all its tables\n")
     
@@ -292,7 +267,7 @@ def main():
 
         if not table_exists(spark, database_name, table_name):
             logger.info(f"Table '{table}' does not exist. Creating...")
-            current_date = datetime.now().strftime("%d-%m-%Y")
+            current_date = time.strftime("%d-%m-%Y")
             num_records = config.getint(table_name, 'num_records', fallback=100)
             partition_by = config.get(table_name, 'partition_by', fallback=None)
             
