@@ -90,6 +90,21 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
                 raise
     return False
 
+def get_schema_path(base_path, table_name):
+    """
+    Get the schema file path for a given table.
+
+    Args:
+        base_path (str): The base path where schema files are stored.
+        table_name (str): The name of the table.
+
+    Returns:
+        str: The full path to the schema file.
+    """
+    logger.info(f"Getting schema path for table: {table_name}")
+    schema_filename = f"{table_name}_schema.json"
+    return os.path.join(base_path, "schemas", schema_filename)
+
 def analyze_table_structure(spark, database_name, tables):
     """
     Analyze the structure of given tables in a database.
