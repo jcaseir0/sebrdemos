@@ -11,10 +11,37 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 def iceberg_migration_snaptable(spark, database_name, table_name):
-    logger.info("Create a Iceberg snapshot table:\n")
-    snaptbl = f"{database_name}.{table_name}_SNPICEBERG"
-    spark.sql(f"CALL spark_catalog.system.snapshot('{database_name}.{table_name}', '{snaptbl}')")
-    logger.info(f"Iceberg snapshot table created: {snaptbl}\n")
+    """
+    Create an Iceberg snapshot table from an existing table.
+
+    This function creates a snapshot of the specified table using Iceberg format.
+    The snapshot table name will be the original table name with '_SNPICEBERG' suffix.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the original table.
+        table_name (str): The name of the table to be snapshotted.
+
+    Returns:
+        str: The name of the created Iceberg snapshot table (without database prefix).
+
+    Raises:
+        Exception: If there's an error during the snapshot creation process.
+    """
+    logger.info(f"Creating Iceberg snapshot table for {database_name}.{table_name}")
+    
+    snaptbl = f"{table_name}_SNPICEBERG"
+    full_snaptbl = f"{database_name}.{snaptbl}"
+    
+    try:
+        logger.debug(f"Executing Iceberg snapshot system call")
+        spark.sql(f"CALL spark_catalog.system.snapshot('{database_name}.{table_name}', '{full_snaptbl}')")
+        logger.info(f"Iceberg snapshot table created successfully: {full_snaptbl}")
+    except Exception as e:
+        logger.error(f"Failed to create Iceberg snapshot table: {str(e)}")
+        raise
+
+    logger.debug(f"Returning snapshot table name: {snaptbl}")
     return snaptbl
 
 def compare_query_results(spark, query1, query2, description):
@@ -62,7 +89,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.info(f"Snapshot table structure: {snapshot_structure['structure']}")
 
         # Compare row counts
-        count_query1 = f"SELECT COUNT(*) as count FROM {snaptable}"
+        count_query1 = f"SELECT COUNT(*) as count FROM {database_name}.{snaptable}"
         count_query2 = f"SELECT COUNT(*) as count FROM {database_name}.{table_name}"
         count1, count2, counts_match = compare_query_results(spark, count_query1, count_query2, "Row counts")
         checks_passed = checks_passed and counts_match
@@ -72,7 +99,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
 
         # Compare sample rows (just log, don't affect checks_passed)
         sample_query = f"SELECT * FROM"
-        sample1 = spark.sql(f"{sample_query} {snaptable}").limit(5).collect()
+        sample1 = spark.sql(f"{sample_query} {database_name}.{snaptable}").limit(5).collect()
         sample2 = spark.sql(f"{sample_query} {database_name}.{table_name}").limit(5).collect()
         logger.info("Iceberg snapshot table sample rows:")
         for row in sample1:
@@ -83,7 +110,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
 
         # Compare table descriptions (just log, don't affect checks_passed)
         describe_query = "DESCRIBE FORMATTED"
-        describe1 = spark.sql(f"{describe_query} {snaptable}").collect()
+        describe1 = spark.sql(f"{describe_query} {database_name}.{snaptable}").collect()
         describe2 = spark.sql(f"{describe_query} {database_name}.{table_name}").collect()
         logger.info("Snapshot Iceberg DESCRIBE FORMATTED:")
         for row in describe1:
@@ -94,7 +121,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
 
         # Compare CREATE TABLE statements (just log, don't affect checks_passed)
         create_query = "SHOW CREATE TABLE"
-        create1 = spark.sql(f"{create_query} {snaptable}").collect()
+        create1 = spark.sql(f"{create_query} {database_name}.{snaptable}").collect()
         create2 = spark.sql(f"{create_query} {database_name}.{table_name}").collect()
         logger.info("Snapshot Iceberg SHOW CREATE TABLE:")
         logger.info(create1[0]['createtab_stmt'])
@@ -104,7 +131,7 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         # Check structure-specific details
         if original_structure['structure'] == "Particionada":
             # Compare partitions
-            partition_query1 = f"SELECT * FROM {snaptable}.PARTITIONS"
+            partition_query1 = f"SELECT * FROM {database_name}.{snaptable}.PARTITIONS"
             partition_query2 = f"SHOW PARTITIONS {database_name}.{table_name}"
             partitions1 = spark.sql(partition_query1).collect()
             partitions2 = spark.sql(partition_query2).collect()
@@ -244,7 +271,6 @@ def main():
 
     for table_name in tables:
         
-
         snaptable = iceberg_migration_snaptable(spark, database_name, table_name)
         # Executar sanity checks
         result = iceberg_sanity_checks(spark, database_name, table_name, snaptable)
