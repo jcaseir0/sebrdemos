@@ -45,8 +45,9 @@ def iceberg_migration_snaptable(spark, database_name, table_name):
     """
     Create an Iceberg snapshot table from an existing table.
 
-    This function creates a snapshot of the specified table using Iceberg format.
-    The snapshot table name will be the original table name with '_SNPICEBERG' suffix.
+    This function first removes any existing backup tables, then creates a snapshot 
+    of the specified table using Iceberg format. The snapshot table name will be 
+    the original table name with '_SNPICEBERG' suffix.
 
     Args:
         spark (SparkSession): The active Spark session.
@@ -63,16 +64,31 @@ def iceberg_migration_snaptable(spark, database_name, table_name):
     
     snaptbl = f"{table_name}_SNPICEBERG"
     full_snaptbl = f"{database_name}.{snaptbl}"
+    backup_table = f"{database_name}.{table_name}_backup_"
     
     try:
+        # Check and remove existing backup tables
+        logger.debug(f"Checking for existing backup tables like {backup_table}")
+        existing_backups = spark.sql(f"SHOW TABLES IN {database_name} LIKE '{table_name}_backup_%'").collect()
+        for backup in existing_backups:
+            backup_name = f"{database_name}.{backup['tableName']}"
+            logger.info(f"Removing existing backup table: {backup_name}")
+            spark.sql(f"DROP TABLE IF EXISTS {backup_name}")
+        
+        # Check and remove existing snapshot table
+        logger.debug(f"Checking for existing snapshot table: {full_snaptbl}")
+        if spark.sql(f"SHOW TABLES IN {database_name} LIKE '{snaptbl}'").count() > 0:
+            logger.info(f"Removing existing snapshot table: {full_snaptbl}")
+            spark.sql(f"DROP TABLE IF EXISTS {full_snaptbl}")
+        
         logger.debug(f"Executing Iceberg snapshot system call")
         spark.sql(f"CALL spark_catalog.system.snapshot('{database_name}.{table_name}', '{full_snaptbl}')")
         logger.info(f"Iceberg snapshot table created successfully: {full_snaptbl}\n")
     except Exception as e:
-        logger.error(f"Failed to create Iceberg snapshot table: {str(e)}\n")
+        logger.error(f"Failed to create Iceberg snapshot table: {str(e)}")
         raise
 
-    logger.debug(f"Returning snapshot table name: {snaptbl}\n")
+    logger.debug(f"Returning snapshot table name: {snaptbl}")
     return snaptbl
 
 def compare_query_results(spark, query1, query2, description):
