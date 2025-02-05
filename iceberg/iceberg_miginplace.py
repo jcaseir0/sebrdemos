@@ -1,7 +1,10 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-import logging, re
-from common_functions import load_config, validate_hive_metastore, analyze_table_structure
+import sys, os, logging, re
+
+# Adicionar o diretório pai ao caminho de busca do Python do pacote common_functions
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common_functions import load_config, validate_hive_metastore, analyze_table_structure, collect_statistics
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -240,6 +243,8 @@ def main():
     database_name = config['DEFAULT'].get('dbname')
 
     for table_name in tables:
+        
+
         snaptable = iceberg_migration_snaptable(spark, database_name, table_name)
         # Executar sanity checks
         result = iceberg_sanity_checks(spark, database_name, table_name, snaptable)
