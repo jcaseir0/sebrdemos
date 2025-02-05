@@ -10,6 +10,37 @@ from common_functions import load_config, validate_hive_metastore, analyze_table
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def drop_snapshot_table_if_exists(spark, database_name, table_name):
+    """
+    Drop the Iceberg snapshot table if it already exists.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database.
+        table_name (str): The name of the original table.
+
+    Returns:
+        None
+    """
+    snapshot_table_name = f"{table_name}_SNPICEBERG"
+    full_snapshot_table_name = f"{database_name}.{snapshot_table_name}"
+
+    logger.info(f"Checking if snapshot table {full_snapshot_table_name} exists")
+    
+    # Check if the table exists
+    table_exists = spark.sql(f"SHOW TABLES IN {database_name} LIKE '{snapshot_table_name}'").count() > 0
+
+    if table_exists:
+        logger.info(f"Snapshot table {full_snapshot_table_name} exists. Dropping it.")
+        try:
+            spark.sql(f"DROP TABLE IF EXISTS {full_snapshot_table_name}")
+            logger.info(f"Successfully dropped snapshot table {full_snapshot_table_name}")
+        except Exception as e:
+            logger.error(f"Failed to drop snapshot table {full_snapshot_table_name}: {str(e)}")
+            raise
+    else:
+        logger.info(f"Snapshot table {full_snapshot_table_name} does not exist. No action needed.")
+
 def iceberg_migration_snaptable(spark, database_name, table_name):
     """
     Create an Iceberg snapshot table from an existing table.
@@ -270,7 +301,7 @@ def main():
     database_name = config['DEFAULT'].get('dbname')
 
     for table_name in tables:
-        
+        drop_snapshot_table_if_exists(spark, database_name, table_name)
         snaptable = iceberg_migration_snaptable(spark, database_name, table_name)
         # Executar sanity checks
         result = iceberg_sanity_checks(spark, database_name, table_name, snaptable)
