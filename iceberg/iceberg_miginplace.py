@@ -252,7 +252,7 @@ def main():
             new_table_name = rename_migrated_table(spark, database_name, table_name)
             logger.info(f"Iceberg table migrated and table renamed to {new_table_name}")
         else:
-            print("Some checks failed. Review the logs for details.")
+            print("Some checks failed. Review the logs for details. Iceberg Migration In-place Cancelled.")
 
     # Encerrar SparkSession
     spark.stop()
