@@ -1,8 +1,7 @@
-import os
+import os, logging, random, time
 import configparser
-import random
 from datetime import datetime, timedelta
-import logging
+from pyspark.sql.utils import AnalysisException
 from faker import Faker
 
 logger = logging.getLogger(__name__)
@@ -60,6 +59,68 @@ def table_exists(spark, database_name, table_name):
     except Exception as e:
         logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
+
+def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
+    """
+    Validate the connection to the Hive metastore with retry logic.
+
+    Args:
+        spark (SparkSession): The Spark session.
+        max_retries (int): Maximum number of retries.
+        retry_delay (int): Delay between retries in seconds.
+
+    Returns:
+        bool: True if the connection is successful, False otherwise.
+
+    Raises:
+        AnalysisException: If the connection fails after all retries.
+    """
+    logger.info("Validating Hive metastore connection")
+    for attempt in range(max_retries):
+        try:
+            spark.sql("SHOW DATABASES").show()
+            logger.info("Hive metastore connection stabilished successfully")
+            return True
+        except AnalysisException as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Trying {attempt + 1} failed. Trying again in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                logger.error("Failure trying to stabilish connection with Hive Metastore after several tries")
+                raise
+    return False
+
+def analyze_table_structure(spark, database_name, tables):
+    results = []
+    for table_name in tables:
+        table_info = spark.sql(f"DESCRIBE FORMATTED {database_name}.{table_name}").collect()
+        
+        is_partitioned = False
+        is_bucketed = False
+        
+        for row in table_info:
+            col_name = row['col_name'].strip()
+            if col_name == '# Partition Information':
+                is_partitioned = True
+            elif col_name == '# Bucket Columns':
+                is_bucketed = True
+        
+        if is_partitioned and is_bucketed:
+            structure = "Particionada e Bucketed"
+        elif is_partitioned:
+            structure = "Particionada"
+        elif is_bucketed:
+            structure = "Bucketed"
+        else:
+            structure = "Nenhuma"
+        
+        results.append({
+            "database": database_name,
+            "table": table_name,
+            "structure": structure
+        })
+    
+    return results
 
 def gerar_numero_cartao():
     """
