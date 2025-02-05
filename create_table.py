@@ -213,10 +213,13 @@ def main():
     """
     logger.info("Starting main function")
     config = load_config()
-    jdbc_url = config['DEFAULT'].get('hmsUrl')
-    thrift_server = config['DEFAULT'].get('thriftServer')
-
+    # JDBC URL is now passed as a command line argument
+    jdbc_url = sys.argv[1]
     logger.debug(f"JDBC URL: {jdbc_url}")
+
+    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
+    server_dns = jdbc_url.split('//')[1].split('/')[0]
+    thrift_server = f"thrift://{server_dns}:9083"
     logger.debug(f"Thrift Server: {thrift_server}")
 
     spark_conf = SparkConf()
@@ -230,7 +233,7 @@ def main():
     validate_hive_metastore(spark)
 
     database_name = config['DEFAULT'].get('dbname')
-    if remove_database_and_tables(spark, database_name):
+    if remove_specified_tables(spark, database_name, config):
         logger.info(f"Successfully removed database '{database_name}' and all its table\n")
     else:
         logger.error(f"Failed to remove database '{database_name}' and all its tables\n")
