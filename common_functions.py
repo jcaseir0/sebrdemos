@@ -37,6 +37,20 @@ def load_config(config_path='/app/mount/config.ini'):
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
+def get_schema_path(base_path, table_name):
+    """
+    Generate the schema path for a given table.
+    
+    Args:
+    base_path (str): The base directory path where schema files are stored.
+    table_name (str): The name of the table.
+    
+    Returns:
+    str: The full path to the schema file for the given table.
+    """
+    schema_filename = f"{table_name}.json"
+    return os.path.join(base_path, "schemas", schema_filename)
+
 def table_exists(spark, database_name, table_name):
     """
     Check if a table exists in the Hive Metastore.

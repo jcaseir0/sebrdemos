@@ -3,7 +3,7 @@ from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.sql.types import StructType
 from pyspark.sql.functions import lit
-from common_functions import load_config, gerar_dados, table_exists
+from common_functions import load_config, gerar_dados, table_exists, get_schema_path
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -63,20 +63,6 @@ def update_table(spark, database_name, table_name, partition_by=None, is_buckete
     except Exception as e:
         logger.error(f"Error updating table '{table_name}': {str(e)}")
         raise
-
-def get_schema_path(base_path, table_name):
-    """
-    Generate the schema path for a given table.
-    
-    Args:
-    base_path (str): The base directory path where schema files are stored.
-    table_name (str): The name of the table.
-    
-    Returns:
-    str: The full path to the schema file for the given table.
-    """
-    schema_filename = f"{table_name}.json"
-    return os.path.join(base_path, "schemas", schema_filename)
 
 def main():
     """

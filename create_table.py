@@ -5,7 +5,7 @@ from pyspark.sql.types import StructType
 from pyspark import SparkConf
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql.functions import lit
-from common_functions import load_config, gerar_dados, table_exists
+from common_functions import load_config, gerar_dados, table_exists, get_schema_path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -79,20 +79,6 @@ def validate_partition_and_bucketing(config, table_name):
     if partitioning and bucketing:
         logger.error(f"Error: The '{table_name}' table cannot have partition and bucketing True.")
         sys.exit(1)
-
-def get_schema_path(base_path, table_name):
-    """
-    Get the schema file path for a given table.
-
-    Args:
-        base_path (str): The base path where schema files are stored.
-        table_name (str): The name of the table.
-
-    Returns:
-        str: The full path to the schema file.
-    """
-    logger.info(f"Getting schema path for table: {table_name}")
-    return f"{base_path}/{table_name}.json"
 
 def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
     """
