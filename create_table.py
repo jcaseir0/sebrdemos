@@ -258,9 +258,6 @@ def main():
 
     config = load_config()
 
-    logger.debug(f"JDBC URL: {jdbc_url}")
-    logger.debug(f"Thrift Server: {thrift_server}")
-
     spark_conf = SparkConf()
     spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
     spark_conf.set("hive.metastore.uris", thrift_server)

@@ -1,4 +1,4 @@
-import os, json, logging
+import os, json, logging, sys
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.sql.types import StructType
@@ -88,10 +88,14 @@ def main():
     logger.info("Starting table update process")
     config = load_config()
     logger.debug("Configuration loaded")
-    jdbc_url = config['DEFAULT'].get('hmsUrl')
-    thrift_server = config['DEFAULT'].get('thriftServer')
 
+    # JDBC URL is now passed as a command line argument
+    jdbc_url = sys.argv[1]
     logger.debug(f"JDBC URL: {jdbc_url}")
+
+    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
+    server_dns = jdbc_url.split('//')[1].split('/')[0]
+    thrift_server = f"thrift://{server_dns}:9083"
     logger.debug(f"Thrift Server: {thrift_server}")
 
     spark_conf = SparkConf()
