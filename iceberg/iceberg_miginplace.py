@@ -135,6 +135,15 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.info(f"Original table structure: {original_structure['structure']}")
         logger.info(f"Snapshot table structure: {snapshot_structure['structure']}\n")
 
+        # Collect statistics
+        df1 = f"SELECT * as count FROM {database_name}.{snaptable}"
+        df2 = f"SELECT * as count FROM {database_name}.{table_name}"
+        original_statistics = collect_statistics(df1, columns=None)
+        snapshot_statistics = collect_statistics(df2, columns=None)
+
+        logger.info(f"Original table statistics: {original_statistics}")
+        logger.info(f"Snapshot table statistics: {snapshot_statistics}\n")
+
         # Compare row counts
         count_query1 = f"SELECT COUNT(*) as count FROM {database_name}.{snaptable}"
         count_query2 = f"SELECT COUNT(*) as count FROM {database_name}.{table_name}"
@@ -419,12 +428,25 @@ def main():
     logger.info("Starting main function")
     config = load_config()
 
+    # JDBC URL is now passed as a command line argument
+    jdbc_url = sys.argv[1]
+    logger.debug(f"JDBC URL: {jdbc_url}")
+
+    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
+    server_dns = jdbc_url.split('//')[1].split('/')[0]
+    thrift_server = f"thrift://{server_dns}:9083"
+    logger.debug(f"Thrift Server: {thrift_server}")
+
     spark_conf = SparkConf()
     spark_conf.set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
     spark_conf.set("spark.sql.catalog.spark_catalog.type", "hive")
     spark_conf.set("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+    spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
+    spark_conf.set("hive.metastore.uris", thrift_server)
+    spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
+    spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
 
-    spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").getOrCreate()
+    spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").enableHiveSupport().getOrCreate()
 
     validate_hive_metastore(spark)
 
