@@ -215,17 +215,12 @@ def main():
     validate_hive_metastore(spark)
 
     database_name = config['DEFAULT'].get('dbname')
-    if remove_specified_tables(spark, database_name, config):
-        logger.info(f"Successfully removed database '{database_name}' and all its table\n")
-    else:
-        logger.error(f"Failed to remove database '{database_name}' and all its tables\n")
-    
+    tables = config['DEFAULT']['tables'].split(',')
+    base_path = "/app/mount"
+
     logger.debug(f"Creating database: {database_name}")
     spark.sql(f"CREATE DATABASE IF NOT EXISTS {database_name}")
     logger.info(f"Database: {database_name} created successfully\n")
-
-    tables = config['DEFAULT']['tables'].split(',')
-    base_path = "/app/mount"
 
     logger.info(f"Processing tables: {tables}")
 
@@ -236,6 +231,10 @@ def main():
     clientes_id_usuarios = [cliente['id_usuario'] for cliente in clientes_data]
 
     for table_name in tables:
+        if remove_specified_tables(spark, database_name, config):
+            logger.info(f"Successfully removed table '{table_name}'\n")
+        else:
+            logger.error(f"Failed to remove table '{table_name}'\n")
         logger.info(f"Processing table: {table_name}")
         partition = config.getboolean(table_name, 'particionamento', fallback=False)
         partition_by = config.get(table_name, 'partition_by', fallback=None)
@@ -277,7 +276,7 @@ def main():
 
         validate_table_creation(spark, database_name, table_name)
         logger.info("Table creation process completed.")
-        
+
     spark.stop()
 
 if __name__ == "__main__":

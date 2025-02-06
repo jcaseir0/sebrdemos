@@ -1,4 +1,4 @@
-import os, sys, logging, random, time
+import os, logging, random, time
 import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
