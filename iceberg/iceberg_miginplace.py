@@ -407,7 +407,6 @@ def rename_migrated_table(spark, database_name, table_name):
     logger.info(f"Initiating table rename process for {database_name}.{table_name}")
     
     iceberg_table = f"iceberg_{table_name}"
-    old_location = f"warehouse/tablespace/external/hive/{database_name}.db/{table_name}"
     new_location = f"warehouse/tablespace/external/hive/{database_name}.db/{iceberg_table}"
     
     try:
