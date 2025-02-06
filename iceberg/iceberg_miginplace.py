@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
 import sys, os, logging, re
+from pyspark.sql.functions import col
 
 # Adicionar o diretório pai ao caminho de busca do Python do pacote common_functions
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -387,9 +388,10 @@ def checks_on_migrated_to_iceberg(spark, database_name, table_name):
 
 def rename_migrated_table(spark, database_name, table_name):
     """
-    Rename a migrated table to maintain data lifecycle.
+    Rename a migrated table to maintain data lifecycle and update its location.
 
-    This function renames the original table to a new name with 'iceberg_' prefix.
+    This function renames the original table to a new name with 'iceberg_' prefix
+    and updates the table location in the file system.
 
     Args:
         spark (SparkSession): The active Spark session.
@@ -404,15 +406,41 @@ def rename_migrated_table(spark, database_name, table_name):
     """
     logger.info(f"Initiating table rename process for {database_name}.{table_name}")
     
-    iceberg_table = f"{database_name}.iceberg_{table_name}"
+    iceberg_table = f"iceberg_{table_name}"
+    old_location = f"warehouse/tablespace/external/hive/{database_name}.db/{table_name}"
+    new_location = f"warehouse/tablespace/external/hive/{database_name}.db/{iceberg_table}"
     
     try:
-        logger.debug(f"Constructing ALTER TABLE query: ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
+        # Get the current table location
+        current_location = spark.sql(f"DESCRIBE FORMATTED {database_name}.{table_name}") \
+            .filter(col("col_name") == "Location") \
+            .select("data_type").collect()[0]["data_type"]
         
+        # Extract the base path
+        base_path = "/".join(current_location.split("/")[:-2])
+        
+        # Construct the full new location
+        full_new_location = f"{base_path}/{new_location}"
+        
+        logger.debug(f"Current location: {current_location}")
+        logger.debug(f"New location: {full_new_location}")
+        
+        # Rename the table
+        logger.debug(f"Renaming table: ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
         spark.sql(f"ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
         
-        logger.info(f"Successfully renamed table from {database_name}.{table_name} to {iceberg_table}\n")
-        return iceberg_table
+        # Update the table location
+        logger.debug(f"Updating table location: ALTER TABLE {database_name}.{iceberg_table} SET LOCATION '{full_new_location}'")
+        spark.sql(f"ALTER TABLE {database_name}.{iceberg_table} SET LOCATION '{full_new_location}'")
+        
+        # Move the data files
+        logger.debug(f"Moving data files from {current_location} to {full_new_location}")
+        spark.sql(f"CREATE TEMPORARY FUNCTION move_files AS 'com.cloudera.cdp.MoveFiles'")
+        spark.sql(f"CALL move_files('{current_location}', '{full_new_location}')")
+        spark.sql("DROP TEMPORARY FUNCTION IF EXISTS move_files")
+        
+        logger.info(f"Successfully renamed table from {database_name}.{table_name} to {database_name}.{iceberg_table} and updated location\n")
+        return f"{database_name}.{iceberg_table}"
     
     except Exception as e:
         logger.error(f"Failed to rename table {database_name}.{table_name}: {str(e)}\n", exc_info=True)
