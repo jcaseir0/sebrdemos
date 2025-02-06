@@ -1,6 +1,7 @@
 import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import AnalysisException
+from common_functions import load_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -79,8 +80,8 @@ def main():
     spark = create_spark_session()
 
     try:
-        # Example usage - replace with actual database name
-        database_name = "example_database"
+        config = load_config()
+        database_name = config['DEFAULT'].get('dbname')
         success = remove_database_and_tables(spark, database_name)
         
         if success:
