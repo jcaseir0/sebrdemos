@@ -275,8 +275,9 @@ def main():
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
-    validate_table_creation(spark, database_name, table_name)
-    logger.info("Table creation process completed.")
+        validate_table_creation(spark, database_name, table_name)
+        logger.info("Table creation process completed.")
+        
     spark.stop()
 
 if __name__ == "__main__":
