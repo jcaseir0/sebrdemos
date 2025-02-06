@@ -102,7 +102,7 @@ def get_schema_path(base_path, table_name):
         str: The full path to the schema file.
     """
     logger.info(f"Getting schema path for table: {table_name}")
-    schema_filename = f"{table_name}_schema.json"
+    schema_filename = f"{table_name}.json"
     return os.path.join(base_path, "schemas", schema_filename)
 
 def analyze_table_structure(spark, database_name, tables):
