@@ -2,6 +2,7 @@ import os, sys, logging, random, time
 import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
+from pyspark.sql import SparkSession
 from faker import Faker
 
 logger = logging.getLogger(__name__)
@@ -140,24 +141,50 @@ def analyze_table_structure(spark, database_name, tables):
     
     return results
 
-def collect_statistics(df, columns=None):
+def collect_statistics(spark: SparkSession, df, columns=None):
+    """Collects statistics for a given Spark DataFrame.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        df (pyspark.sql.DataFrame): The DataFrame to collect statistics from.
+        columns (list, optional): A list of column names to collect statistics for.
+            If None, statistics will be collected for all columns.
+
+    Returns:
+        dict: A dictionary containing the collected statistics.
     """
-    Coleta estatísticas de um DataFrame PySpark.
-    
-    :param df: DataFrame PySpark
-    :param columns: Lista de colunas para analisar (opcional, padrão: todas as colunas numéricas)
-    :return: DataFrame com estatísticas
-    """
-    if columns is None:
-        # Seleciona apenas colunas numéricas se nenhuma for especificada
-        columns = [c for c, t in df.dtypes if t in ('int', 'long', 'float', 'double')]
-    
-    # Calcula estatísticas usando o método summary
-    stats = df.select(columns).summary(
-        "count", "mean", "stddev", "min", "25%", "50%", "75%", "max"
-    )
-    
-    return stats
+    try:
+        if columns:
+            df = df.select(columns)
+        else:
+            columns = df.columns
+
+        # Basic statistics
+        desc_stats = df.describe().collect()
+
+        # Convert to dictionary for easier use
+        stats_dict = {}
+        for row in desc_stats:
+            metric = row[0]
+            stats_dict[metric] = {}
+            for i, col in enumerate(columns, start=1):
+                stats_dict[metric][col] = row[i]
+
+        # Null value counts
+        null_counts = {}
+        for col in columns:
+            null_counts[col] = df.filter(df[col].isNull()).count()
+
+        stats = {
+            "descriptive_statistics": stats_dict,
+            "null_counts": null_counts
+        }
+
+        logger.info(f"Collected statistics for columns: {columns}")
+        return stats
+    except Exception as e:
+        logger.error(f"Error collecting statistics: {str(e)}", exc_info=True)
+        return None
 
 def gerar_numero_cartao():
     """

@@ -92,27 +92,29 @@ def iceberg_migration_snaptable(spark, database_name, table_name):
     logger.debug(f"Returning snapshot table name: {snaptbl}")
     return snaptbl
 
-def compare_query_results(spark, query1, query2, description):
+def compare_query_results(spark: SparkSession, query1: str, query2: str, description: str) -> tuple:
+    """Compares the results of two SQL queries.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        query1 (str): The first SQL query.
+        query2 (str): The second SQL query.
+        description (str): A description of the comparison.
+
+    Returns:
+        tuple: A tuple containing the results of the two queries and a boolean
+            indicating whether the results match.
     """
-    Compara os resultados de duas queries SQL.
-    
-    :param spark: SparkSession
-    :param query1: Primeira query SQL
-    :param query2: Segunda query SQL
-    :param description: Descrição da comparação
-    :return: Tuple contendo os resultados das duas queries e um booleano indicando se são iguais
-    """
-    result1 = spark.sql(query1).collect()
-    result2 = spark.sql(query2).collect()
-    
-    are_equal = result1 == result2
-    
-    if are_equal:
-        logger.info(f"{description} match.")
-    else:
-        logger.warning(f"{description} do not match.")
-    
-    return result1, result2, are_equal
+    try:
+        result1 = spark.sql(query1).collect()
+        result2 = spark.sql(query2).collect()
+        match = result1 == result2
+
+        logger.info(f"{description} match: {match}")
+        return result1, result2, match
+    except Exception as e:
+        logger.error(f"Error comparing query results: {str(e)}", exc_info=True)
+        return None, None, False
 
 def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
     """
