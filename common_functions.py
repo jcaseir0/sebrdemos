@@ -156,8 +156,9 @@ def collect_statistics(spark: SparkSession, df, columns=None):
     try:
         if columns:
             df = df.select(columns)
-        else:
-            columns = df.columns
+        
+        columns = df.columns
+        logger.info(f"Collecting statistics for columns: {columns}")
 
         # Basic statistics
         desc_stats = df.describe().collect()
@@ -165,10 +166,14 @@ def collect_statistics(spark: SparkSession, df, columns=None):
         # Convert to dictionary for easier use
         stats_dict = {}
         for row in desc_stats:
-            metric = row[0]
+            metric = row['summary']
             stats_dict[metric] = {}
-            for i, col in enumerate(columns, start=1):
-                stats_dict[metric][col] = row[i]
+            for col in columns:
+                if col in row:
+                    stats_dict[metric][col] = row[col]
+                else:
+                    stats_dict[metric][col] = None
+                    logger.warning(f"Column {col} not found in describe() result for metric {metric}")
 
         # Null value counts
         null_counts = {}
@@ -180,7 +185,7 @@ def collect_statistics(spark: SparkSession, df, columns=None):
             "null_counts": null_counts
         }
 
-        logger.info(f"Collected statistics for columns: {columns}")
+        logger.info("Statistics collection completed successfully")
         return stats
     except Exception as e:
         logger.error(f"Error collecting statistics: {str(e)}", exc_info=True)
