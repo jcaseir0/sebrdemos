@@ -137,10 +137,11 @@ def iceberg_sanity_checks(spark, database_name, table_name, snaptable):
         logger.info(f"Snapshot table structure: {snapshot_structure['structure']}\n")
 
         # Collect statistics
-        df1 = f"SELECT * as count FROM {database_name}.{snaptable}"
-        df2 = f"SELECT * as count FROM {database_name}.{table_name}"
-        original_statistics = collect_statistics(df1, columns=None)
-        snapshot_statistics = collect_statistics(df2, columns=None)
+        logger.info("Collecting table statistics")
+        df1 = spark.table(f"{database_name}.{snaptable}")
+        df2 = spark.table(f"{database_name}.{table_name}")
+        original_statistics = collect_statistics(spark, df1, columns=None)
+        snapshot_statistics = collect_statistics(spark, df2, columns=None)
 
         logger.info(f"Original table statistics: {original_statistics}")
         logger.info(f"Snapshot table statistics: {snapshot_statistics}\n")
