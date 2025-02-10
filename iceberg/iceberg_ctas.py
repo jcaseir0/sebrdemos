@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 from datetime import datetime
-import sys, os, logging, re
-from pyspark.sql.functions import col
+import sys, os, logging, time
+from pyspark.sql.functions import List, col
 # Adicionar o diretório pai ao caminho de busca do Python do pacote common_functions
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common_functions import load_config
@@ -45,73 +45,107 @@ def show_partitions(spark: SparkSession, database_name: str, table_name: str) ->
     print(f"SHOW PARTITIONS {database_name}.{table_name}\n")
     spark.sql(f"SHOW PARTITIONS {database_name}.{table_name}").show(truncate=False)
 
-def check_table_exists(spark: SparkSession, database_name: str, table_name: str) -> bool:
+def get_iceberg_tables(spark: SparkSession, database_name: str) -> List[str]:
     """
-    Verifica se a tabela Iceberg existe no catálogo.
+    Obtem uma lista de tabelas que contenham "iceberg" no nome da tabela no catálogo.
 
     Args:
         spark (SparkSession): Sessão Spark ativa.
-        database_name (str): Nome do banco de dados onde a tabela está localizada.
-        table_name (str): Nome da tabela a ser verificada.
+        database_name (str): Nome do banco de dados.
 
     Returns:
-        bool: True se a tabela existir, False caso contrário.
+        List[str]: Lista de nomes de tabelas que contenham "iceberg" no nome.
     """
-    logger.info(f"Verificando existência da tabela '{table_name}' no banco de dados '{database_name}'...")
-    
-    try:
-        # Listar tabelas no banco de dados especificado
-        tblLst = spark.catalog.listTables(database_name)
-        
-        # Extrair nomes das tabelas
-        table_names_in_db = [table.name for table in tblLst]
-        
-        # Verificar se a tabela existe
-        table_exists = table_name in table_names_in_db
-        
-        logger.info(f"Tabela '{table_name}' existe: {table_exists}")
-        return table_exists
-    
-    except Exception as e:
-        logger.error(f"Erro ao verificar existência da tabela: {e}")
-        return False
+    logger.info("Obtendo lista de tabelas Iceberg...")
+    tblLst = spark.catalog.listTables(database_name)
+    iceberg_tables = [table.name for table in tblLst if "iceberg" in table.name.lower()]
+    logger.info(f"Encontradas {len(iceberg_tables)} tabelas com 'iceberg' no nome.")
+    logger.debug(f"Lista de tabelas Iceberg: {iceberg_tables}")
+    return iceberg_tables
 
-def migrate_to_iceberg(spark: SparkSession, database_name: str, table_name: str) -> None:
+def table_exists(spark, table_name):
+            try:
+                spark.sql(f"SELECT 1 FROM {table_name} LIMIT 1")
+                return True
+            except Exception:
+                return False
+
+def partition_exists(spark, table_name, partition_by, partition_date):
+                partitions = spark.sql(f"SHOW PARTITIONS {table_name}").collect()
+                for row in partitions:
+                    if f"{partition_by}={partition_date}" in row[0]:
+                        return True
+                return False
+
+def migrate_to_iceberg_ctas(spark: SparkSession, database_name: str, table_name: str, partition_by: str) -> None:
     """
-    Migra a tabela de informações para o formato Iceberg.
+    Migrates a table to Iceberg format using CREATE TABLE AS SELECT (CTAS).
+
+    This function migrates the source table {database_name}.{table_name} to an Iceberg table
+    named {database_name}.iceberg_{table_name}_ctas. It handles cases where the Iceberg
+    table already exists and adds a new partition if required.
 
     Args:
-        spark (SparkSession): Sessão Spark ativa.
-        username (str): Nome do usuário para o schema do banco de dados.
-        table_name (str): Nome da tabela a ser migrada.
-    """
-    logger.info("Migrando tabela para o Iceberg...")
-    db_name = "{}_CUSTOMER".format(username)
-    
-    if check_table_exists(spark, username, table_name):
-        logger.info("Tabela já existe no formato Iceberg.")
-        rcbi = spark.sql("SELECT COUNT(*) FROM spark_catalog.{}_CUSTOMER.{}".format(username, table_name)).collect()[0][0]
-        lastpart = spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}.PARTITIONS".format(username, table_name)).collect()[-1][0]
-        # Partition validation
-        part = "Row(frameworkdate='" + "2025-02-06" + "')"
-        if str(lastpart) != part:
-            logger.info("Nova partição detectada. Inserindo dados...")
-            spark.sql("INSERT INTO {0}_CUSTOMER.{1} SELECT * FROM {0}_CUSTOMER.INFORMATION WHERE frameworkdate = '2025-02-06'".format(username, table_name))
-        else:
-            logger.info("Partição já carregada.")
-            sys.exit(1)
-    else:
-        logger.info("Criando tabela no formato Iceberg...")
-        print("#----------------------------------------------------")
-        print("#    CTAS MIGRATION SPARK TABLES TO ICEBERG TABLE    ")
-        print("#----------------------------------------------------\n")
-        print("\tALTER TABLE {}_CUSTOMER.INFORMATION UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')\n".format(username))
-        spark.sql("ALTER TABLE {}_CUSTOMER.INFORMATION UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')".format(username))
-        print("\tCREATE TABLE spark_catalog.{0}_CUSTOMER.{1} USING iceberg PARTITIONED BY (frameworkdate) AS SELECT * FROM {0}_CUSTOMER.INFORMATION\n".format(username, table_name))
-        spark.sql("CREATE TABLE spark_catalog.{0}_CUSTOMER.{1} USING iceberg PARTITIONED BY (frameworkdate) AS SELECT * FROM {0}_CUSTOMER.INFORMATION".format(username, table_name))
-        logger.info("Tabela criada no formato Iceberg.")
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the source table.
+        table_name (str): The name of the source table to be migrated.
 
-def describe_table(spark: SparkSession, username: str, table_name: str) -> None:
+    Raises:
+        Exception: If any error occurs during the migration process.
+    """
+    logger.info(f"Starting Iceberg migration for table {database_name}.{table_name} using CTAS...")
+
+    source_table = f"{database_name}.{table_name}"
+    iceberg_table = f"{database_name}.iceberg_{table_name}_ctas"
+    partition_date = time.strftime("%d-%m-%Y")
+
+    try:
+        # Function to check if a table exists
+        table_exists(spark, partition_by, database_name, table_name)
+
+        if table_exists(spark, iceberg_table):
+            logger.info(f"Iceberg table {iceberg_table} already exists.")
+
+            # Function to check if a specific partition exists
+            partition_exists(spark, table_name, partition_by, partition_date)
+
+            if not partition_exists(spark, iceberg_table, partition_by, partition_date):
+                logger.info(f"New partition detected. Inserting data for {partition_by}={partition_date}...")
+                insert_query = f"""
+                    INSERT INTO {iceberg_table} 
+                    SELECT * FROM {source_table} 
+                    WHERE frameworkdate = '{partition_date}'
+                """
+                spark.sql(insert_query)
+                logger.info(f"Data inserted successfully into {iceberg_table} for {partition_by}={partition_date}.")
+            else:
+                logger.info(f"Partition for {partition_by}={partition_date} already loaded.")
+                logger.info("Migration completed.")
+        else:
+            logger.info(f"Creating Iceberg table {iceberg_table} using CTAS...")
+
+            # Unset the 'TRANSLATED_TO_EXTERNAL' property on the source table
+            logger.info(f"Unsetting TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL') on {source_table}...")
+            spark.sql(f"ALTER TABLE {source_table} UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')")
+
+            # Create the Iceberg table using CTAS
+            create_table_query = f"""
+                CREATE TABLE {iceberg_table} 
+                USING iceberg 
+                PARTITIONED BY ({partition_by}) 
+                AS SELECT * FROM {source_table}
+            """
+            logger.info(f"Executing CTAS query: {create_table_query}")
+            spark.sql(create_table_query)
+            logger.info(f"Iceberg table {iceberg_table} created successfully.")
+
+        logger.info("Iceberg migration completed successfully.")
+
+    except Exception as e:
+        logger.error(f"An error occurred during Iceberg migration: {str(e)}", exc_info=True)
+        raise
+
+def describe_table(spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Descreve a estrutura da tabela Iceberg.
 
@@ -121,8 +155,8 @@ def describe_table(spark: SparkSession, username: str, table_name: str) -> None:
         table_name (str): Nome da tabela a ser descrita.
     """
     logger.info("Descrevendo tabela Iceberg...")
-    print("DESCRIBE TABLE spark_catalog.{}_CUSTOMER.{}\n".format(username, table_name))
-    spark.sql("DESCRIBE TABLE spark_catalog.{}_CUSTOMER.{}".format(username, table_name)).show(20, False)
+    print("DESCRIBE TABLE spark_catalog.{database_name}.{table_name}\n")
+    spark.sql("DESCRIBE TABLE spark_catalog.{database_name}.{table_name}\n").show(20, False)
 
 def show_partitions_post_migration(spark: SparkSession, username: str, table_name: str) -> None:
     """

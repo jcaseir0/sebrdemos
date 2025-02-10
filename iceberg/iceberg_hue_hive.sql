@@ -168,38 +168,51 @@ OPTIMIZE TABLE bancodemo.clientes_iceberg_ctas_hue;
 -- Para verificar o antes e depois na camada de storage, você pode usar comandos do AWS CLI para listar os objetos no bucket S3 antes e após a otimização:
 aws s3 ls s3://jcaseiro-aws-buk-e1c3ce14/data/warehouse/tablespace/external/hive/bancodemo.db/transacoes_cartao_iceberg_ctas_hue_hive/ --recursive --human-readable --summarize
 
-
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 -- ICEBERG MIGRATION IN-PLACE
 
--- Backup
-CREATE TABLE bancodemo.clientes_inplace
-AS SELECT * FROM bancodemo.clientes;
-/*
-Check if: 
-Table Type: MANAGED_TABLE 
-Table Parameters: transactional=True, transactional_properties=full_acid
-*/
+-- Criação de tabela para manter a mesma estrutura anterior migração:
+CREATE EXTERNAL TABLE bancodemo.clientes_inplace (
+    id_usuario INT,
+    nome STRING,
+    email STRING,
+    data_nascimento DATE,
+    endereco STRING,
+    limite_credito INT,
+    numero_cartao STRING,
+    id_uf STRING
+)
+CLUSTERED BY (id_uf) INTO 27 BUCKETS
+STORED AS PARQUET;
 
-DESCRIBE FORMATTED bancodemo.categoria_estabelecimento
-/*
-- Use Hive to alter the table instead of Impala, as Hive fully supports ACID tables.
-- If possible, convert the table to an INSERT-ONLY transactional table:
-*/
-ALTER TABLE bancodemo.categoria_estabelecimento SET TBLPROPERTIES ('EXTERNAL'='TRUE');
+-- Carregar os dados da tabela origem:
+INSERT OVERWRITE TABLE bancodemo.clientes_inplace
+SELECT * FROM bancodemo.clientes;
 
-ALTER TABLE bancodemo.categoria_estabelecimento 
-SET TBLPROPERTIES ('transactional'='true', 'transactional_properties'='insert_only');
+-- Coletar estatísticas:
+ANALYZE TABLE bancodemo.clientes_inplace COMPUTE STATISTICS;
+ANALYZE TABLE bancodemo.clientes_inplace COMPUTE STATISTICS FOR COLUMNS;
 
-ALTER TABLE bancodemo.categoria_estabelecimento
-SET TBLPROPERTIES (
-  'storage_handler' = 'org.apache.iceberg.mr.hive.HiveIcebergStorageHandler',
-  'format-version' = '2'
-);
+-- Verificar a estrutura da nova tabela
+DESCRIBE FORMATTED bancodemo.clientes_inplace
 
-DESCRIBE FORMATTED bancodemo.categoria_estabelecimento
+-- Criar uma tabela Iceberg para manter a mesma estrutura da tabela anterior:
+CREATE EXTERNAL TABLE bancodemo.clientes_inplace_iceberg
+PARTITIONED BY (id_uf)
+USING 'org.apache.iceberg.mr.hive.HiveIcebergStorageHandler'
+TBLPROPERTIES ('format-version'='2')
+AS SELECT * FROM bancodemo.clientes_inplace;
 
-ALTER TABLE bancodemo.categoria_estabelecimento RENAME TO bancodemo.categoria_estabelecimento_iceberg_inp_hue;
+-- Verificação dos dados da tabela Iceberg comparado com original:
+SELECT COUNT(*) FROM bancodemo.clientes_inplace_iceberg;
+SELECT COUNT(*) FROM bancodemo.clientes_inplace;
 
-ALTER TABLE bancodemo.categoria_estabelecimento_bkp RENAME TO bancodemo.categoria_estabelecimento;
+-- Renomear as tabelas:
+ALTER TABLE bancodemo.clientes_inplace RENAME TO bancodemo.clientes_inplace_old;
+ALTER TABLE bancodemo.clientes_inplace_iceberg RENAME TO bancodemo.clientes_inplace;
+
+-- Fazer as mesmas avaliações na migração SHADOW:
+
+-- Depois das validações, excluir a tabela temporaria:
+DROP TABLE bancodemo.clientes_inplace_old;
