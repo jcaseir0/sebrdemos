@@ -1,4 +1,5 @@
 import os, logging, random, time
+from itertools import count
 import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
@@ -186,20 +187,27 @@ def gerar_numero_cartao():
 
 def gerar_cliente():
     """
-    Generate a random client record.
+    Generate a random client record with a unique, formatted user ID.
+    
+    The function ensures that the id_usuario is unique and formatted with leading zeros 
+    to have a length of 9 digits. It also maintains a 1:1 relationship between id_usuario and nome.
 
     Returns:
         dict: A dictionary containing client details.
     """
     logger.debug("Generating client record")
     ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
+    
+    unique_id_generator = (str(i).zfill(9) for i in count(1))
+    id_usuario = next(unique_id_generator)
+    
     return {
-        "id_usuario": random.randint(1, 1000),
+        "id_usuario": id_usuario,
         "nome": fake.name(),
         "email": fake.email(),
-        "data_nascimento": datetime.strptime(fake.date_of_birth(minimum_age=18, maximum_age=90).isoformat(), "%Y-%m-%d").date(),
+        "data_nascimento": datetime.strptime(fake.date_of_birth(minimum_age=18, maximum_age=90).isoformat(), "%d-%m-%Y").date(),
         "endereco": fake.address().replace('\n', ', '),
-        "limite_credito": random.choice([1000, 2000, 5000, 10000, 20000]),
+        "limite_credito": random.choice([1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 20000]),
         "numero_cartao": gerar_numero_cartao(),
         "id_uf": random.choice(ufs)
     }
