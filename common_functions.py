@@ -205,7 +205,7 @@ def gerar_cliente():
         "id_usuario": id_usuario,
         "nome": fake.name(),
         "email": fake.email(),
-        "data_nascimento": datetime.strptime(fake.date_of_birth(minimum_age=18, maximum_age=90).isoformat(), "%d-%m-%Y").date(),
+        "data_nascimento": fake.date_of_birth(minimum_age=18, maximum_age=90).strftime("%d-%m-%Y"),
         "endereco": fake.address().replace('\n', ', '),
         "limite_credito": random.choice([1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 20000]),
         "numero_cartao": gerar_numero_cartao(),
