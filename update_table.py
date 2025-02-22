@@ -6,7 +6,7 @@ from pyspark.sql.functions import lit
 from common_functions import load_config, gerar_dados, table_exists, get_schema_path
 from datetime import datetime
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def update_table(spark, database_name, table_name, partition_by=None, is_bucketed=False):
@@ -168,3 +168,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Os registros não estão sendo inseridos na tabela clientes. Pode ser falta de coleta de estatísticas ou erro na inserção.
