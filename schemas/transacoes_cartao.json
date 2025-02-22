@@ -1,6 +1,6 @@
 {
     "fields": [
-      {"name": "id_usuario", "type": "integer", "nullable": false, "metadata":{}},
+      {"name": "id_usuario", "type": "string", "nullable": false, "metadata":{}},
       {"name": "data_transacao", "type": "timestamp", "nullable": false, "metadata":{}},
       {"name": "valor", "type": "double", "nullable": false, "metadata":{}},
       {"name": "estabelecimento", "type": "string", "nullable": false, "metadata":{}},
