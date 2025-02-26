@@ -122,7 +122,6 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         config (ConfigParser): The configuration object.
         table_name (str): The name of the table to update.
         clientes_data (list): Data for the 'clientes' table, structured as a list of dictionaries.
-        clientes_id_usuarios (list, optional): List of client IDs if needed. Defaults to None.
     """
     database_name = config.get("DEFAULT", "dbname")
     logger.debug(f"Database name: {database_name}")
@@ -133,7 +132,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         logger.debug(f"Number of records to update: {num_records_update}")
         partition_by = config.get(table_name, 'partition_by', fallback=None)
         bucketing_column = config.get(table_name, 'clustered_by', fallback=None)
-        is_bucketed = bucketing_column is not None
+        is_bucketed = config.getboolean(table_name, 'bucketing', fallback=False)
         logger.debug(f"Is bucketed: {is_bucketed}")
         num_buckets = config.getint(table_name, 'num_buckets', fallback=5) if is_bucketed else 0
         logger.debug(f"Partition by: {partition_by}, Bucketing column: {bucketing_column}, Num Buckets: {num_buckets}")
@@ -152,7 +151,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         columns = get_table_columns(spark, database_name, table_name)
         logger.debug(f"Columns: {columns}")
 
-        table_schema = spark.table(f"{database_name}.{table_name}").schema()
+        table_schema = spark.table(f"{database_name}.{table_name}").schema
         df = spark.createDataFrame(data, schema=table_schema)
 
         if is_bucketed:
