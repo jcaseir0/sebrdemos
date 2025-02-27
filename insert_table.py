@@ -161,7 +161,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         columns = get_table_columns(spark, database_name, table_name)
         logger.debug(f"Columns: {columns}")
 
-        table_schema = spark.table(f"{database_name}.{table_name}").schema()
+        table_schema = spark.table(f"{database_name}.{table_name}").schema
         logger.debug(f"Table schema: {table_schema}")
 
         df = spark.createDataFrame(data, schema=table_schema)
