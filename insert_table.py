@@ -144,18 +144,26 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         if 'transacoes_cartao' in table_name:
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
             data = gerar_dados(table_name, num_records_update, clientes_ids)
+            logger.debug(f"Sample data: {data[:3]}")
+            current_date = datetime.now().strftime("%d-%m-%Y")
+            for record in data:
+                record['data_execucao'] = current_date
         elif 'clientes' in table_name:
             data = gerar_dados(table_name, num_records_update) if clientes_data is None else clientes_data
+            logger.debug(f"Sample data: {data[:3]}")
         else:
             data = gerar_dados(table_name, num_records_update)
+            logger.debug(f"Sample data: {data[:3]}")
 
         record_count_before = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' before insert: {record_count_before}")
 
         columns = get_table_columns(spark, database_name, table_name)
-        logger.info(f"Columns: {columns}")
+        logger.debug(f"Columns: {columns}")
 
-        table_schema = spark.table(f"{database_name}.{table_name}").schema
+        table_schema = spark.table(f"{database_name}.{table_name}").schema()
+        logger.debug(f"Table schema: {table_schema}")
+
         df = spark.createDataFrame(data, schema=table_schema)
 
         if is_bucketed:
