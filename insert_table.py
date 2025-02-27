@@ -89,12 +89,13 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         column_list = ", ".join(columns)
         logger.debug(f"Inserting Columns: {column_list}")
 
+        spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
+
         if partition_by:
             current_date = datetime.now().strftime("%d-%m-%Y")
             logger.debug(f"Inserting data with partition: {partition_by}='{current_date}'")
             spark.sql(f"""
                 INSERT INTO {database_name}.{table_name}
-                PARTITION ({partition_by}='{current_date}')
                 SELECT {column_list}
                 FROM temp_view
             """)
@@ -146,8 +147,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
             data = gerar_dados(table_name, num_records_update, clientes_ids)
             logger.debug(f"Sample data: {data[:3]}")
             current_date = datetime.now().strftime("%d-%m-%Y")
-            for record in data:
-                record['data_execucao'] = current_date
+            data = [record | {'data_execucao': current_date} for record in data]
         elif 'clientes' in table_name:
             data = gerar_dados(table_name, num_records_update) if clientes_data is None else clientes_data
             logger.debug(f"Sample data: {data[:3]}")
