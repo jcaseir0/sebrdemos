@@ -147,7 +147,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
             data = gerar_dados(table_name, num_records_update, clientes_ids)
             logger.debug(f"Sample data: {data[:3]}")
             current_date = datetime.now().strftime("%d-%m-%Y")
-            data = [record | {'data_execucao': current_date} for record in data]
+            data = [dict(record, data_execucao=current_date) for record in data]
         elif 'clientes' in table_name:
             data = gerar_dados(table_name, num_records_update) if clientes_data is None else clientes_data
             logger.debug(f"Sample data: {data[:3]}")
