@@ -29,6 +29,7 @@ def create_spark_session(jdbc_url: str, thrift_server: str) -> SparkSession:
         spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
 
         spark = SparkSession.builder.config(conf=spark_conf).appName("UpdateTable").enableHiveSupport().getOrCreate()
+
         logger.info("Spark session created successfully")
         return spark
     except Exception as e:
@@ -89,13 +90,12 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         column_list = ", ".join(columns)
         logger.debug(f"Inserting Columns: {column_list}")
 
-        spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
-
         if partition_by:
             current_date = datetime.now().strftime("%d-%m-%Y")
             logger.debug(f"Inserting data with partition: {partition_by}='{current_date}'")
             spark.sql(f"""
                 INSERT INTO {database_name}.{table_name}
+                PARTITION ({partition_by}='{current_date}')
                 SELECT {column_list}
                 FROM temp_view
             """)
@@ -146,8 +146,6 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
             data = gerar_dados(table_name, num_records_update, clientes_ids)
             logger.debug(f"Sample data: {data[:3]}")
-            current_date = datetime.now().strftime("%d-%m-%Y")
-            data = [dict(record, data_execucao=current_date) for record in data]
         elif 'clientes' in table_name:
             data = gerar_dados(table_name, num_records_update) if clientes_data is None else clientes_data
             logger.debug(f"Sample data: {data[:3]}")
@@ -172,7 +170,9 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
 
         df.createOrReplaceTempView("temp_view")
 
-        insert_data(spark, database_name, table_name, columns, partition_by, is_bucketed)
+        insert_columns = [col for col in columns if col != 'data_execucao'] if 'transacoes_cartao' in table_name else columns
+
+        insert_data(spark, database_name, table_name, insert_columns, partition_by, is_bucketed)
         
         record_count_after = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' after insert: {record_count_after}")
@@ -244,6 +244,7 @@ def main():
         logger.debug(f"Thrift Server: {thrift_server}")
 
         spark = create_spark_session(jdbc_url, thrift_server)
+        spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name = config.get("DEFAULT", "dbname")
         tables = config.get("DEFAULT", "tables").split(",")
         logger.debug(f"Tables: {tables}")
