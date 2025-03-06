@@ -117,7 +117,7 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         logger.error(f"Error inserting data into table '{table_name}': {str(e)}")
         raise
 
-def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_name: str, clientes_data=None) -> None:
+def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_name: str) -> None:
     """Generates data and writes it to the specified table.
 
     Args:
@@ -139,6 +139,11 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         logger.debug(f"Is bucketed: {is_bucketed}")
         num_buckets = config.getint(table_name, 'num_buckets', fallback=5) if is_bucketed else 0
         logger.debug(f"Partition by: {partition_by}, Bucketing column: {bucketing_column}, Num Buckets: {num_buckets}")
+
+        tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
+        logger.debug(f"Tables in database {database_name}: {tables}")
+        clientes_table = [table for table in tables if 'clientes' in table][0]
+        clientes_data = gerar_dados(clientes_table, num_records_update)
 
         if 'transacoes_cartao' in table_name:
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
@@ -199,23 +204,6 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         logger.error(f"Error generating and writing data for table '{table_name}': {e}", exc_info=True)
         raise
 
-def generate_clientes_data(config: ConfigParser) -> list:
-    """
-    Generates client data based on the configuration.
-    """
-    logger.info("Generating clientes data")
-    try:
-        clientes_table = [table for table in config.get("DEFAULT", "tables").split(",") if 'clientes' in table][0]
-        logger.debug(f"Clientes table: {clientes_table}")
-        clientes_num_records = config.getint(clientes_table, 'num_records_update', fallback=100)
-        clientes_data = gerar_dados(clientes_table, clientes_num_records)
-        logger.debug(f"Clientes data generated sample: {clientes_data[:3]}")
-        return clientes_data
-    
-    except Exception as e:
-        logger.error(f"Error generating clientes data: {e}")
-        return []
-
 def main():
     """
     Main function to update tables based on configuration.
@@ -244,11 +232,8 @@ def main():
         spark = create_spark_session(jdbc_url, thrift_server)
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name = config.get("DEFAULT", "dbname")
-        tables = config.get("DEFAULT", "tables").split(",")
+        tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
         logger.debug(f"Tables: {tables}")
-
-        clientes_data = generate_clientes_data(config)
-        logger.debug(f"Clientes table: {clientes_data}")
                      
         for table_name in tables:
             table_name = table_name.strip()
@@ -256,7 +241,7 @@ def main():
 
             if table_exists(spark, database_name, table_name):
                 try:
-                    generate_and_write_data(spark, config, table_name, clientes_data)
+                    generate_and_write_data(spark, config, table_name)
                 except Exception as e:
                     logger.error(f"Failed to generate and write data for table '{table_name}': {e}")
             else:
