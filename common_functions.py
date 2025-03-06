@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Set logging level to DEBUG
 
 fake = Faker('pt_BR')
+id_counter = count(1)
 
 def load_config(config_path='/app/mount/config.ini'):
     """
@@ -198,8 +199,7 @@ def gerar_cliente():
     logger.debug("Generating client record")
     ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
     
-    unique_id_generator = (str(i).zfill(9) for i in count(1))
-    id_usuario = next(unique_id_generator)
+    id_usuario = str(next(id_counter)).zfill(9)
     
     return {
         "id_usuario": id_usuario,
