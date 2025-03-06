@@ -84,33 +84,31 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         Exception: If an error occurs during the data insertion process.
     """
     logger.info(f"Inserting data into table: {database_name}.{table_name}")
-    logger.debug(f"Partition by: {partition_by}, Is bucketed: {is_bucketed}")
+    if partition_by:
+        logger.info(f"Partition by: {partition_by}")
+    elif is_bucketed: 
+        logger.info(f"Is bucketed: {is_bucketed}")
+    else:
+        logger.info("No partitioning or bucketing")
 
     try:
         column_list = ", ".join(columns)
-        logger.debug(f"Inserting Columns: {column_list}")
+        logger.info(f"Inserting Columns: {column_list}")
 
         if partition_by:
             current_date = datetime.now().strftime("%d-%m-%Y")
-            logger.debug(f"Inserting data with partition: {partition_by}='{current_date}'")
+            logger.info(f"Inserting data with partition: {partition_by}='{current_date}'")
             spark.sql(f"""
                 INSERT INTO {database_name}.{table_name}
                 PARTITION ({partition_by}='{current_date}')
                 SELECT {column_list}
                 FROM temp_view
             """)
-        elif is_bucketed:
-            logger.debug("Inserting data into bucketed table with bucketing column")
+        else:
+            logger.debug("Inserting data without partition or with bucketing")
             spark.sql(f"""
                 INSERT INTO {database_name}.{table_name}
                 SELECT {column_list}
-                FROM temp_view
-            """)
-        else:
-            logger.debug("Inserting data without partition or bucketing")
-            spark.sql(f"""
-                INSERT INTO {database_name}.{table_name} 
-                SELECT * 
                 FROM temp_view
             """)
 
@@ -172,7 +170,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
 
         insert_columns = [col for col in columns if col != 'data_execucao'] if 'transacoes_cartao' in table_name else columns
 
-        insert_data(spark, database_name, table_name, insert_columns, partition_by, is_bucketed)
+        insert_data(spark, database_name, table_name, insert_columns, partition_by if not is_bucketed else None, is_bucketed)
         
         record_count_after = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' after insert: {record_count_after}")
