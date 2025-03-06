@@ -117,7 +117,30 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         logger.error(f"Error inserting data into table '{table_name}': {str(e)}")
         raise
 
-def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_name: str) -> None:
+def display_table_samples(spark: SparkSession, database_name: str, tables: list) -> None:
+    """Displays sample rows from specified tables and checks for matching IDs."""
+    for table_name in tables:
+        sample_rows = spark.sql(f"SELECT * FROM {database_name}.{table_name} LIMIT 3").collect()
+        logger.info(f"Sample rows from table '{table_name}':")
+        for row in sample_rows:
+            logger.info(str(row))
+
+    if 'transacoes_cartao' in tables and 'clientes' in tables:
+        transacoes_sample = spark.sql(f"SELECT id_usuario FROM {database_name}.transacoes_cartao LIMIT 3").collect()
+        transacoes_ids = [row.id_usuario for row in transacoes_sample]
+        logger.info(f"Sampled id_usuario from 'transacoes_cartao' table: {transacoes_ids}")
+
+        clientes_sample = spark.sql(f"""
+            SELECT id_usuario
+            FROM {database_name}.clientes
+            WHERE id_usuario IN ('{"','".join(transacoes_ids)}')
+            LIMIT 3
+        """).collect()
+
+        clientes_ids = [row.id_usuario for row in clientes_sample]
+        logger.info(f"Sampled id_usuario from 'clientes' table: {clientes_ids}")
+
+def generate_and_write_data(spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
     """Generates data and writes it to the specified table.
 
     Args:
@@ -126,35 +149,33 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         table_name (str): The name of the table to update.
         clientes_data (list): Data for the 'clientes' table, structured as a list of dictionaries.
     """
-    database_name = config.get("DEFAULT", "dbname")
-    logger.debug(f"Database name: {database_name}")
     logger.info(f"Generating and writing data for table: {database_name}.{table_name}")
     
     try:
         num_records_update = config.getint(table_name, 'num_records_update', fallback=100)
-        logger.debug(f"Number of records to update: {num_records_update}")
+        logger.info(f"Number of records to update: {num_records_update}")
         partition_by = config.get(table_name, 'partition_by', fallback=None)
         bucketing_column = config.get(table_name, 'clustered_by', fallback=None)
         is_bucketed = config.getboolean(table_name, 'bucketing', fallback=False)
-        logger.debug(f"Is bucketed: {is_bucketed}")
+        logger.info(f"Is bucketed: {is_bucketed}")
         num_buckets = config.getint(table_name, 'num_buckets', fallback=5) if is_bucketed else 0
-        logger.debug(f"Partition by: {partition_by}, Bucketing column: {bucketing_column}, Num Buckets: {num_buckets}")
+        logger.info(f"Partition by: {partition_by}, Bucketing column: {bucketing_column}, Num Buckets: {num_buckets}")
 
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
-        logger.debug(f"Tables in database {database_name}: {tables}")
+        logger.info(f"Tables in database {database_name}: {tables}")
         clientes_table = [table for table in tables if 'clientes' in table][0]
+        num_records_update = config.getint(clientes_table, 'num_records_update', fallback=100)
         clientes_data = gerar_dados(clientes_table, num_records_update)
 
         if 'transacoes_cartao' in table_name:
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
             data = gerar_dados(table_name, num_records_update, clientes_ids)
-            logger.debug(f"Sample data: {data[:3]}")
         elif 'clientes' in table_name:
             data = gerar_dados(table_name, num_records_update) if clientes_data is None else clientes_data
-            logger.debug(f"Sample data: {data[:3]}")
         else:
             data = gerar_dados(table_name, num_records_update)
-            logger.debug(f"Sample data: {data[:3]}")
+            
+        logger.debug(f"Sample data: {data[:3]}")
 
         record_count_before = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' before insert: {record_count_before}")
@@ -179,26 +200,6 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, table_nam
         
         record_count_after = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' after insert: {record_count_after}")
-
-        sample_rows = spark.sql(f"SELECT * FROM {database_name}.{table_name} LIMIT 3").collect()
-        logger.info(f"Sample rows from table '{table_name}':")
-        for row in sample_rows:
-            logger.info(str(row))
-
-        if 'transacoes_cartao' in table_name:
-            transacoes_sample = spark.sql(f"SELECT id_usuario FROM {database_name}.{table_name} LIMIT 3").collect()
-            transacoes_ids = [row.id_usuario for row in transacoes_sample]
-            logger.info(f"Sampled id_usuario from 'transacoes_cartao' table: {transacoes_ids}")
-
-            clientes_sample = spark.sql(f"""
-                SELECT id_usuario
-                FROM {database_name}.clientes
-                WHERE id_usuario IN ('{"','".join(transacoes_ids)}')
-                LIMIT 3
-            """).collect()
-
-            clientes_ids = [row.id_usuario for row in clientes_sample]
-            logger.info(f"Sampled id_usuario from 'clientes' table: {clientes_ids}")
 
     except Exception as e:
         logger.error(f"Error generating and writing data for table '{table_name}': {e}", exc_info=True)
@@ -233,7 +234,7 @@ def main():
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name = config.get("DEFAULT", "dbname")
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
-        logger.debug(f"Tables: {tables}")
+        logger.info(f"Tables: {tables}")
                      
         for table_name in tables:
             table_name = table_name.strip()
@@ -241,12 +242,15 @@ def main():
 
             if table_exists(spark, database_name, table_name):
                 try:
-                    generate_and_write_data(spark, config, table_name)
+                    generate_and_write_data(spark, config, database_name, table_name)
                 except Exception as e:
                     logger.error(f"Failed to generate and write data for table '{table_name}': {e}")
             else:
                 logger.warning(f"Table '{table_name}' does not exist. Cannot update.")
         logger.info("Table update process completed")
+
+        display_table_samples(spark, database_name, tables)
+
     except Exception as e:
         logger.error(f"Error updating tables: {e}", exc_info=True)
     finally:
