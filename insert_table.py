@@ -126,8 +126,7 @@ def display_table_samples(spark: SparkSession, database_name: str, tables: list)
             logger.info(str(row))
 
     if 'transacoes_cartao' in tables and 'clientes' in tables:
-        transacoes_sample = spark.sql(f"SELECT id_usuario FROM {database_name}.transacoes_cartao LIMIT 3").collect()
-        transacoes_ids = [row.id_usuario for row in transacoes_sample]
+        transacoes_ids = [row.id_usuario for row in sample_rows]
         logger.info(f"Sampled id_usuario from 'transacoes_cartao' table: {transacoes_ids}")
 
         clientes_sample = spark.sql(f"""
