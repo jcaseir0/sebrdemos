@@ -117,7 +117,7 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         logger.error(f"Error inserting data into table '{table_name}': {str(e)}")
         raise
 
-def display_table_samples(spark: SparkSession, database_name: str, tables: list) -> None:
+def display_table_samples(spark: SparkSession, database_name: str, tables: list, generated_data: dict) -> None:
     """
     Displays sample rows from specified tables and checks for matching IDs.
     
@@ -125,11 +125,9 @@ def display_table_samples(spark: SparkSession, database_name: str, tables: list)
         spark (SparkSession): The active Spark session.
         database_name (str): The name of the database containing the table.
         tables (list): A list of tables of the database.
+        generated_data (dict): A dictionary containing the generated data for each table
     """
     logger.info("Displaying sample rows from tables")
-    
-    transacoes_sample_rows = None
-    clientes_sample_rows = None
 
     for table_name in tables:
         sample_rows = spark.sql(f"SELECT * FROM {database_name}.{table_name} LIMIT 3").collect()
@@ -137,13 +135,8 @@ def display_table_samples(spark: SparkSession, database_name: str, tables: list)
         for row in sample_rows:
             logger.info(str(row))
         
-        if table_name == 'transacoes_cartao':
-            transacoes_sample_rows = sample_rows
-        elif table_name == 'clientes':
-            clientes_sample_rows = sample_rows
-
-    if transacoes_sample_rows and clientes_sample_rows:
-        transacoes_ids = [row.id_usuario for row in transacoes_sample_rows]
+    if 'transacoes_cartao' in tables and 'clientes' in tables:
+        transacoes_ids = [row['id_usuario'] for row in generated_data['transacoes_cartao'][:3]]
         logger.info(f"Sampled id_usuario from 'transacoes_cartao' table: {transacoes_ids}")
 
         clientes_sample = spark.sql(f"""
@@ -217,6 +210,8 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, database_
         record_count_after = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' after insert: {record_count_after}")
 
+        return data
+    
     except Exception as e:
         logger.error(f"Error generating and writing data for table '{table_name}': {e}", exc_info=True)
         raise
@@ -251,21 +246,23 @@ def main():
         database_name = config.get("DEFAULT", "dbname")
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Tables: {tables}")
-                     
+        
+        generated_data = {}       
         for table_name in tables:
             table_name = table_name.strip()
             logger.info(f"Processing table: {table_name}")
 
             if table_exists(spark, database_name, table_name):
                 try:
-                    generate_and_write_data(spark, config, database_name, table_name)
+                    data = generate_and_write_data(spark, config, database_name, table_name)
+                    generated_data[table_name] = data
                 except Exception as e:
                     logger.error(f"Failed to generate and write data for table '{table_name}': {e}")
             else:
                 logger.warning(f"Table '{table_name}' does not exist. Cannot update.")
         logger.info("Table update process completed")
 
-        display_table_samples(spark, database_name, tables)
+        display_table_samples(spark, database_name, tables, generated_data)
 
     except Exception as e:
         logger.error(f"Error updating tables: {e}", exc_info=True)
