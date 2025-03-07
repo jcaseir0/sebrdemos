@@ -144,7 +144,7 @@ def display_table_samples(spark: SparkSession, database_name: str, tables: list,
 
         clientes_sample = [row for row in generated_data['clientes'] if row['id_usuario'] in transacoes_ids][:3]
 
-        clientes_ids = [row.id_usuario for row in clientes_sample]
+        clientes_ids = [row['id_usuario'] for row in clientes_sample]
         logger.info(f"Sampled id_usuario from 'clientes' table: {clientes_ids}")
 
         logger.info("Matching sample rows from 'clientes' table:")
