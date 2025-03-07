@@ -130,24 +130,26 @@ def display_table_samples(spark: SparkSession, database_name: str, tables: list,
     logger.info("Displaying sample rows from tables")
 
     for table_name in tables:
-        sample_rows = spark.sql(f"SELECT * FROM {database_name}.{table_name} LIMIT 3").collect()
-        logger.info(f"Sample rows from table '{table_name}':")
-        for row in sample_rows:
-            logger.info(str(row))
+        if table_name in generated_data:
+            sample_rows = generated_data[table_name][:3]
+            logger.info(f"Sample rows from table '{table_name}':")
+            for row in sample_rows:
+                logger.info(str(row))
+        else:
+            logger.warning(f"No generated data found for table '{table_name}'")
         
     if 'transacoes_cartao' in tables and 'clientes' in tables:
-        transacoes_ids = [row['id_usuario'] for row in generated_data['transacoes_cartao'][:3]]
+        transacoes_ids = [row['id_usuario'] for row in sample_rows]
         logger.info(f"Sampled id_usuario from 'transacoes_cartao' table: {transacoes_ids}")
 
-        clientes_sample = spark.sql(f"""
-            SELECT id_usuario
-            FROM {database_name}.clientes
-            WHERE id_usuario IN ('{"','".join(transacoes_ids)}')
-            LIMIT 3
-        """).collect()
+        clientes_sample = [row for row in generated_data['clientes'] if row['id_usuario'] in transacoes_ids][:3]
 
         clientes_ids = [row.id_usuario for row in clientes_sample]
         logger.info(f"Sampled id_usuario from 'clientes' table: {clientes_ids}")
+
+        logger.info("Matching sample rows from 'clientes' table:")
+        for row in clientes_sample:
+            logger.info(str(row))
 
 def generate_and_write_data(spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
     """Generates data and writes it to the specified table.
