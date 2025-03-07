@@ -118,15 +118,26 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         raise
 
 def display_table_samples(spark: SparkSession, database_name: str, tables: list) -> None:
-    """Displays sample rows from specified tables and checks for matching IDs."""
+    """
+    Displays sample rows from specified tables and checks for matching IDs.
+    
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
+        tables (list): A list of tables of the database.
+    """
+    logger.info("Displaying sample rows from tables")
+    transacoes_ids = []
+
     for table_name in tables:
         sample_rows = spark.sql(f"SELECT * FROM {database_name}.{table_name} LIMIT 3").collect()
         logger.info(f"Sample rows from table '{table_name}':")
         for row in sample_rows:
             logger.info(str(row))
+        if table_name == 'transacoes_cartao':
+            transacoes_ids = [row.id_usuario for row in sample_rows]
 
     if 'transacoes_cartao' in tables and 'clientes' in tables:
-        transacoes_ids = [row.id_usuario for row in sample_rows]
         logger.info(f"Sampled id_usuario from 'transacoes_cartao' table: {transacoes_ids}")
 
         clientes_sample = spark.sql(f"""
