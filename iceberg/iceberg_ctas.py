@@ -40,7 +40,7 @@ def show_partitions(spark: SparkSession, database_name: str, table_name: str) ->
         database_name (str): Nome do banco de dados onde as tabelas se encontram.
         table_name (str): Nome do banco de dados onde as tabelas se encontram.
     """
-    logger.info("Exibindo partições da tabela {table_name}...")
+    logger.info(f"Exibindo partições da tabela {database_name}.{table_name}...")
     print("PRE-ICEBERG MIGRATION TABLE PARTITIONS: \n")
     print(f"SHOW PARTITIONS {database_name}.{table_name}\n")
     spark.sql(f"SHOW PARTITIONS {database_name}.{table_name}").show(truncate=False)
@@ -114,7 +114,7 @@ def migrate_to_iceberg_ctas(spark: SparkSession, database_name: str, table_name:
                 insert_query = f"""
                     INSERT INTO {iceberg_table} 
                     SELECT * FROM {source_table} 
-                    WHERE frameworkdate = '{partition_date}'
+                    WHERE {partition_by} = '{partition_date}'
                 """
                 spark.sql(insert_query)
                 logger.info(f"Data inserted successfully into {iceberg_table} for {partition_by}={partition_date}.")
@@ -155,10 +155,10 @@ def describe_table(spark: SparkSession, database_name: str, table_name: str) -> 
         table_name (str): Nome da tabela a ser descrita.
     """
     logger.info("Descrevendo tabela Iceberg...")
-    print("DESCRIBE TABLE spark_catalog.{database_name}.{table_name}\n")
-    spark.sql("DESCRIBE TABLE spark_catalog.{database_name}.{table_name}\n").show(20, False)
+    print(f"DESCRIBE TABLE spark_catalog.{database_name}.{table_name}\n")
+    spark.sql(f"DESCRIBE TABLE spark_catalog.{database_name}.{table_name}\n").show(20, False)
 
-def show_partitions_post_migration(spark: SparkSession, username: str, table_name: str) -> None:
+def show_partitions_post_migration(spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Exibe as partições da tabela Iceberg após a migração.
 
@@ -169,9 +169,9 @@ def show_partitions_post_migration(spark: SparkSession, username: str, table_nam
     """
     logger.info("Exibindo partições da tabela Iceberg após a migração...")
     print("CUSTOMER TABLE POST-ICEBERG MIGRATION PARTITIONS: \n")
-    spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}.PARTITIONS".format(username, table_name)).show()
+    spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.PARTITIONS").show()
 
-def show_iceberg_snapshots(spark: SparkSession, username: str, table_name: str) -> None:
+def show_iceberg_snapshots(spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Exibe os snapshots da tabela Iceberg.
 
@@ -185,10 +185,10 @@ def show_iceberg_snapshots(spark: SparkSession, username: str, table_name: str) 
     print("#            SHOW ICEBERG TABLE SNAPSHOTS           ")
     print("#---------------------------------------------------")
     print("\n")
-    spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}.history".format(username, table_name)).show(20, False)
-    spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}.snapshots".format(username, table_name)).show(20, False)
+    spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.history").show(20, False)
+    spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.snapshots").show(20, False)
 
-def insert_data(spark: SparkSession, username: str, table_name: str) -> None:
+def insert_data(spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Insere dados na tabela Iceberg.
 
@@ -204,28 +204,32 @@ def insert_data(spark: SparkSession, username: str, table_name: str) -> None:
     print("\n")
     # PRE-INSERT COUNT
     print("PRE-INSERT COUNT")
-    spark.sql("SELECT COUNT(*) FROM spark_catalog.{}_CUSTOMER.{}".format(username, table_name)).show()
+    spark.sql(f"SELECT COUNT(*) FROM spark_catalog.{database_name}.{table_name}").show()
     print("\n")
     
     # INSERT DATA VIA DATAFRAME API
     print("#---------------------------------------------------")
     print("#        INSERT DATA VIA DATAFRAME API              ")
     print("#---------------------------------------------------")
-    temp_df = spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}".format(username, table_name)).sample(fraction=0.3, seed=3)
-    temp_df.writeTo("spark_catalog.{}_CUSTOMER.{}".format(username, table_name)).append()
+    temp_df = spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}").sample(fraction=0.3, seed=3)
+    temp_df.writeTo(f"spark_catalog.{database_name}.{table_name}").append()
     print("\n")
     
     # INSERT DATA VIA SPARK SQL
     print("#---------------------------------------------------")
     print("#        INSERT DATA VIA SPARK SQL                  ")
     print("#---------------------------------------------------")
-    temp_df.createOrReplaceTempView("CUSTOMER_SAMPLE".format(username))
-    insert_qry = "INSERT INTO spark_catalog.{0}_CUSTOMER.{1} SELECT * FROM CUSTOMER_SAMPLE".format(username, table_name)
+    temp_df.createOrReplaceTempView(f"{database_name}.{table_name}_SAMPLE")
+    insert_qry = f"""
+                    INSERT INTO spark_catalog.{database_name}.{table_name}
+                    SELECT * 
+                    FROM {database_name}.{table_name}_SAMPLE
+                  """
     print(insert_qry)
     spark.sql(insert_qry)
     print("\n")
 
-def time_travel(spark: SparkSession, username: str, table_name: str) -> None:
+def time_travel(spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Realiza operações de time travel na tabela Iceberg.
 
@@ -240,25 +244,25 @@ def time_travel(spark: SparkSession, username: str, table_name: str) -> None:
     print("#---------------------------------------------------")
     
     # NOTICE SNAPSHOTS HAVE BEEN ADDED
-    spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}.history".format(username, table_name)).show(20, False)
-    spark.sql("SELECT * FROM spark_catalog.{}_CUSTOMER.{}.snapshots".format(username, table_name)).show(20, False)
+    spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.history").show(20, False)
+    spark.sql(f"SELECT * FROM spark_catalog.{database_name}.{table_name}.snapshots").show(20, False)
 
     # POST-INSERT COUNT
     print("\n")
     print("POST-INSERT COUNT")
-    spark.sql("SELECT COUNT(*) FROM spark_catalog.{}_CUSTOMER.{}".format(username, table_name)).show()
+    spark.sql(f"SELECT COUNT(*) FROM spark_catalog.{database_name}.{table_name}").show()
 
     # TIME TRAVEL AS OF PREVIOUS TIMESTAMP
     now = datetime.now()
     timestamp = datetime.timestamp(now)
-    df = spark.read.option("as-of-timestamp", int(timestamp*1000)).format("iceberg").load("spark_catalog.{}_CUSTOMER.{}".format(username, table_name))
+    df = spark.read.option("as-of-timestamp", int(timestamp*1000)).format("iceberg").load(f"spark_catalog.{database_name}.{table_name}")
 
     # POST TIME TRAVEL COUNT
     print("\n")
     print("POST-TIME TRAVEL COUNT")
     print(df.count())
 
-def incremental_read(spark: SparkSession, username: str, table_name: str) -> None:
+def incremental_read(spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Realiza leitura incremental da tabela Iceberg.
 
@@ -276,6 +280,6 @@ def incremental_read(spark: SparkSession, username: str, table_name: str) -> Non
     print("INCREMENTAL READ")
     print("\n")
     print("ICEBERG TABLE HISTORY (SHOWS EACH SNAPSHOT AND TIMESTAMP)")
-    print("SELECT * FROM {}_CUSTOMER.{}.history;".format(username, table_name))
-    spark.sql("SELECT * FROM {}_CUSTOMER.{}.history;".format(username, table_name)).show()
+    print(f"SELECT * FROM {database_name}.{table_name}.history;")
+    spark.sql(f"SELECT * FROM {database_name}.{table_name}.history;").show()
     print
