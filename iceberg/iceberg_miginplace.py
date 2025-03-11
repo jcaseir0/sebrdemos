@@ -520,12 +520,15 @@ def main() -> None:
 
     try:
         spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").enableHiveSupport().getOrCreate()
+        logger.info("Spark session created successfully")
+        database_name = config['DEFAULT'].get('dbname')
+        logger.debug(f"Database name: {database_name}")
 
         validate_hive_metastore(logger, spark)
-        check_iceberg_compatibility(logger, spark)
+        check_iceberg_compatibility(logger, database_name, spark)
 
         tables = config['DEFAULT']['tables'].split(',')
-        database_name = config['DEFAULT'].get('dbname')
+        logger.info(f"Tables to be migrated: {tables}")
 
         for table_name in tables:
             drop_snapshot_table_if_exists(logger, spark, database_name, table_name)
