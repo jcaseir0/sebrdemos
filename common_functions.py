@@ -210,35 +210,69 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
 
 def collect_statistics(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, columns=None):
     """
-    Coleta estatísticas de um DataFrame PySpark.
-    
-    :param df: DataFrame PySpark
-    :param columns: Lista de colunas para analisar (opcional, padrão: todas as colunas numéricas)
-    :return: DataFrame com estatísticas
+    Collects statistics for a Hive or Iceberg table.
+
+    This function retrieves statistics such as row count, column counts, and basic
+    descriptive statistics (mean, stddev, min, max) for numeric columns.
+
+    Args:
+        logger (logging.Logger): Logger for logging messages.
+        spark (SparkSession): Active Spark session.
+        database_name (str): Name of the database containing the table.
+        table_name (str): Name of the table to analyze.
+        columns (list): List of columns to analyze. If None, all columns are considered.
+
+    Returns:
+        pyspark.sql.DataFrame: A DataFrame containing the collected statistics.
+
+    Raises:
+        Exception: If an error occurs during the statistics collection process.
     """
     
     logger.info(f"Collecting statistics for {database_name}.{table_name}")
     try:
         if columns is None:
             columns = get_table_columns(logger, spark, database_name, table_name)
+
+        logger.debug(f"Columns to analyze: {', '.join(columns)}")
         
-        numeric_columns = spark.sql(f"DESCRIBE {database_name}.{table_name}").filter(col("data_type").isin("int", "bigint", "float", "double")).select("col_name").rdd.flatMap(lambda x: x).collect()
+        numeric_columns_query = f"DESCRIBE {database_name}.{table_name}"
+        numeric_columns = (
+            spark.sql(numeric_columns_query)
+            .filter(col("data_type").isin("int", "bigint", "float", "double"))
+            .select("col_name")
+            .rdd.flatMap(lambda x: x)
+            .collect()
+        )
+
         logger.debug(f"Numeric columns: {', '.join(numeric_columns)}")
         
-        stats = spark.sql(f"""
+        count_expressions = ", ".join([f"COUNT({col}) AS {col}_count" for col in columns])
+        avg_expressions = ", ".join([f"AVG({col}) AS {col}_mean" for col in numeric_columns])
+        stddev_expressions = ", ".join([f"STDDEV({col}) AS {col}_stddev" for col in numeric_columns])
+        min_expressions = ", ".join([f"MIN({col}) AS {col}_min" for col in numeric_columns])
+        max_expressions = ", ".join([f"MAX({col}) AS {col}_max" for col in numeric_columns])
+
+        query = f"""
             SELECT
-                '{table_name}' as table_name,
-                COUNT(*) as row_count,
-                {', '.join([f"COUNT({col}) as {col}_count" for col in columns])},
-                {', '.join([f"AVG({col}) as {col}_mean" for col in numeric_columns])},
-                {', '.join([f"STDDEV({col}) as {col}_stddev" for col in numeric_columns])},
-                {', '.join([f"MIN({col}) as {col}_min" for col in numeric_columns])},
-                {', '.join([f"MAX({col}) as {col}_max" for col in numeric_columns])}
+                '{table_name}' AS table_name,
+                COUNT(*) AS row_count,
+                {count_expressions},
+                {avg_expressions},
+                {stddev_expressions},
+                {min_expressions},
+                {max_expressions}
             FROM {database_name}.{table_name}
-        """)
+        """
         
-        logger.info("Statistics collected successfully")
-        return stats
+        logger.debug(f"Generated SQL query for statistics:\n{query}")
+
+        stats_df = spark.sql(query)
+        
+        logger.info("Statistics collected successfully for {database_name}.{table_name}")
+        
+        return stats_df
+    
     except Exception as e:
         logger.error(f"Error collecting statistics for {database_name}.{table_name}: {str(e)}")
         raise
