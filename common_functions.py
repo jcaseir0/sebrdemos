@@ -284,7 +284,7 @@ def collect_statistics(logger: logging.Logger, spark: SparkSession, database_nam
         logger.error(f"Error collecting statistics for {database_name}.{table_name}: {str(e)}")
         raise
 
-def gerar_numero_cartao(logger: logging):
+def gerar_numero_cartao(logger: logging.Logger):
     """
     Generate a random credit card number.
 
