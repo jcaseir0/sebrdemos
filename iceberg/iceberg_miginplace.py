@@ -138,10 +138,15 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
 
         logger.info("Compare row counts")
         count_query1 = f"SELECT COUNT(*) as count FROM {database_name}.{snaptable}"
+        logger.info(f"Count query 1: {count_query1}")
         count_query2 = f"SELECT COUNT(*) as count FROM {database_name}.{table_name}"
+        logger.info(f"Count query 2: {count_query2}")
         count1, count2, counts_match = compare_query_results(spark, count_query1, count_query2, "Row counts")
+        logger.info(f"Count query results match: {counts_match}")
+        logger.info(f"Counts Iceberg Snapshot Table: {count1}")
+        logger.info(f"Counts Original Table: {count2}")
         checks_passed = checks_passed and counts_match
-        logger.debug(f"Checks passed: {checks_passed}")
+        logger.info(f"Checks passed: {checks_passed}")
         
         logger.info(f"Iceberg snapshot table row count: {count1[0]['count']}")
         logger.info(f"Original table row count: {count2[0]['count']}\n")
