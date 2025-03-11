@@ -189,9 +189,10 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
     names, excluding partition information and special columns (e.g., '# col_name', 'data_type').
 
     Args:
-        spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database containing the table.
-        table_name (str): The name of the table.
+        logger (logging.Logger): Logger instance for logging.
+        spark (SparkSession): Active Spark session.
+        database_name (str): Name of the database containing the table.
+        table_name (str): Name of the table.
 
     Returns:
         list: A list of valid column names for the table.
@@ -199,11 +200,16 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
     Raises:
         Exception: If an error occurs while retrieving the table schema.
     """
+
     logger.info(f"Retrieving table schema for {database_name}.{table_name}")
+
     try:
-        columns = spark.sql(f"DESCRIBE {database_name}.{table_name}").filter(~col("col_name").isin("# col_name", "data_type")).select("col_name").rdd.flatMap(lambda x: x).collect()
-        logger.info(f"Columns: {', '.join(columns)}")
-        return columns
+        df = spark.sql(f"DESCRIBE {database_name}.{table_name}")
+        valid_columns = df.filter(~col("col_name").isin("# col_name", "data_type")).select("col_name").rdd.flatMap(lambda x: x).collect()
+        
+        logger.info(f"Columns: {', '.join(valid_columns)}")
+        return valid_columns
+    
     except Exception as e:
         logger.error(f"Error retrieving table schema for {database_name}.{table_name}: {str(e)}")
         raise
@@ -220,7 +226,7 @@ def collect_statistics(logger: logging.Logger, spark: SparkSession, database_nam
         spark (SparkSession): Active Spark session.
         database_name (str): Name of the database containing the table.
         table_name (str): Name of the table to analyze.
-        columns (list): List of columns to analyze. If None, all columns are considered.
+        columns (list, optional): List of columns to include in the analysis. Defaults to None.
 
     Returns:
         pyspark.sql.DataFrame: A DataFrame containing the collected statistics.
@@ -230,6 +236,7 @@ def collect_statistics(logger: logging.Logger, spark: SparkSession, database_nam
     """
     
     logger.info(f"Collecting statistics for {database_name}.{table_name}")
+
     try:
         if columns is None:
             columns = get_table_columns(logger, spark, database_name, table_name)
