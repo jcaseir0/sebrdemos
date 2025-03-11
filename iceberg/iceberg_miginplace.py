@@ -88,7 +88,7 @@ def iceberg_migration_snaptable(logger: logging.Logger, spark: SparkSession, dat
     logger.debug(f"Returning snapshot table name: {snaptbl}")
     return snaptbl
 
-def check_iceberg_compatibility(logger: logging.Logger, spark: SparkSession) -> None:
+def check_iceberg_compatibility(logger: logging.Logger, spark: SparkSession, database_name: str) -> None:
     """
     Check if the current Spark session is compatible with Iceberg.
 
@@ -99,8 +99,8 @@ def check_iceberg_compatibility(logger: logging.Logger, spark: SparkSession) -> 
     logger.info("Checking Iceberg compatibility with the current Spark session")
 
     try:
-        spark.sql("SELECT 1").write.format("iceberg").mode("overwrite").save("/tmp/iceberg_test")
-        spark.sql("DROP TABLE IF EXISTS iceberg_test")
+        spark.sql("SELECT 1").write.format("iceberg").mode("overwrite").save(f"{database_name}.iceberg_test")
+        spark.sql(f"DROP TABLE IF EXISTS {database_name}.iceberg_test")
         logger.info("Iceberg compatibility check passed")
     except Exception as e:
         logger.error(f"Iceberg compatibility check failed: {str(e)}")
