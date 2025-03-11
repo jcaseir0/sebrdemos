@@ -4,7 +4,7 @@ import sys, os, logging, re
 from pyspark.sql.functions import col
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common_functions import setup_logging, load_config, validate_hive_metastore, analyze_table_structure, collect_statistics, get_table_columns
+from common_functions import setup_logging, load_config, validate_hive_metastore, analyze_table_structure
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
