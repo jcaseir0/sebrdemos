@@ -4,7 +4,7 @@ import sys, os, logging, re
 from pyspark.sql.functions import col
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common_functions import setup_logging, load_config, validate_hive_metastore, analyze_table_structure
+from common_functions import setup_logging, load_config, validate_hive_metastore, analyze_table_structure, extract_bucket_info
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -129,18 +129,18 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
     checks_passed = True
 
     try:
-        logger.info("Analyze table structures")
+        logger.info(f"Analyze table structures for {database_name}.{table_name}\n")
         original_structure = analyze_table_structure(logger, spark, database_name, [table_name])[0]
         snapshot_structure = analyze_table_structure(logger, spark, database_name, [snaptable])[0]
 
         logger.info(f"Original table structure: {original_structure['structure']}")
         logger.info(f"Snapshot table structure: {snapshot_structure['structure']}\n")
 
-        logger.info("Compare row counts")
+        logger.info(f"Compare row counts for {database_name}.{table_name}\n")
         count_query1 = f"SELECT COUNT(*) as count FROM {database_name}.{snaptable}"
-        logger.info(f"Count query 1: {count_query1}")
+        logger.debug(f"Count query 1: {count_query1}")
         count_query2 = f"SELECT COUNT(*) as count FROM {database_name}.{table_name}"
-        logger.info(f"Count query 2: {count_query2}")
+        logger.debug(f"Count query 2: {count_query2}")
         count1, count2, counts_match = compare_query_results(logger, spark, count_query1, count_query2, "Row counts")
         logger.debug(f"Count query results match: {counts_match}")
         logger.debug(f"Counts Iceberg Snapshot Table: {count1}")
@@ -151,7 +151,7 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
         logger.info(f"Iceberg snapshot table row count: {count1[0]['count']}")
         logger.info(f"Original table row count: {count2[0]['count']}\n")
 
-        logger.info("Compare sample rows (just log, don't affect checks_passed")
+        logger.info(f"Compare sample rows for {database_name}.{table_name} (just log, don't affect checks_passed)\n")
         sample_query = f"SELECT * FROM"
         sample1 = spark.sql(f"{sample_query} {database_name}.{snaptable}").limit(5).collect()
         sample2 = spark.sql(f"{sample_query} {database_name}.{table_name}").limit(5).collect()
@@ -164,7 +164,7 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
             logger.info(row)
         print()
         
-        logger.info("Compare table descriptions (just log, don't affect checks_passed)")
+        logger.info(f"Compare table descriptions for {database_name}.{table_name} (just log, don't affect checks_passed)\n")
         describe_query = "DESCRIBE FORMATTED"
         describe1 = spark.sql(f"{describe_query} {database_name}.{snaptable}").collect()
         describe2 = spark.sql(f"{describe_query} {database_name}.{table_name}").collect()
@@ -177,7 +177,7 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
             logger.info(row)
         print()
 
-        logger.info("Compare CREATE TABLE statements (just log, don't affect checks_passed)")
+        logger.info(f"Compare CREATE TABLE statements for {database_name}.{table_name} (just log, don't affect checks_passed)\n")
         create_query = "SHOW CREATE TABLE"
         create1 = spark.sql(f"{create_query} {database_name}.{snaptable}").collect()
         create2 = spark.sql(f"{create_query} {database_name}.{table_name}").collect()
@@ -186,7 +186,7 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
         logger.info("Original SHOW CREATE TABLE:")
         logger.info(create2[0]['createtab_stmt'])
 
-        logger.info("Compare partitions or bucketing information")
+        logger.info(f"Compare partitions or bucketing information for {database_name}.{table_name}\n")
         if original_structure['structure'] == "Particionada":
             partition_query1 = f"SELECT * FROM {database_name}.{snaptable}.PARTITIONS"
             partition_query2 = f"SHOW PARTITIONS {database_name}.{table_name}"
@@ -215,14 +215,9 @@ def iceberg_sanity_checks(logger: logging.Logger, spark: SparkSession, database_
                 logger.warning("Partitions do not match between Iceberg snapshot and original table.")
 
         elif original_structure['structure'] == "Bucketed":
-            def extract_bucket_info(create_stmt):
-                bucket_info = re.search(r'CLUSTERED BY \((.*?)\) INTO (\d+) BUCKETS', create_stmt)
-                if bucket_info:
-                    return bucket_info.group(1), int(bucket_info.group(2))
-                return None, None
 
-            original_bucket_cols, original_num_buckets = extract_bucket_info(create2[0]['createtab_stmt'])
-            snapshot_bucket_cols, snapshot_num_buckets = extract_bucket_info(create1[0]['createtab_stmt'])
+            original_bucket_cols, original_num_buckets = extract_bucket_info(logger, create2[0]['createtab_stmt'])
+            snapshot_bucket_cols, snapshot_num_buckets = extract_bucket_info(logger, create1[0]['createtab_stmt'])
 
             logger.info(f"Original table bucketing: Columns: {original_bucket_cols}, Num buckets: {original_num_buckets}")
             logger.info(f"Snapshot table bucketing: Columns: {snapshot_bucket_cols}, Num buckets: {snapshot_num_buckets}")
@@ -328,7 +323,7 @@ def migrate_inplace_to_iceberg(logger: logging.Logger, spark: SparkSession, data
         unset_query = f"ALTER TABLE {database_name}.{table_name} UNSET TBLPROPERTIES ('TRANSLATED_TO_EXTERNAL')"
         logger.debug(f"Executing query: {unset_query}")
         spark.sql(unset_query)
-        logger.info("Successfully unset 'TRANSLATED_TO_EXTERNAL' property")
+        logger.info("Successfully unsetted 'TRANSLATED_TO_EXTERNAL' property")
 
         logger.info("Initiating Iceberg table migration")
         migrate_query = f"CALL spark_catalog.system.migrate('{database_name}.{table_name}')"
@@ -344,51 +339,62 @@ def migrate_inplace_to_iceberg(logger: logging.Logger, spark: SparkSession, data
 
 def checks_on_migrated_to_iceberg(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> None:
     """
-    Perform checks on a table that has been migrated to Iceberg format.
+    Perform checks on a table that has been migrated to Iceberg format, enhancing log readability.
 
-    This function executes various SQL queries to inspect the structure,
-    partitions, history, and snapshots of the migrated Iceberg table.
+    This function executes SQL queries to inspect the structure, partitions, history, and snapshots 
+    of the migrated Iceberg table. It enhances log readability by formatting outputs, 
+    limiting string lengths, and using appropriate log levels for concise summaries and detailed insights.
 
     Args:
-        spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database containing the table.
-        table_name (str): The name of the table that was migrated to Iceberg.
+        logger (logging.Logger): Logger instance for logging.
+        spark (SparkSession): Active Spark session.
+        database_name (str): Name of the database containing the table.
+        table_name (str): Name of the table that was migrated to Iceberg.
 
     Raises:
         Exception: If an error occurs during any of the check operations.
-
-    Returns:
-        None
     """
 
     full_table_name = f"spark_catalog.{database_name}.{table_name}"
     logger.info(f"Performing checks on Iceberg migrated table: {full_table_name}")
 
     try:
-        logger.info("Executing DESCRIBE TABLE command")
+        logger.info(f"Retrieving table schema for {database_name}.{table_name}")
+        schema_df = spark.sql(f"DESCRIBE {full_table_name}")
+        schema_str = "\n".join([f"{row.col_name:<30} {row.data_type}" for row in schema_df.collect()])
+        logger.info(f"Table schema:\n{schema_str}")
+
+        logger.info(f"Executing DESCRIBE TABLE command for {database_name}.{table_name}")
         describe_result = spark.sql(f"DESCRIBE TABLE {full_table_name}")
-        logger.debug("DESCRIBE TABLE result:")
-        describe_result.show(30, False)
+        describe_str = "\n".join([f"{row.col_name:<30} {row.data_type:<20} {row.comment}" for row in describe_result.collect()])
+        logger.debug(f"DESCRIBE TABLE result:\n{describe_str}")
 
-        logger.info("Executing SHOW CREATE TABLE command")
+        logger.info(f"Executing SHOW CREATE TABLE command for {database_name}.{table_name}")
         create_table_result = spark.sql(f"SHOW CREATE TABLE {full_table_name}")
-        logger.debug("SHOW CREATE TABLE result:")
-        create_table_result.show(truncate=False)
+        create_stmt = create_table_result.collect()[0]["createtab_stmt"]
+        truncated_create_stmt = create_stmt[:500] + "..." if len(create_stmt) > 500 else create_stmt
+        logger.info(f"SHOW CREATE TABLE result:\n{truncated_create_stmt}")
 
-        logger.info("Retrieving table partitions")
+        logger.info(f"Retrieving table partitions for {database_name}.{table_name}")
         partitions_result = spark.sql(f"SELECT * FROM {full_table_name}.partitions")
+        partitions_count = partitions_result.count()
+        logger.info(f"Table has {partitions_count} partitions")
         logger.debug("Table partitions:")
-        partitions_result.show()
+        partitions_result.show(truncate=False)
 
-        logger.info("Retrieving table history")
+        logger.info(f"Retrieving table history for {database_name}.{table_name}")
         history_result = spark.sql(f"SELECT * FROM {full_table_name}.history")
+        history_count = history_result.count()
+        logger.info(f"Table has {history_count} history entries")
         logger.debug("Table history:")
-        history_result.show(20, False)
+        history_result.show(truncate=False)
 
-        logger.info("Retrieving table snapshots")
+        logger.info(f"Retrieving table snapshots for {database_name}.{table_name}")
         snapshots_result = spark.sql(f"SELECT * FROM {full_table_name}.snapshots")
+        snapshots_count = snapshots_result.count()
+        logger.info(f"Table has {snapshots_count} snapshots")
         logger.debug("Table snapshots:")
-        snapshots_result.show(20, False)
+        snapshots_result.show(truncate=False)
 
         logger.info(f"All checks completed successfully for table: {full_table_name}\n")
 
@@ -398,27 +404,24 @@ def checks_on_migrated_to_iceberg(logger: logging.Logger, spark: SparkSession, d
 
 def rename_migrated_table(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> str:
     """
-    Rename a migrated table to maintain data lifecycle and update its location.
+    Rename a migrated table and update its location in the metastore.
 
-    This function renames the original table to a new name with 'iceberg_' prefix
-    and updates the table location in the file system.
+    This function renames the Hive table and updates its location to reflect the new name.
 
     Args:
-        spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database containing the table.
-        table_name (str): The name of the table to be renamed.
+        logger (logging.Logger): Logger instance.
+        spark (SparkSession): Active Spark session.
+        database_name (str): Database name.
+        table_name (str): Table name to rename.
 
     Returns:
-        str or None: The new table name if successful, None if an error occurs.
-
-    Raises:
-        Exception: If an error occurs during the renaming process.
+        str: The new table name if successful, otherwise None.
     """
 
     logger.info(f"Initiating table rename process for {database_name}.{table_name}")
     
     iceberg_table = f"iceberg_{table_name}"
-    new_location = f"warehouse/tablespace/external/hive/{database_name}.db/{iceberg_table}"
+    new_table_name = f"{database_name}.{iceberg_table}"
     
     try:
         logger.info("Get the current table location")
@@ -432,7 +435,7 @@ def rename_migrated_table(logger: logging.Logger, spark: SparkSession, database_
         logger.debug(f"Base path: {base_path}")
 
         logger.info("Construct the full new location")
-        full_new_location = f"{base_path}/{new_location}"
+        full_new_location = f"{base_path}/{database_name}.db/{iceberg_table}"
         logger.debug(f"Full new location: {full_new_location}")
         
         logger.info(f"Current location: {current_location}")
@@ -446,14 +449,9 @@ def rename_migrated_table(logger: logging.Logger, spark: SparkSession, database_
         logger.debug(f"Updating table location: ALTER TABLE {database_name}.{iceberg_table} SET LOCATION '{full_new_location}'")
         spark.sql(f"ALTER TABLE {database_name}.{iceberg_table} SET LOCATION '{full_new_location}'")
         
-        logger.info("Move the data files")
-        logger.debug(f"Moving data files from {current_location} to {full_new_location}")
-        spark.sql(f"CREATE TEMPORARY FUNCTION move_files AS 'com.cloudera.cdp.MoveFiles'")
-        spark.sql(f"CALL move_files('{current_location}', '{full_new_location}')")
-        spark.sql("DROP TEMPORARY FUNCTION IF EXISTS move_files")
-        
         logger.info(f"Successfully renamed table from {database_name}.{table_name} to {database_name}.{iceberg_table} and updated location\n")
-        return f"{database_name}.{iceberg_table}"
+        
+        return new_table_name
     
     except Exception as e:
         logger.error(f"Failed to rename table {database_name}.{table_name}: {str(e)}\n", exc_info=True)

@@ -1,4 +1,4 @@
-import os, logging, random, time
+import os, logging, random, time, re
 from itertools import count as itertools_count
 import configparser
 from datetime import datetime, timedelta
@@ -180,6 +180,32 @@ def analyze_table_structure(logger: logging.Logger, spark, database_name, tables
             logger.error(f"Error analyzing structure of {database_name}.{table_name}: {str(e)}", exc_info=True)
     
     return results
+
+def extract_bucket_info(logger: logging.Logger, create_stmt: str) -> tuple:
+    """
+    Extract bucket information from a CREATE TABLE statement.
+
+    Args:
+        create_stmt (str): The CREATE TABLE statement.
+
+    Returns:
+        tuple: A tuple containing the bucketed column and number of buckets, or (None, None) if not bucketed.
+    """
+
+    logger.info("Extracting bucket information from CREATE TABLE statement")
+
+    bucket_pattern = r'CLUSTERED BY \((.*?)\)\s+INTO (\d+) BUCKETS'
+    logger.debug(f"Bucket pattern: {bucket_pattern}")
+    bucket_info = re.search(bucket_pattern, create_stmt, re.IGNORECASE | re.DOTALL)
+    logger.debug(f"Bucket info: {bucket_info}")
+
+    if bucket_info:
+        bucketed_column = bucket_info.group(1).strip()
+        num_buckets = int(bucket_info.group(2))
+        logger.debug(f"Bucketed column: {bucketed_column}, Number of buckets: {num_buckets}")
+        return bucketed_column, num_buckets
+    
+    return None, None
 
 def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> list:
     """
