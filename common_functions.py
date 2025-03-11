@@ -1,5 +1,5 @@
 import os, logging, random, time
-from itertools import count
+from itertools import count as itertools_count
 import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
@@ -12,8 +12,28 @@ logger = logging.getLogger(__name__)
 
 fake = Faker('pt_BR')
 logger.debug(f"Faker instance created: {fake}")
-id_counter = count(1)
+id_counter = itertools_count(1)
 logger.debug(f"ID counter created: {id_counter}")
+
+def setup_logging():
+    '''
+    Configura o logging para exibir mensagens de INFO e DEBUG, com uma variável LOGLEVEL para definir o nível de log.
+
+    Returns:
+        logging.Logger: Objeto de log configurado.
+    '''
+
+    # Define o nível de log padrão
+    loglevel = os.getenv("LOGLEVEL", "INFO").upper() # Padrão: INFO
+    numeric_level = getattr(logging, loglevel, None) # Numeric value of log level options: DEBUG=10, INFO=20, WARNING=30, ERROR=40, CRITICAL=50
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Invalid log level: {loglevel}")
+    
+    # Configura o logging
+    logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging level set to: {loglevel}")
+    return logger
 
 def load_config(logger: logging.Logger, config_path='/app/mount/config.ini'):
     """

@@ -4,7 +4,7 @@ import sys, os, logging, re
 from pyspark.sql.functions import col
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common_functions import load_config, validate_hive_metastore, analyze_table_structure, collect_statistics, get_table_columns
+from common_functions import setup_logging, load_config, validate_hive_metastore, analyze_table_structure, collect_statistics, get_table_columns
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -87,6 +87,24 @@ def iceberg_migration_snaptable(logger: logging.Logger, spark: SparkSession, dat
 
     logger.debug(f"Returning snapshot table name: {snaptbl}")
     return snaptbl
+
+def check_iceberg_compatibility(logger: logging.Logger, spark: SparkSession) -> None:
+    """
+    Check if the current Spark session is compatible with Iceberg.
+
+    Raises:
+        Exception: If the session is not compatible with Iceberg.
+    """
+
+    logger.info("Checking Iceberg compatibility with the current Spark session")
+
+    try:
+        spark.sql("SELECT 1").write.format("iceberg").mode("overwrite").save("/tmp/iceberg_test")
+        spark.sql("DROP TABLE IF EXISTS iceberg_test")
+        logger.info("Iceberg compatibility check passed")
+    except Exception as e:
+        logger.error(f"Iceberg compatibility check failed: {str(e)}")
+        raise
 
 def compare_query_results(logger: logging.Logger, spark: SparkSession, query1: str, query2: str, description: str) -> tuple:
     """Compares the results of two SQL queries.
@@ -477,7 +495,7 @@ def main() -> None:
     defined in the configuration, and creates them if they do not already exist.
     """
 
-    logger = logging.getLogger(__name__)
+    logger = setup_logging()
 
     logger.info("Starting main function")
     config = load_config(logger)
@@ -500,30 +518,36 @@ def main() -> None:
     spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
     spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
 
-    spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").enableHiveSupport().getOrCreate()
+    try:
+        spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").enableHiveSupport().getOrCreate()
 
-    validate_hive_metastore(logger, spark)
+        validate_hive_metastore(logger, spark)
+        check_iceberg_compatibility(logger, spark)
 
-    tables = config['DEFAULT']['tables'].split(',')
-    database_name = config['DEFAULT'].get('dbname')
+        tables = config['DEFAULT']['tables'].split(',')
+        database_name = config['DEFAULT'].get('dbname')
 
-    for table_name in tables:
-        drop_snapshot_table_if_exists(logger, spark, database_name, table_name)
-        snaptable = iceberg_migration_snaptable(logger, spark, database_name, table_name)
+        for table_name in tables:
+            drop_snapshot_table_if_exists(logger, spark, database_name, table_name)
+            snaptable = iceberg_migration_snaptable(logger, spark, database_name, table_name)
 
-        result = iceberg_sanity_checks(logger, spark, database_name, table_name, snaptable)
-    
-        if result:
-            logger.info("All sanity checks passed!")
-            drop_snaptable(logger, spark, database_name, snaptable)
-            migrate_inplace_to_iceberg(logger, spark, database_name, table_name)
-            checks_on_migrated_to_iceberg(logger, spark, database_name, table_name)
-            new_table_name = rename_migrated_table(logger, spark, database_name, table_name)
-            logger.info(f"Iceberg table migrated and table renamed to {new_table_name}")
-        else:
-            logger.warning("Some checks failed. Review the logs for details. Iceberg Migration In-place Cancelled.")
+            result = iceberg_sanity_checks(logger, spark, database_name, table_name, snaptable)
 
-    spark.stop()
+            if result:
+                logger.info("All sanity checks passed!")
+                drop_snaptable(logger, spark, database_name, snaptable)
+                migrate_inplace_to_iceberg(logger, spark, database_name, table_name)
+                checks_on_migrated_to_iceberg(logger, spark, database_name, table_name)
+                new_table_name = rename_migrated_table(logger, spark, database_name, table_name)
+                logger.info(f"Iceberg table migrated and table renamed to {new_table_name}")
+            else:
+                logger.warning("Some checks failed. Review the logs for details. Iceberg Migration In-place Cancelled.")
+
+        spark.stop()
+
+    except Exception as e:
+        logger.error(f"An error occurred during the Iceberg migration process: {str(e)}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
