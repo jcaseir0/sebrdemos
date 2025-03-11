@@ -525,7 +525,7 @@ def main() -> None:
         logger.debug(f"Database name: {database_name}")
 
         validate_hive_metastore(logger, spark)
-        check_iceberg_compatibility(logger, database_name, spark)
+        check_iceberg_compatibility(logger, spark, database_name)
 
         tables = config['DEFAULT']['tables'].split(',')
         logger.info(f"Tables to be migrated: {tables}")
