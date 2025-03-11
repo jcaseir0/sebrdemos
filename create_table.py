@@ -7,9 +7,8 @@ from pyspark.sql.functions import lit
 from common_functions import load_config, gerar_dados, table_exists, validate_hive_metastore, get_schema_path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
-def create_table(spark, database_name, table_name, config):
+def create_table(logger: logging, spark, database_name, table_name, config):
     """
     Create a table in Hive with the specified configuration.
 
@@ -60,7 +59,7 @@ def create_table(spark, database_name, table_name, config):
         logger.error(f"Error creating table '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_partition_and_bucketing(config, table_name):
+def validate_partition_and_bucketing(logger: logging, config, table_name):
     """
     Validate that a table does not have both partitioning and bucketing enabled.
 
@@ -79,7 +78,7 @@ def validate_partition_and_bucketing(config, table_name):
         logger.error(f"Error: The '{table_name}' table cannot have partition and bucketing True.")
         sys.exit(1)
 
-def validate_table_creation(spark, database_name, table_name):
+def validate_table_creation(logger: logging, spark, database_name, table_name):
     """
     Validate the creation of all tables in the specified database and provide a summary of their structure and content.
 
@@ -143,7 +142,7 @@ def validate_table_creation(spark, database_name, table_name):
         logger.error(f"Failed to retrieve tables from database '{database_name}': {str(e)}")
         return [{"error": f"Failed to retrieve tables from database '{database_name}': {str(e)}"}]
 
-def remove_specified_tables(spark: SparkSession, database_name: str, config):
+def remove_specified_tables(logger: logging, spark: SparkSession, database_name: str, config):
     """
     Remove specified tables from the Hive Metastore.
 
@@ -193,8 +192,11 @@ def main():
     This function validates the Hive metastore connection, iterates through the tables
     defined in the configuration, and creates them if they do not already exist.
     """
+
+    logger = logging.getLogger(__name__)
     logger.info("Starting main function")
-    config = load_config()
+
+    config = load_config(logger)
     # JDBC URL is now passed as a command line argument
     jdbc_url = sys.argv[1]
     logger.debug(f"JDBC URL: {jdbc_url}")
@@ -213,7 +215,7 @@ def main():
     
     spark = SparkSession.builder.config(conf=spark_conf).appName("CreateTable").enableHiveSupport().getOrCreate()
     
-    validate_hive_metastore(spark)
+    validate_hive_metastore(logger, spark)
 
     database_name = config['DEFAULT'].get('dbname')
     tables = config['DEFAULT']['tables'].split(',')
@@ -221,7 +223,7 @@ def main():
 
     # Remove as tabelas se existirem
     for table_name in tables:
-        if remove_specified_tables(spark, database_name, config):
+        if remove_specified_tables(logger, spark, database_name, config):
             logger.info(f"Successfully removed table '{table_name}'\n")
         else:
             logger.error(f"Failed to remove table '{table_name}'\n")
@@ -235,7 +237,7 @@ def main():
     # Generate clientes data first
     clientes_table = [table for table in tables if 'clientes' in table][0]
     clientes_num_records = config.getint(clientes_table, 'num_records', fallback=100)
-    clientes_data = gerar_dados(clientes_table, clientes_num_records)
+    clientes_data = gerar_dados(logger, clientes_table, clientes_num_records)
     clientes_id_usuarios = [cliente['id_usuario'] for cliente in clientes_data]
 
     for table_name in tables:
@@ -243,8 +245,8 @@ def main():
         partition = config.getboolean(table_name, 'particionamento', fallback=False)
         partition_by = config.get(table_name, 'partition_by', fallback=None)
         table = f"{database_name}.{table_name}"
-        validate_partition_and_bucketing(config, table_name)
-        schema_path = get_schema_path(base_path, table_name)
+        validate_partition_and_bucketing(logger, config, table_name)
+        schema_path = get_schema_path(logger, base_path, table_name)
 
         if not os.path.exists(schema_path):
             logger.error(f"Schema file not found for table '{table}': {schema_path}")
@@ -253,16 +255,16 @@ def main():
         with open(schema_path, 'r') as f:
             schema = json.load(f)
 
-        if not table_exists(spark, database_name, table_name):
+        if not table_exists(logger, spark, database_name, table_name):
             logger.info(f"Table '{table}' does not exist. Creating...")
             current_date = time.strftime("%d-%m-%Y")
             num_records = config.getint(table_name, 'num_records', fallback=100)
             partition_by = config.get(table_name, 'partition_by', fallback=None)
             
             if 'transacoes_cartao' in table_name:
-                data = gerar_dados(table_name, num_records, clientes_id_usuarios)
+                data = gerar_dados(logger, table_name, num_records, clientes_id_usuarios)
             else:
-                data = gerar_dados(table_name, num_records)
+                data = gerar_dados(logger, table_name, num_records)
 
             df = spark.createDataFrame(data, schema=StructType.fromJson(schema))
             
@@ -274,11 +276,11 @@ def main():
             for row in sample_rows:
                     logger.info(str(row))
             print()
-            create_table(spark, database_name, table_name, config)
+            create_table(logger, spark, database_name, table_name, config)
         else:
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
-        validate_table_creation(spark, database_name, table_name)
+        validate_table_creation(logger, spark, database_name, table_name)
         logger.info("Table creation process completed.")
 
     spark.stop()

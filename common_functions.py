@@ -3,15 +3,18 @@ from itertools import count
 import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
+from pyspark.sql import SparkSession
 from faker import Faker
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Set logging level to DEBUG
 
 fake = Faker('pt_BR')
+logger.debug(f"Faker instance created: {fake}")
 id_counter = count(1)
+logger.debug(f"ID counter created: {id_counter}")
 
-def load_config(config_path='/app/mount/config.ini'):
+def load_config(logger: logging, config_path='/app/mount/config.ini'):
     """
     Load configuration from a specified file.
 
@@ -38,7 +41,7 @@ def load_config(config_path='/app/mount/config.ini'):
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
-def table_exists(spark, database_name, table_name):
+def table_exists(logger: logging, spark, database_name, table_name):
     """
     Check if a table exists in the Hive Metastore.
 
@@ -62,7 +65,7 @@ def table_exists(spark, database_name, table_name):
         logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
+def validate_hive_metastore(logger: logging, spark: SparkSession, max_retries=3, retry_delay=5) -> bool:
     """
     Validate the connection to the Hive metastore with retry logic.
 
@@ -92,7 +95,7 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
                 raise
     return False
 
-def get_schema_path(base_path, table_name):
+def get_schema_path(logger: logging, base_path, table_name):
     """
     Get the schema file path for a given table.
 
@@ -107,7 +110,7 @@ def get_schema_path(base_path, table_name):
     schema_filename = f"{table_name}.json"
     return os.path.join(base_path, "schemas", schema_filename)
 
-def analyze_table_structure(spark, database_name, tables):
+def analyze_table_structure(logger: logging, spark, database_name, tables):
     """
     Analyze the structure of given tables in a database.
 
@@ -157,7 +160,35 @@ def analyze_table_structure(spark, database_name, tables):
     
     return results
 
-def collect_statistics(df, columns=None):
+def get_table_columns(logger: logging, spark: SparkSession, database_name: str, table_name: str) -> list:
+    """
+    Retrieves a list of valid column names from the table schema.
+
+    This function fetches the schema of the specified table and extracts a list of column
+    names, excluding partition information and special columns (e.g., '# col_name', 'data_type').
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the table.
+        table_name (str): The name of the table.
+
+    Returns:
+        list: A list of valid column names for the table.
+
+    Raises:
+        Exception: If an error occurs while retrieving the table schema.
+    """
+    logger.debug(f"Retrieving table schema for {database_name}.{table_name}")
+    try:
+        df = spark.table(f"{database_name}.{table_name}")
+        columns = df.columns
+        logger.info(f"Columns: {', '.join(columns)}")
+        return columns
+    except Exception as e:
+        logger.error(f"Error retrieving table schema for {database_name}.{table_name}: {str(e)}")
+        raise
+
+def collect_statistics(logger: logging, df, columns=None):
     """
     Coleta estatísticas de um DataFrame PySpark.
     
@@ -166,17 +197,19 @@ def collect_statistics(df, columns=None):
     :return: DataFrame com estatísticas
     """
     if columns is None:
-        # Seleciona apenas colunas numéricas se nenhuma for especificada
         columns = [c for c, t in df.dtypes if t in ('int', 'long', 'float', 'double')]
+        logger.debug(f"Colunas numéricas: {', '.join(columns)}")
     
-    # Calcula estatísticas usando o método summary
     stats = df.select(columns).summary(
         "count", "mean", "stddev", "min", "25%", "50%", "75%", "max"
     )
+    logger.debug(f"Estatísticas coletadas: {stats}")
+
+    logger.info("Estatísticas coletadas")
     
     return stats
 
-def gerar_numero_cartao():
+def gerar_numero_cartao(logger: logging):
     """
     Generate a random credit card number.
 
@@ -186,7 +219,7 @@ def gerar_numero_cartao():
     logger.debug("Generating credit card number")
     return ''.join([str(random.randint(0, 9)) for _ in range(16)])
 
-def gerar_cliente():
+def gerar_cliente(logger: logging, fake: Faker):
     """
     Generate a random client record with a unique, formatted user ID.
     
@@ -212,7 +245,7 @@ def gerar_cliente():
         "id_uf": random.choice(ufs)
     }
 
-def gerar_transacao(clientes_id_usuarios=None):
+def gerar_transacao(logger: logging, clientes_id_usuarios=None):
     """
     Generate a random transaction record.
 
@@ -222,9 +255,14 @@ def gerar_transacao(clientes_id_usuarios=None):
     Returns:
     dict: A dictionary containing transaction details.
     """
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=365 * 10)  # 10 years ago
     
+    logger.info("Generating transaction record")
+    
+    end_date = datetime.now()
+    logger.debug(f"End date: {end_date}")
+    start_date = end_date - timedelta(days=365 * 10)  # 10 years ago
+    logger.debug(f"Start date: {start_date}")
+
     return {
         "id_usuario": random.choice(clientes_id_usuarios) if clientes_id_usuarios else random.randint(1, 1000),
         "data_transacao": fake.date_time_between(start_date=start_date, end_date=end_date),
@@ -234,7 +272,7 @@ def gerar_transacao(clientes_id_usuarios=None):
         "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Extornada"])
     }
 
-def gerar_dados(table_name, num_records, clientes_id_usuarios=None):
+def gerar_dados(logger: logging, table_name, num_records, clientes_id_usuarios=None):
     """
     Generate random data for a given table.
 
@@ -246,9 +284,14 @@ def gerar_dados(table_name, num_records, clientes_id_usuarios=None):
     Returns:
     list: A list of dictionaries containing the generated data.
     """
+
+    logger.info(f"Generating data for table: {table_name}")
+
     if table_name == 'clientes':
+        logger.info(f"Data generated for table: {table_name}")
         return [gerar_cliente() for _ in range(num_records)]
     elif table_name == 'transacoes_cartao':
+        logger.info(f"Data generated for table: {table_name}")
         return [gerar_transacao(clientes_id_usuarios) for _ in range(num_records)]
     else:
         raise ValueError(f"Tabela desconhecida: {table_name}")

@@ -2,15 +2,12 @@ import logging, sys
 from configparser import ConfigParser
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-from pyspark.sql.types import StructType, StringType, IntegerType, DoubleType, TimestampType
-from pyspark.sql.functions import lit
-from common_functions import load_config, gerar_dados, table_exists
+from common_functions import load_config, gerar_dados, table_exists, get_table_columns
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
-def create_spark_session(jdbc_url: str, thrift_server: str) -> SparkSession:
+def create_spark_session(logger:logging, jdbc_url: str, thrift_server: str) -> SparkSession:
     """Creates and configures a Spark session.
 
     Args:
@@ -36,35 +33,7 @@ def create_spark_session(jdbc_url: str, thrift_server: str) -> SparkSession:
         logger.error(f"Error creating Spark session: {e}")
         raise
 
-def get_table_columns(spark: SparkSession, database_name: str, table_name: str) -> list:
-    """
-    Retrieves a list of valid column names from the table schema.
-
-    This function fetches the schema of the specified table and extracts a list of column
-    names, excluding partition information and special columns (e.g., '# col_name', 'data_type').
-
-    Args:
-        spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database containing the table.
-        table_name (str): The name of the table.
-
-    Returns:
-        list: A list of valid column names for the table.
-
-    Raises:
-        Exception: If an error occurs while retrieving the table schema.
-    """
-    logger.debug(f"Retrieving table schema for {database_name}.{table_name}")
-    try:
-        df = spark.table(f"{database_name}.{table_name}")
-        columns = df.columns
-        logger.info(f"Columns: {', '.join(columns)}")
-        return columns
-    except Exception as e:
-        logger.error(f"Error retrieving table schema for {database_name}.{table_name}: {str(e)}")
-        raise
-
-def insert_data(spark: SparkSession, database_name: str, table_name: str, columns: list,
+def insert_data(logger:logging, spark: SparkSession, database_name: str, table_name: str, columns: list,
                 partition_by: str = None, is_bucketed: bool = False) -> None:
     """
     Inserts data into the specified table, handling partitioning and bucketing.
@@ -117,7 +86,7 @@ def insert_data(spark: SparkSession, database_name: str, table_name: str, column
         logger.error(f"Error inserting data into table '{table_name}': {str(e)}")
         raise
 
-def display_table_samples(spark: SparkSession, database_name: str, tables: list, generated_data: dict) -> None:
+def display_table_samples(logger:logging, tables: list, generated_data: dict) -> None:
     """
     Displays sample rows from specified tables and checks for matching IDs.
     
@@ -151,7 +120,7 @@ def display_table_samples(spark: SparkSession, database_name: str, tables: list,
         for row in clientes_sample:
             logger.info(str(row))
 
-def generate_and_write_data(spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
+def generate_and_write_data(logger: logging, spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
     """Generates data and writes it to the specified table.
 
     Args:
@@ -191,7 +160,7 @@ def generate_and_write_data(spark: SparkSession, config: ConfigParser, database_
         record_count_before = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' before insert: {record_count_before}")
 
-        columns = get_table_columns(spark, database_name, table_name)
+        columns = get_table_columns(logger, spark, database_name, table_name)
         logger.debug(f"Columns: {columns}")
 
         table_schema = spark.table(f"{database_name}.{table_name}").schema
@@ -225,8 +194,11 @@ def main():
     This function loads the configuration, iterates through the tables,
     generates new data, and updates each existing table.
     """
+
+    logger = logging.getLogger(__name__)
+
     logger.info("Starting table update process")
-    config = load_config()
+    config = load_config(logger)
     logger.debug("Configuration loaded")
 
     if not config:
@@ -243,7 +215,7 @@ def main():
         thrift_server = f"thrift://{server_dns}:9083"
         logger.debug(f"Thrift Server: {thrift_server}")
 
-        spark = create_spark_session(jdbc_url, thrift_server)
+        spark = create_spark_session(logger, jdbc_url, thrift_server)
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name = config.get("DEFAULT", "dbname")
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
@@ -254,9 +226,9 @@ def main():
             table_name = table_name.strip()
             logger.info(f"Processing table: {table_name}")
 
-            if table_exists(spark, database_name, table_name):
+            if table_exists(logger, spark, database_name, table_name):
                 try:
-                    data = generate_and_write_data(spark, config, database_name, table_name)
+                    data = generate_and_write_data(logger, spark, config, database_name, table_name)
                     generated_data[table_name] = data
                 except Exception as e:
                     logger.error(f"Failed to generate and write data for table '{table_name}': {e}")
@@ -264,7 +236,7 @@ def main():
                 logger.warning(f"Table '{table_name}' does not exist. Cannot update.")
         logger.info("Table update process completed")
 
-        display_table_samples(spark, database_name, tables, generated_data)
+        display_table_samples(logger, tables, generated_data)
 
     except Exception as e:
         logger.error(f"Error updating tables: {e}", exc_info=True)
