@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import SparkSession
 from faker import Faker
+from pyspark.sql.functions import col, count, mean, stddev, min, max, percentile_approx
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ logger.debug(f"Faker instance created: {fake}")
 id_counter = count(1)
 logger.debug(f"ID counter created: {id_counter}")
 
-def load_config(logger: logging, config_path='/app/mount/config.ini'):
+def load_config(logger: logging.Logger, config_path='/app/mount/config.ini'):
     """
     Load configuration from a specified file.
 
@@ -41,7 +42,7 @@ def load_config(logger: logging, config_path='/app/mount/config.ini'):
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
-def table_exists(logger: logging, spark, database_name, table_name):
+def table_exists(logger: logging.Logger, spark, database_name, table_name):
     """
     Check if a table exists in the Hive Metastore.
 
@@ -65,7 +66,7 @@ def table_exists(logger: logging, spark, database_name, table_name):
         logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_hive_metastore(logger: logging, spark: SparkSession, max_retries=3, retry_delay=5) -> bool:
+def validate_hive_metastore(logger: logging.Logger, spark: SparkSession, max_retries=3, retry_delay=5) -> bool:
     """
     Validate the connection to the Hive metastore with retry logic.
 
@@ -95,7 +96,7 @@ def validate_hive_metastore(logger: logging, spark: SparkSession, max_retries=3,
                 raise
     return False
 
-def get_schema_path(logger: logging, base_path, table_name):
+def get_schema_path(logger: logging.Logger, base_path, table_name):
     """
     Get the schema file path for a given table.
 
@@ -110,7 +111,7 @@ def get_schema_path(logger: logging, base_path, table_name):
     schema_filename = f"{table_name}.json"
     return os.path.join(base_path, "schemas", schema_filename)
 
-def analyze_table_structure(logger: logging, spark, database_name, tables):
+def analyze_table_structure(logger: logging.Logger, spark, database_name, tables):
     """
     Analyze the structure of given tables in a database.
 
@@ -160,7 +161,7 @@ def analyze_table_structure(logger: logging, spark, database_name, tables):
     
     return results
 
-def get_table_columns(logger: logging, spark: SparkSession, database_name: str, table_name: str) -> list:
+def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> list:
     """
     Retrieves a list of valid column names from the table schema.
 
@@ -178,17 +179,16 @@ def get_table_columns(logger: logging, spark: SparkSession, database_name: str, 
     Raises:
         Exception: If an error occurs while retrieving the table schema.
     """
-    logger.debug(f"Retrieving table schema for {database_name}.{table_name}")
+    logger.info(f"Retrieving table schema for {database_name}.{table_name}")
     try:
-        df = spark.table(f"{database_name}.{table_name}")
-        columns = df.columns
+        columns = spark.sql(f"DESCRIBE {database_name}.{table_name}").filter(~col("col_name").isin("# col_name", "data_type")).select("col_name").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Columns: {', '.join(columns)}")
         return columns
     except Exception as e:
         logger.error(f"Error retrieving table schema for {database_name}.{table_name}: {str(e)}")
         raise
 
-def collect_statistics(logger: logging, df, columns=None):
+def collect_statistics(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, columns=None):
     """
     Coleta estatísticas de um DataFrame PySpark.
     
@@ -196,18 +196,32 @@ def collect_statistics(logger: logging, df, columns=None):
     :param columns: Lista de colunas para analisar (opcional, padrão: todas as colunas numéricas)
     :return: DataFrame com estatísticas
     """
-    if columns is None:
-        columns = [c for c, t in df.dtypes if t in ('int', 'long', 'float', 'double')]
-        logger.debug(f"Colunas numéricas: {', '.join(columns)}")
     
-    stats = df.select(columns).summary(
-        "count", "mean", "stddev", "min", "25%", "50%", "75%", "max"
-    )
-    logger.debug(f"Estatísticas coletadas: {stats}")
-
-    logger.info("Estatísticas coletadas")
-    
-    return stats
+    logger.info(f"Collecting statistics for {database_name}.{table_name}")
+    try:
+        if columns is None:
+            columns = get_table_columns(logger, spark, database_name, table_name)
+        
+        numeric_columns = spark.sql(f"DESCRIBE {database_name}.{table_name}").filter(col("data_type").isin("int", "bigint", "float", "double")).select("col_name").rdd.flatMap(lambda x: x).collect()
+        logger.debug(f"Numeric columns: {', '.join(numeric_columns)}")
+        
+        stats = spark.sql(f"""
+            SELECT
+                '{table_name}' as table_name,
+                COUNT(*) as row_count,
+                {', '.join([f"COUNT({col}) as {col}_count" for col in columns])},
+                {', '.join([f"AVG({col}) as {col}_mean" for col in numeric_columns])},
+                {', '.join([f"STDDEV({col}) as {col}_stddev" for col in numeric_columns])},
+                {', '.join([f"MIN({col}) as {col}_min" for col in numeric_columns])},
+                {', '.join([f"MAX({col}) as {col}_max" for col in numeric_columns])}
+            FROM {database_name}.{table_name}
+        """)
+        
+        logger.info("Statistics collected successfully")
+        return stats
+    except Exception as e:
+        logger.error(f"Error collecting statistics for {database_name}.{table_name}: {str(e)}")
+        raise
 
 def gerar_numero_cartao(logger: logging):
     """
@@ -219,7 +233,7 @@ def gerar_numero_cartao(logger: logging):
     logger.debug("Generating credit card number")
     return ''.join([str(random.randint(0, 9)) for _ in range(16)])
 
-def gerar_cliente(logger: logging, fake: Faker):
+def gerar_cliente(logger: logging.Logger, fake: Faker):
     """
     Generate a random client record with a unique, formatted user ID.
     
@@ -245,7 +259,7 @@ def gerar_cliente(logger: logging, fake: Faker):
         "id_uf": random.choice(ufs)
     }
 
-def gerar_transacao(logger: logging, clientes_id_usuarios=None):
+def gerar_transacao(logger: logging.Logger, clientes_id_usuarios=None):
     """
     Generate a random transaction record.
 
@@ -272,7 +286,7 @@ def gerar_transacao(logger: logging, clientes_id_usuarios=None):
         "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Extornada"])
     }
 
-def gerar_dados(logger: logging, table_name, num_records, clientes_id_usuarios=None):
+def gerar_dados(logger: logging.Logger, table_name, num_records, clientes_id_usuarios=None):
     """
     Generate random data for a given table.
 

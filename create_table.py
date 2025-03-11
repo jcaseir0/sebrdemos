@@ -8,7 +8,7 @@ from common_functions import load_config, gerar_dados, table_exists, validate_hi
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def create_table(logger: logging, spark, database_name, table_name, config):
+def create_table(logger: logging.Logger, spark, database_name, table_name, config):
     """
     Create a table in Hive with the specified configuration.
 
@@ -59,7 +59,7 @@ def create_table(logger: logging, spark, database_name, table_name, config):
         logger.error(f"Error creating table '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_partition_and_bucketing(logger: logging, config, table_name):
+def validate_partition_and_bucketing(logger: logging.Logger, config, table_name):
     """
     Validate that a table does not have both partitioning and bucketing enabled.
 
@@ -78,7 +78,7 @@ def validate_partition_and_bucketing(logger: logging, config, table_name):
         logger.error(f"Error: The '{table_name}' table cannot have partition and bucketing True.")
         sys.exit(1)
 
-def validate_table_creation(logger: logging, spark, database_name, table_name):
+def validate_table_creation(logger: logging.Logger, spark, database_name, table_name):
     """
     Validate the creation of all tables in the specified database and provide a summary of their structure and content.
 
@@ -142,7 +142,7 @@ def validate_table_creation(logger: logging, spark, database_name, table_name):
         logger.error(f"Failed to retrieve tables from database '{database_name}': {str(e)}")
         return [{"error": f"Failed to retrieve tables from database '{database_name}': {str(e)}"}]
 
-def remove_specified_tables(logger: logging, spark: SparkSession, database_name: str, config):
+def remove_specified_tables(logger: logging.Logger, spark: SparkSession, database_name: str, config):
     """
     Remove specified tables from the Hive Metastore.
 

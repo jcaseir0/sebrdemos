@@ -7,7 +7,7 @@ from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def create_spark_session(logger:logging, jdbc_url: str, thrift_server: str) -> SparkSession:
+def create_spark_session(logger: logging.Logger, jdbc_url: str, thrift_server: str) -> SparkSession:
     """Creates and configures a Spark session.
 
     Args:
@@ -33,7 +33,7 @@ def create_spark_session(logger:logging, jdbc_url: str, thrift_server: str) -> S
         logger.error(f"Error creating Spark session: {e}")
         raise
 
-def insert_data(logger:logging, spark: SparkSession, database_name: str, table_name: str, columns: list,
+def insert_data(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, columns: list,
                 partition_by: str = None, is_bucketed: bool = False) -> None:
     """
     Inserts data into the specified table, handling partitioning and bucketing.
@@ -86,7 +86,7 @@ def insert_data(logger:logging, spark: SparkSession, database_name: str, table_n
         logger.error(f"Error inserting data into table '{table_name}': {str(e)}")
         raise
 
-def display_table_samples(logger:logging, tables: list, generated_data: dict) -> None:
+def display_table_samples(logger: logging.Logger, tables: list, generated_data: dict) -> None:
     """
     Displays sample rows from specified tables and checks for matching IDs.
     
@@ -120,7 +120,7 @@ def display_table_samples(logger:logging, tables: list, generated_data: dict) ->
         for row in clientes_sample:
             logger.info(str(row))
 
-def generate_and_write_data(logger: logging, spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
+def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
     """Generates data and writes it to the specified table.
 
     Args:
