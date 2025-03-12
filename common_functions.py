@@ -306,7 +306,7 @@ def gerar_cliente(logger: logging.Logger, fake: Faker) -> dict:
         "id_uf": random.choice(ufs)
     }
 
-def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: list=None) -> dict:
+def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: list) -> dict:
     """
     Generate a random transaction record.
 
@@ -349,13 +349,23 @@ def gerar_dados(logger: logging.Logger, table_name: str, num_records: int, clien
         list: A list of dictionaries containing the generated data.
     """
 
-    logger.info(f"Generating data for table: {table_name}")
+    logger.info(f"Generating {num_records} data registries for table: {table_name}")
 
-    if table_name == 'clientes':
-        logger.info(f"Data generated for table: {table_name}")
-        return [gerar_cliente(logger, fake) for _ in range(num_records)]
-    elif table_name == 'transacoes_cartao':
-        logger.info(f"Data generated for table: {table_name}")
-        return [gerar_transacao(logger, fake, clientes_id_usuarios) for _ in range(num_records)]
-    else:
-        raise ValueError(f"Tabela desconhecida: {table_name}")
+    try:
+
+        if table_name == 'clientes':
+            logger.info(f"Data generated for table: {table_name}")
+            return [gerar_cliente(logger, fake) for _ in range(num_records)]
+        
+        elif table_name == 'transacoes_cartao':
+            if not clientes_id_usuarios:
+                    raise ValueError("IDs de clientes necessários para gerar transações")
+            
+            logger.info(f"Data generated for table: {table_name}")
+            return [gerar_transacao(logger, fake, clientes_id_usuarios) for _ in range(num_records)]
+        else:
+            raise ValueError(f"Tabela desconhecida: {table_name}")
+        
+    except Exception as e:
+        logger.error(f"Erro na geração de dados: {str(e)}")
+        raise

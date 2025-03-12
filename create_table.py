@@ -214,7 +214,7 @@ def remove_specified_tables(logger: logging.Logger, spark: SparkSession, databas
             except AnalysisException as e:
                 logger.error(f"Failed to drop table '{full_table_name}': {str(e)}")
                 continue
-            
+
         return True
 
     except Exception as e:
@@ -270,8 +270,8 @@ def main():
 
     logger.info(f"Processing tables: {tables}")
 
-    # Generate clientes data first
     clientes_table = [table for table in tables if 'clientes' in table][0]
+    logger.debug(f"Clientes table: {clientes_table}")
     clientes_num_records = config.getint(clientes_table, 'num_records', fallback=100)
     clientes_data = gerar_dados(logger, clientes_table, clientes_num_records)
     clientes_id_usuarios = [cliente['id_usuario'] for cliente in clientes_data]
@@ -300,8 +300,8 @@ def main():
             if 'transacoes_cartao' in table_name:
                 data = gerar_dados(logger, table_name, num_records, clientes_id_usuarios)
             else:
-                data = gerar_dados(logger, table_name, num_records)
-
+                data = clientes_data   
+            
             df = spark.createDataFrame(data, schema=StructType.fromJson(schema))
             
             if partition:
@@ -317,9 +317,10 @@ def main():
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
         validate_table_creation(logger, spark, database_name, table_name)
-        logger.info("Table creation process completed.")
+        logger.info("\nTable creation process completed.")
 
     spark.stop()
+    logger.info("SparkSession stopped")
 
 if __name__ == "__main__":
     main()
