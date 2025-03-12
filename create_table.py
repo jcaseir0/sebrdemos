@@ -317,7 +317,8 @@ def main():
             logger.info(f"Table '{table}' already exists. Skipping creation.")
 
         validate_table_creation(logger, spark, database_name, table_name)
-        logger.info("\nTable creation process completed.")
+        print()
+        logger.info("Table creation process completed.")
 
     spark.stop()
     logger.info("SparkSession stopped")
