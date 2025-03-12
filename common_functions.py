@@ -302,7 +302,7 @@ def gerar_cliente(logger: logging.Logger, fake: Faker) -> dict:
         "data_nascimento": fake.date_of_birth(minimum_age=18, maximum_age=90),
         "endereco": fake.address().replace('\n', ', '),
         "limite_credito": random.choice([1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 20000]),
-        "numero_cartao": gerar_numero_cartao(),
+        "numero_cartao": gerar_numero_cartao(logger),
         "id_uf": random.choice(ufs)
     }
 
