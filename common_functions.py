@@ -319,7 +319,7 @@ def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: l
         dict: A dictionary containing transaction details.
     """
     
-    logger.info("Generating transaction record")
+    logger.debug("Generating transaction record")
     
     end_date = datetime.now()
     logger.debug(f"End date: {end_date}")
