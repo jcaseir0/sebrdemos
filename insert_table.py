@@ -120,7 +120,7 @@ def display_table_samples(logger: logging.Logger, tables: list, generated_data: 
         for row in clientes_sample:
             logger.info(str(row))
 
-def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> None:
+def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> list:
     """Generates data and writes it to the specified table.
 
     Args:
@@ -128,6 +128,9 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
         config (ConfigParser): The configuration object.
         table_name (str): The name of the table to update.
         clientes_data (list): Data for the 'clientes' table, structured as a list of dictionaries.
+    
+    Returns:
+        list: The generated data for the specified table.
     """
     logger.info(f"Generating and writing data for table: {database_name}.{table_name}")
     
@@ -144,16 +147,13 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Tables in database {database_name}: {tables}")
         clientes_table = [table for table in tables if 'clientes' in table][0]
-        num_records_update = config.getint(clientes_table, 'num_records_update', fallback=100)
-        clientes_data = gerar_dados(clientes_table, num_records_update)
+        clientes_data = gerar_dados(logger, clientes_table, num_records_update)
 
         if 'transacoes_cartao' in table_name:
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
-            data = gerar_dados(table_name, num_records_update, clientes_ids)
+            data = gerar_dados(logger, table_name, num_records_update, clientes_ids)
         elif 'clientes' in table_name:
-            data = gerar_dados(table_name, num_records_update) if clientes_data is None else clientes_data
-        else:
-            data = gerar_dados(table_name, num_records_update)
+            data = gerar_dados(logger, table_name, num_records_update) if clientes_data is None else clientes_data
             
         logger.debug(f"Sample data: {data[:3]}")
 
@@ -176,7 +176,7 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
 
         insert_columns = [col for col in columns if col != 'data_execucao'] if 'transacoes_cartao' in table_name else columns
 
-        insert_data(spark, database_name, table_name, insert_columns, partition_by if not is_bucketed else None, is_bucketed)
+        insert_data(logger, spark, database_name, table_name, insert_columns, partition_by if not is_bucketed else None, is_bucketed)
         
         record_count_after = spark.sql(f"SELECT COUNT(*) FROM {database_name}.{table_name}").collect()[0][0]
         logger.info(f"Total records in table '{table_name}' after insert: {record_count_after}")
@@ -234,7 +234,8 @@ def main():
                     logger.error(f"Failed to generate and write data for table '{table_name}': {e}")
             else:
                 logger.warning(f"Table '{table_name}' does not exist. Cannot update.")
-        logger.info("Table update process completed")
+        print()
+        logger.info("Table update process completed\n")
 
         display_table_samples(logger, tables, generated_data)
 
