@@ -1,4 +1,5 @@
-import os, json, logging, sys, time
+import os, json, logging, sys, time, shutil
+from configparser import ConfigParser
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 from pyspark import SparkConf
@@ -142,43 +143,78 @@ def validate_table_creation(logger: logging.Logger, spark, database_name, table_
         logger.error(f"Failed to retrieve tables from database '{database_name}': {str(e)}")
         return [{"error": f"Failed to retrieve tables from database '{database_name}': {str(e)}"}]
 
-def remove_specified_tables(logger: logging.Logger, spark: SparkSession, database_name: str, config):
+def remove_specified_tables(logger: logging.Logger, spark: SparkSession, database_name: str, config: ConfigParser) -> bool:
     """
-    Remove specified tables from the Hive Metastore.
+    Remove specified tables and their associated data locations from the Hive Metastore and storage.
 
-    This function attempts to drop the tables specified in the config file
-    within the given database. It logs the process and any errors encountered.
+    This function:
+    1. Drops the specified tables
+    2. Deletes their associated storage locations
+    3. Handles both managed and external tables
 
     Args:
-        spark (SparkSession): The active Spark session.
-        database_name (str): The name of the database containing the tables.
-        config (ConfigParser): The configuration object containing table names.
+        logger (logging.Logger): Logger object
+        spark (SparkSession): Active Spark session
+        database_name (str): Database name
+        config (ConfigParser): Configuration with tables to remove
 
     Returns:
-        bool: True if all specified tables were successfully removed, False otherwise.
+        bool: True if all operations succeeded, False otherwise
     """
+
     logger.info(f"Starting removal of specified tables in database '{database_name}'")
     
     try:
-        # Get the list of tables to remove from config
-        tables_to_remove = config['DEFAULT']['tables'].split(',')
-        
-        # Check if the database exists
+        tables_to_remove = [t.strip() for t in config['DEFAULT']['tables'].split(',')]
+        logger.debug(f"Tables to remove: {tables_to_remove}")
+
         databases = spark.sql("SHOW DATABASES").collect()
+        logger.debug(f"Existing databases: {[row.namespace for row in databases]}")
+
         if database_name not in [row.namespace for row in databases]:
             logger.warning(f"Database '{database_name}' does not exist. Cannot remove tables.")
             return False
 
-        # Drop each specified table
+        warehouse_path = spark.conf.get("spark.sql.warehouse.dir", "/user/hive/warehouse")
+        logger.debug(f"Warehouse path: {warehouse_path}")
+
         for table_name in tables_to_remove:
-            full_table_name = f"{database_name}.{table_name.strip()}"
+            full_table_name = f"{database_name}.{table_name}"
             logger.debug(f"Attempting to drop table '{full_table_name}'")
+            
             try:
-                spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
+                describe_df = spark.sql(f"DESCRIBE FORMATTED {full_table_name}")
+                logger.debug(f"Table metadata for '{full_table_name}': {describe_df.collect()}")
+                table_metadata = {row.col_name: row.data_type for row in describe_df.collect()}
+                logger.debug(f"Table metadata for '{full_table_name}': {table_metadata}")
+
+                location = table_metadata.get("Location", "")
+                logger.debug(f"Table location: {location}")
+                table_type = "EXTERNAL" if "EXTERNAL" in table_metadata.get("Table Type", "") else "MANAGED"
+                logger.debug(f"Table type: {table_type}")
+
+                spark.sql(f"DROP TABLE IF EXISTS {full_table_name} PURGE")
                 logger.info(f"Successfully dropped table '{full_table_name}'")
+
+                if location and location != warehouse_path:
+                    try:
+                        hadoop_path = spark._jvm.org.apache.hadoop.fs.Path(location)
+                        logger.debug(f"Attempting to delete table location: {location}")
+                        fs = hadoop_path.getFileSystem(spark._jsc.hadoopConfiguration())
+                        logger.debug(f"File system: {fs}")
+
+                        if fs.exists(hadoop_path):
+                            logger.info(f"Deleting table location: {location}")
+                            fs.delete(hadoop_path, True)
+                            logger.info(f"Successfully deleted table location: {location}")
+
+                    except Exception as e:
+                        logger.error(f"Failed to delete table location: {location} - {str(e)}")
+
             except AnalysisException as e:
                 logger.error(f"Failed to drop table '{full_table_name}': {str(e)}")
-
+                continue
+            
         return True
 
     except Exception as e:
