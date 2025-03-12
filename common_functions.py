@@ -35,11 +35,12 @@ def setup_logging():
     logger.info(f"Logging level set to: {loglevel}")
     return logger
 
-def load_config(logger: logging.Logger, config_path='/app/mount/config.ini'):
+def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini') -> configparser.ConfigParser:
     """
     Load configuration from a specified file.
 
     Args:
+        logger (logging.Logger): Logger instance.
         config_path (str): Path to the configuration file.
 
     Returns:
@@ -62,11 +63,12 @@ def load_config(logger: logging.Logger, config_path='/app/mount/config.ini'):
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
-def table_exists(logger: logging.Logger, spark, database_name, table_name):
+def table_exists(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> bool:
     """
     Check if a table exists in the Hive Metastore.
 
     Args:
+        logger (logging.Logger): Logger instance.
         spark (SparkSession): The active Spark session.
         database_name (str): The name of the database containing the table.
         table_name (str): The name of the table to check.
@@ -86,11 +88,12 @@ def table_exists(logger: logging.Logger, spark, database_name, table_name):
         logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_hive_metastore(logger: logging.Logger, spark: SparkSession, max_retries=3, retry_delay=5) -> bool:
+def validate_hive_metastore(logger: logging.Logger, spark: SparkSession, max_retries: int=3, retry_delay: int=5) -> bool:
     """
     Validate the connection to the Hive metastore with retry logic.
 
     Args:
+        logger (logging.Logger): Logger instance.
         spark (SparkSession): The Spark session.
         max_retries (int): Maximum number of retries.
         retry_delay (int): Delay between retries in seconds.
@@ -116,22 +119,26 @@ def validate_hive_metastore(logger: logging.Logger, spark: SparkSession, max_ret
                 raise
     return False
 
-def get_schema_path(logger: logging.Logger, base_path, table_name):
+def get_schema_path(logger: logging.Logger, base_path: str, table_name: str) -> str:
     """
     Get the schema file path for a given table.
 
     Args:
+        logger (logging.Logger): Logger instance.
         base_path (str): The base path where schema files are stored.
         table_name (str): The name of the table.
 
     Returns:
         str: The full path to the schema file.
     """
+
     logger.info(f"Getting schema path for table: {table_name}")
+    
     schema_filename = f"{table_name}.json"
+    
     return os.path.join(base_path, "schemas", schema_filename)
 
-def analyze_table_structure(logger: logging.Logger, spark, database_name, tables):
+def analyze_table_structure(logger: logging.Logger, spark: SparkSession, database_name: str, tables: str) -> list:
     """
     Analyze the structure of given tables in a database.
 
@@ -139,6 +146,7 @@ def analyze_table_structure(logger: logging.Logger, spark, database_name, tables
     bucketed, both, or neither.
 
     Args:
+        logger (logging.Logger): Logger instance.
         spark (SparkSession): The active Spark session.
         database_name (str): The name of the database containing the tables.
         tables (list): A list of table names to analyze.
@@ -149,14 +157,20 @@ def analyze_table_structure(logger: logging.Logger, spark, database_name, tables
     Raises:
         Exception: If an error occurs while analyzing table structure.
     """
+
+    logger.info(f"Analyzing structure of tables in database: {database_name}")
+
     results = []
     for table_name in tables:
         logger.info(f"Analyzing structure of table: {database_name}.{table_name}")
         try:
             create_table_stmt = spark.sql(f"SHOW CREATE TABLE {database_name}.{table_name}").collect()[0]['createtab_stmt']
+            logger.debug(f"Create table statement: {create_table_stmt}")
             
             is_partitioned = 'PARTITIONED BY' in create_table_stmt
+            logger.debug(f"Is partitioned: {is_partitioned}")
             is_bucketed = 'CLUSTERED BY' in create_table_stmt and 'INTO' in create_table_stmt and 'BUCKETS' in create_table_stmt
+            logger.debug(f"Is bucketed: {is_bucketed}")
             
             if is_partitioned and is_bucketed:
                 structure = "Particionada e Bucketed"
@@ -174,8 +188,10 @@ def analyze_table_structure(logger: logging.Logger, spark, database_name, tables
                 "table": table_name,
                 "structure": structure
             })
-            
+            logger.debug(f"Results: {results}")
+
             logger.info(f"Structure analysis completed for {database_name}.{table_name}")
+
         except Exception as e:
             logger.error(f"Error analyzing structure of {database_name}.{table_name}: {str(e)}", exc_info=True)
     
@@ -186,6 +202,7 @@ def extract_bucket_info(logger: logging.Logger, create_stmt: str) -> tuple:
     Extract bucket information from a CREATE TABLE statement.
 
     Args:
+        logger (logging.Logger): Logger instance.
         create_stmt (str): The CREATE TABLE statement.
 
     Returns:
@@ -231,9 +248,11 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
 
     try:
         df = spark.sql(f"DESCRIBE {database_name}.{table_name}")
-        valid_columns = df.filter(~col("col_name").isin("# col_name", "data_type")).select("col_name").rdd.flatMap(lambda x: x).collect()
+        logger.debug(f"Table schema for {database_name}.{table_name}:\n{df.show()}")
         
+        valid_columns = df.filter(~col("col_name").isin("# col_name", "data_type")).select("col_name").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Columns: {', '.join(valid_columns)}")
+
         return valid_columns
     
     except Exception as e:
@@ -244,23 +263,34 @@ def gerar_numero_cartao(logger: logging.Logger):
     """
     Generate a random credit card number.
 
+    Args:
+        logger (logging.Logger): Logger instance.
+
     Returns:
         str: A 16-digit random credit card number.
     """
+
     logger.debug("Generating credit card number")
+    
     return ''.join([str(random.randint(0, 9)) for _ in range(16)])
 
-def gerar_cliente(logger: logging.Logger, fake: Faker):
+def gerar_cliente(logger: logging.Logger, fake: Faker) -> dict:
     """
     Generate a random client record with a unique, formatted user ID.
     
     The function ensures that the id_usuario is unique and formatted with leading zeros 
     to have a length of 9 digits. It also maintains a 1:1 relationship between id_usuario and nome.
 
+    Args:
+        logger (logging.Logger): Logger instance.
+        fake (Faker): Faker instance for generating fake data.
+
     Returns:
         dict: A dictionary containing client details.
     """
+
     logger.debug("Generating client record")
+
     ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
     
     id_usuario = str(next(id_counter)).zfill(9)
@@ -276,15 +306,17 @@ def gerar_cliente(logger: logging.Logger, fake: Faker):
         "id_uf": random.choice(ufs)
     }
 
-def gerar_transacao(logger: logging.Logger, clientes_id_usuarios=None):
+def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: list=None) -> dict:
     """
     Generate a random transaction record.
 
     Args:
-    clientes_id_usuarios (list): Optional list of client user IDs.
+        logger (logging.Logger): Logger instance.
+        fake (Faker): Faker instance for generating fake data.
+        clientes_id_usuarios (list): Optional list of client user IDs.
 
     Returns:
-    dict: A dictionary containing transaction details.
+        dict: A dictionary containing transaction details.
     """
     
     logger.info("Generating transaction record")
@@ -303,26 +335,27 @@ def gerar_transacao(logger: logging.Logger, clientes_id_usuarios=None):
         "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Extornada"])
     }
 
-def gerar_dados(logger: logging.Logger, table_name, num_records, clientes_id_usuarios=None):
+def gerar_dados(logger: logging.Logger, table_name: str, num_records: int, clientes_id_usuarios: list=None) -> list:
     """
     Generate random data for a given table.
 
     Args:
-    table_name (str): Name of the table to generate data for.
-    num_records (int): Number of records to generate.
-    clientes_id_usuarios (list): Optional list of client user IDs.
+        logger (logging.Logger): Logger instance.
+        table_name (str): Name of the table to generate data for.
+        num_records (int): Number of records to generate.
+        clientes_id_usuarios (list): Optional list of client user IDs.
 
     Returns:
-    list: A list of dictionaries containing the generated data.
+        list: A list of dictionaries containing the generated data.
     """
 
     logger.info(f"Generating data for table: {table_name}")
 
     if table_name == 'clientes':
         logger.info(f"Data generated for table: {table_name}")
-        return [gerar_cliente() for _ in range(num_records)]
+        return [gerar_cliente(logger, fake) for _ in range(num_records)]
     elif table_name == 'transacoes_cartao':
         logger.info(f"Data generated for table: {table_name}")
-        return [gerar_transacao(clientes_id_usuarios) for _ in range(num_records)]
+        return [gerar_transacao(logger, fake, clientes_id_usuarios) for _ in range(num_records)]
     else:
         raise ValueError(f"Tabela desconhecida: {table_name}")
