@@ -120,7 +120,55 @@ def display_table_samples(logger: logging.Logger, tables: list, generated_data: 
         for row in clientes_sample:
             logger.info(str(row))
 
-def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, database_name: str, table_name: str) -> list:
+def get_clientes_data(logger: logging.Logger, spark: SparkSession, database_name: str, num_records_update: int) -> list:
+    """
+    Retrieves 'clientes' table data from the specified database and generates sample data.
+
+    This function performs the following steps:
+    1. Lists all tables in the specified database.
+    2. Identifies the 'clientes' table.
+    3. Generates sample data for the 'clientes' table.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database to query.
+        num_records_update (int): The number of sample records to generate.
+        logger (logging.Logger): Logger for output messages.
+
+    Returns:
+        list: A list of dictionaries containing generated 'clientes' data.
+
+    Raises:
+        ValueError: If no 'clientes' table is found in the database.
+    """
+    logger.info(f"Retrieving 'clientes' data from database: {database_name}")
+    
+    try:
+        # List all tables in the database
+        tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
+        logger.debug(f"Tables in database {database_name}: {tables}")
+        
+        # Identify the 'clientes' table
+        clientes_table = [table for table in tables if 'clientes' in table]
+        if not clientes_table:
+            raise ValueError(f"No 'clientes' table found in database {database_name}")
+        clientes_table = clientes_table[0]
+        logger.info(f"Found 'clientes' table: {clientes_table}")
+        
+        # Generate sample data
+        logger.debug(f"Generating {num_records_update} sample records for {clientes_table}")
+        clientes_data = gerar_dados(logger, clientes_table, num_records_update)
+        logger.info(f"Generated {len(clientes_data)} sample records for {clientes_table}")
+        
+        return clientes_data
+    
+    except Exception as e:
+        logger.error(f"Error retrieving 'clientes' data: {str(e)}")
+        raise
+
+
+def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, 
+                            database_name: str, table_name: str, clientes_data: list) -> list:
     """Generates data and writes it to the specified table.
 
     Args:
@@ -143,11 +191,6 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
         logger.info(f"Is bucketed: {is_bucketed}")
         num_buckets = config.getint(table_name, 'num_buckets', fallback=5) if is_bucketed else 0
         logger.info(f"Partition by: {partition_by}, Bucketing column: {bucketing_column}, Num Buckets: {num_buckets}")
-
-        tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
-        logger.info(f"Tables in database {database_name}: {tables}")
-        clientes_table = [table for table in tables if 'clientes' in table][0]
-        clientes_data = gerar_dados(logger, clientes_table, num_records_update)
 
         if 'transacoes_cartao' in table_name:
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
@@ -221,6 +264,10 @@ def main():
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Tables: {tables}")
         
+        num_records_update = config.getint(table_name, 'num_records_update', fallback=100)
+        logger.info(f"Number of records to update: {num_records_update}")
+        clientes_data = get_clientes_data(logger, spark, database_name, num_records_update)
+
         generated_data = {}       
         for table_name in tables:
             table_name = table_name.strip()
@@ -228,7 +275,7 @@ def main():
 
             if table_exists(logger, spark, database_name, table_name):
                 try:
-                    data = generate_and_write_data(logger, spark, config, database_name, table_name)
+                    data = generate_and_write_data(logger, spark, config, database_name, table_name, clientes_data)
                     generated_data[table_name] = data
                 except Exception as e:
                     logger.error(f"Failed to generate and write data for table '{table_name}': {e}")
