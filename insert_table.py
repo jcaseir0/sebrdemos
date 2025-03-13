@@ -166,7 +166,6 @@ def get_clientes_data(logger: logging.Logger, spark: SparkSession, database_name
         logger.error(f"Error retrieving 'clientes' data: {str(e)}")
         raise
 
-
 def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, 
                             database_name: str, table_name: str, clientes_data: list) -> list:
     """Generates data and writes it to the specified table.
@@ -264,7 +263,11 @@ def main():
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Tables: {tables}")
         
-        num_records_update = config.getint(table_name, 'num_records_update', fallback=100)
+        clientes_table = [table for table in tables if 'clientes' in table]
+        if not clientes_table:
+            raise ValueError(f"No 'clientes' table found in database {database_name}")
+        clientes_table = clientes_table[0]
+        num_records_update = config.getint(clientes_table, 'num_records_update', fallback=100)
         logger.info(f"Number of records to update: {num_records_update}")
         clientes_data = get_clientes_data(logger, spark, database_name, num_records_update)
 
