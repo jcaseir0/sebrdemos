@@ -168,17 +168,21 @@ def get_clientes_data(logger: logging.Logger, spark: SparkSession, database_name
 
 def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config: ConfigParser, 
                             database_name: str, table_name: str, clientes_data: list) -> list:
-    """Generates data and writes it to the specified table.
+    """
+    Generates data and writes it to the specified table.
 
     Args:
+        logger (logging.Logger): Logger instance for logging.
         spark (SparkSession): The active Spark session.
         config (ConfigParser): The configuration object.
+        database_name (str): The name of the database.
         table_name (str): The name of the table to update.
         clientes_data (list): Data for the 'clientes' table, structured as a list of dictionaries.
     
     Returns:
         list: The generated data for the specified table.
     """
+
     logger.info(f"Generating and writing data for table: {database_name}.{table_name}")
     
     try:
@@ -203,7 +207,7 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
         logger.info(f"Total records in table '{table_name}' before insert: {record_count_before}")
 
         columns = get_table_columns(logger, spark, database_name, table_name)
-        logger.debug(f"Columns: {columns}")
+        logger.debug(f"Valid columns: {columns}")
 
         table_schema = spark.table(f"{database_name}.{table_name}").schema
         logger.debug(f"Table schema: {table_schema}")
@@ -216,7 +220,9 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
 
         df.createOrReplaceTempView("temp_view")
 
-        insert_columns = [col for col in columns if col != 'data_execucao'] if 'transacoes_cartao' in table_name else columns
+        insert_columns = columns
+        if 'transacoes_cartao' in table_name and partition_by:
+            insert_columns = [col for col in columns if col != partition_by]
 
         insert_data(logger, spark, database_name, table_name, insert_columns, partition_by if not is_bucketed else None, is_bucketed)
         

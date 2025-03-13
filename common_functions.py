@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import SparkSession
 from faker import Faker
-from pyspark.sql.functions import col, count, mean, stddev, min, max, percentile_approx
+from pyspark.sql.functions import col
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -250,8 +250,12 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
         df = spark.sql(f"DESCRIBE {database_name}.{table_name}")
         logger.debug(f"Table schema for {database_name}.{table_name}:\n{df.show()}")
         
-        valid_columns = df.filter(~col("col_name").isin("# col_name", "data_type")).select("col_name").rdd.flatMap(lambda x: x).collect()
-        logger.info(f"Columns: {', '.join(valid_columns)}")
+        valid_columns = df.filter(
+            (~col("col_name").isin("# col_name", "data_type")) &
+            (~col("col_name").startswith("#"))
+        ).select("col_name").rdd.flatMap(lambda x: x).collect()
+        
+        logger.info(f"Valid columns: {', '.join(valid_columns)}")
 
         return valid_columns
     
