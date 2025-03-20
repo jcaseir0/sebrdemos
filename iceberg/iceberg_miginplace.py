@@ -402,61 +402,6 @@ def checks_on_migrated_to_iceberg(logger: logging.Logger, spark: SparkSession, d
         logger.error(f"Error occurred while checking Iceberg migrated table {full_table_name}: {str(e)}", exc_info=True)
         raise
 
-def rename_migrated_table(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> str:
-    """
-    Rename a migrated table and update its location in the metastore.
-
-    This function renames the Hive table and updates its location to reflect the new name.
-
-    Args:
-        logger (logging.Logger): Logger instance.
-        spark (SparkSession): Active Spark session.
-        database_name (str): Database name.
-        table_name (str): Table name to rename.
-
-    Returns:
-        str: The new table name if successful, otherwise None.
-    """
-
-    logger.info(f"Initiating table rename process for {database_name}.{table_name}")
-    
-    iceberg_table = f"iceberg_{table_name}"
-    new_table_name = f"{database_name}.{iceberg_table}"
-    
-    try:
-        logger.info("Get the current table location")
-        current_location = spark.sql(f"DESCRIBE FORMATTED {database_name}.{table_name}") \
-            .filter(col("col_name") == "Location") \
-            .select("data_type").collect()[0]["data_type"]
-        logger.debug(f"Current table location: {current_location}")
-        
-        logger.info("Extract the base path")
-        base_path = "/".join(current_location.split("/")[:-2])
-        logger.debug(f"Base path: {base_path}")
-
-        logger.info("Construct the full new location")
-        full_new_location = f"{base_path}/{database_name}.db/{iceberg_table}"
-        logger.debug(f"Full new location: {full_new_location}")
-        
-        logger.info(f"Current location: {current_location}")
-        logger.info(f"New location: {full_new_location}")
-        
-        logger.info("Rename the table")
-        logger.debug(f"Renaming table: ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
-        spark.sql(f"ALTER TABLE {database_name}.{table_name} RENAME TO {iceberg_table}")
-        
-        logger.info("Update the table location")
-        logger.debug(f"Updating table location: ALTER TABLE {database_name}.{iceberg_table} SET LOCATION '{full_new_location}'")
-        spark.sql(f"ALTER TABLE {database_name}.{iceberg_table} SET LOCATION '{full_new_location}'")
-        
-        logger.info(f"Successfully renamed table from {database_name}.{table_name} to {database_name}.{iceberg_table} and updated location\n")
-        
-        return new_table_name
-    
-    except Exception as e:
-        logger.error(f"Failed to rename table {database_name}.{table_name}: {str(e)}\n", exc_info=True)
-        return None
-
 def main() -> None:
     """
     Main function to create tables based on configuration.
@@ -510,8 +455,6 @@ def main() -> None:
                 drop_snaptable(logger, spark, database_name, snaptable)
                 migrate_inplace_to_iceberg(logger, spark, database_name, table_name)
                 checks_on_migrated_to_iceberg(logger, spark, database_name, table_name)
-                new_table_name = rename_migrated_table(logger, spark, database_name, table_name)
-                logger.info(f"Iceberg table migrated and table renamed to {new_table_name}")
             else:
                 logger.warning("Some checks failed. Review the logs for details. Iceberg Migration In-place Cancelled.")
 
