@@ -283,3 +283,62 @@ def incremental_read(spark: SparkSession, database_name: str, table_name: str) -
     print(f"SELECT * FROM {database_name}.{table_name}.history;")
     spark.sql(f"SELECT * FROM {database_name}.{table_name}.history;").show()
     print
+
+def main() -> None:
+    """
+    Main function to create Iceberg tables using CTAS method.
+
+    This function validates the Hive metastore connection, iterates through the tables
+    defined in the configuration, and creates them if they do not already exist.
+    """
+
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting main function")
+    config = load_config(logger)
+
+    # JDBC URL is now passed as a command line argument
+    jdbc_url = sys.argv[1]
+    logger.debug(f"JDBC URL: {jdbc_url}")
+
+    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
+    server_dns = jdbc_url.split('//')[1].split('/')[0]
+    thrift_server = f"thrift://{server_dns}:9083"
+    logger.debug(f"Thrift Server: {thrift_server}")
+
+    spark_conf = SparkConf()
+    spark_conf.set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
+    spark_conf.set("spark.sql.catalog.spark_catalog.type", "hive")
+    spark_conf.set("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+    spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
+    spark_conf.set("hive.metastore.uris", thrift_server)
+    spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
+    spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
+
+    spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").enableHiveSupport().getOrCreate()
+
+    validate_hive_metastore(logger, spark)
+
+    tables = config['DEFAULT']['tables'].split(',')
+    database_name = config['DEFAULT'].get('dbname')
+
+    for table_name in tables:
+        drop_snapshot_table_if_exists(logger, spark, database_name, table_name)
+        snaptable = iceberg_migration_snaptable(logger, spark, database_name, table_name)
+
+        result = iceberg_sanity_checks(logger, spark, database_name, table_name, snaptable)
+    
+        if result:
+            logger.info("All sanity checks passed!")
+            drop_snaptable(logger, spark, database_name, snaptable)
+            migrate_inplace_to_iceberg(logger, spark, database_name, table_name)
+            checks_on_migrated_to_iceberg(logger, spark, database_name, table_name)
+            new_table_name = rename_migrated_table(logger, spark, database_name, table_name)
+            logger.info(f"Iceberg table migrated and table renamed to {new_table_name}")
+        else:
+            logger.warning("Some checks failed. Review the logs for details. Iceberg Migration In-place Cancelled.")
+
+    spark.stop()
+
+if __name__ == "__main__":
+    main()
