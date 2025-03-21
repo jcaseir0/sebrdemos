@@ -267,6 +267,7 @@ def main():
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name = config.get("DEFAULT", "dbname")
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
+        tables = [table for table in tables if '_backup_' not in table]
         logger.info(f"Tables: {tables}")
         
         clientes_table = [table for table in tables if 'clientes' in table]
