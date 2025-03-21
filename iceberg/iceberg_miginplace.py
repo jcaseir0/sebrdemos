@@ -1,7 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-import sys, os, logging, re
-from pyspark.sql.functions import col
+import sys, os, logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common_functions import setup_logging, load_config, validate_hive_metastore, analyze_table_structure, extract_bucket_info
@@ -367,7 +366,7 @@ def checks_on_migrated_to_iceberg(logger: logging.Logger, spark: SparkSession, d
         logger.info(f"Executing DESCRIBE TABLE command for {database_name}.{table_name}")
         describe_result = spark.sql(f"DESCRIBE TABLE {full_table_name}")
         describe_str = "\n".join([f"{row.col_name:<30} {row.data_type:<20} {row.comment}" for row in describe_result.collect()])
-        logger.debug(f"DESCRIBE TABLE result:\n{describe_str}")
+        logger.info(f"DESCRIBE TABLE result:\n{describe_str}")
 
         logger.info(f"Executing SHOW CREATE TABLE command for {database_name}.{table_name}")
         create_table_result = spark.sql(f"SHOW CREATE TABLE {full_table_name}")

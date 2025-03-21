@@ -1,2 +1,4 @@
 jdbc
 logs
+.clj-kondo
+.lsp
