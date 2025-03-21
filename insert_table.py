@@ -120,7 +120,7 @@ def display_table_samples(logger: logging.Logger, tables: list, generated_data: 
         for row in clientes_sample:
             logger.info(str(row))
 
-def get_clientes_data(logger: logging.Logger, spark: SparkSession, database_name: str, num_records_update: int) -> list:
+def get_clientes_data(logger: logging.Logger, database_name: str, tables: list , num_records_update: int) -> list:
     """
     Retrieves 'clientes' table data from the specified database and generates sample data.
 
@@ -141,21 +141,17 @@ def get_clientes_data(logger: logging.Logger, spark: SparkSession, database_name
     Raises:
         ValueError: If no 'clientes' table is found in the database.
     """
+
     logger.info(f"Retrieving 'clientes' data from database: {database_name}")
     
     try:
-        # List all tables in the database
-        tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
-        logger.debug(f"Tables in database {database_name}: {tables}")
-        
-        # Identify the 'clientes' table
         clientes_table = [table for table in tables if 'clientes' in table]
         if not clientes_table:
             raise ValueError(f"No 'clientes' table found in database {database_name}")
+        
         clientes_table = clientes_table[0]
         logger.info(f"Found 'clientes' table: {clientes_table}")
         
-        # Generate sample data
         logger.debug(f"Generating {num_records_update} sample records for {clientes_table}")
         clientes_data = gerar_dados(logger, clientes_table, num_records_update)
         logger.info(f"Generated {len(clientes_data)} sample records for {clientes_table}")
@@ -266,8 +262,7 @@ def main():
         spark = create_spark_session(logger, jdbc_url, thrift_server)
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name = config.get("DEFAULT", "dbname")
-        tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
-        tables = [table for table in tables if '_backup_' not in table]
+        tables = spark.sql(f"SHOW TABLES IN {database_name} WHERE tableName NOT LIKE '%_backup_%'").select("tableName").rdd.flatMap(lambda x: x).collect()
         logger.info(f"Tables: {tables}")
         
         clientes_table = [table for table in tables if 'clientes' in table]
@@ -276,7 +271,7 @@ def main():
         clientes_table = clientes_table[0]
         num_records_update = config.getint(clientes_table, 'num_records_update', fallback=100)
         logger.info(f"Number of records to update: {num_records_update}")
-        clientes_data = get_clientes_data(logger, spark, database_name, num_records_update)
+        clientes_data = get_clientes_data(logger, database_name, tables, num_records_update)
 
         generated_data = {}       
         for table_name in tables:
