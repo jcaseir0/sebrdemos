@@ -252,7 +252,9 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
         
         valid_columns = df.filter(
             (~col("col_name").isin("# col_name", "data_type")) &
-            (~col("col_name").startswith("#"))
+            (~col("col_name").startswith("#")) &
+            (~col("col_name").startswith("Part")) &
+            (col("col_name") != "")
         ).select("col_name").rdd.flatMap(lambda x: x).collect()
         
         logger.info(f"Valid columns: {', '.join(valid_columns)}")
