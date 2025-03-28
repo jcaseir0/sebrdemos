@@ -265,6 +265,33 @@ def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name
         logger.error(f"Error retrieving table schema for {database_name}.{table_name}: {str(e)}")
         raise
 
+def rename_backup_tables(logger: logging.Logger, spark: SparkSession, tables: list, database_name: str) -> None:
+    """
+    Renames tables with '_backup_' in their name to '_original'.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database containing the tables.
+
+    Raises:
+        Exception: If an error occurs during the renaming process.
+    """
+    
+    logger.info(f"Renaming backup tables in database {database_name}")
+    
+    try:
+
+        tables_to_rename = [table.tableName for table in tables if '_backup_' in table.tableName]
+        
+        for table_name in tables_to_rename:
+            logger.debug(f"Renaming table {table_name} to {table_name.replace('_backup_', '_original')}")
+            spark.sql(f"ALTER TABLE {database_name}.{table_name} RENAME TO {database_name}.{table_name.replace('_backup_', '_original')}")
+            logger.info(f"Table {table_name} renamed to {table_name.replace('_backup_', '_original')}")
+    
+    except Exception as e:
+        logger.error(f"Error renaming tables: {str(e)}")
+        raise
+
 def gerar_numero_cartao(logger: logging.Logger):
     """
     Generate a random credit card number.
