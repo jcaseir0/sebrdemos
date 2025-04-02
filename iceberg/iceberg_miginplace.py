@@ -489,7 +489,7 @@ def main() -> None:
     spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
 
     try:
-        spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG LOAD").enableHiveSupport().getOrCreate()
+        spark = SparkSession.builder.config(conf=spark_conf).appName("ICEBERG-MIG").enableHiveSupport().getOrCreate()
         logger.info("Spark session created successfully")
         database_name = config['DEFAULT'].get('dbname')
         logger.debug(f"Database name: {database_name}")

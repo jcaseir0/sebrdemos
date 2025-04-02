@@ -1,20 +1,46 @@
-import os, sys, logging, random, time
+import os, logging, random, time, re
+from itertools import count as itertools_count
 import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import SparkSession
 from faker import Faker
+from pyspark.sql.functions import col
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Set logging level to DEBUG
 
 fake = Faker('pt_BR')
+logger.debug(f"Faker instance created: {fake}")
+id_counter = itertools_count(1)
+logger.debug(f"ID counter created: {id_counter}")
 
-def load_config(config_path='/app/mount/config.ini'):
+def setup_logging():
+    '''
+    Configura o logging para exibir mensagens de INFO e DEBUG, com uma variável LOGLEVEL para definir o nível de log.
+
+    Returns:
+        logging.Logger: Objeto de log configurado.
+    '''
+
+    # Define o nível de log padrão
+    loglevel = os.getenv("LOGLEVEL", "INFO").upper() # Padrão: INFO
+    numeric_level = getattr(logging, loglevel, None) # Numeric value of log level options: DEBUG=10, INFO=20, WARNING=30, ERROR=40, CRITICAL=50
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Invalid log level: {loglevel}")
+    
+    # Configura o logging
+    logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging level set to: {loglevel}")
+    return logger
+
+def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini') -> configparser.ConfigParser:
     """
     Load configuration from a specified file.
 
     Args:
+        logger (logging.Logger): Logger instance.
         config_path (str): Path to the configuration file.
 
     Returns:
@@ -37,11 +63,12 @@ def load_config(config_path='/app/mount/config.ini'):
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
-def table_exists(spark, database_name, table_name):
+def table_exists(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> bool:
     """
     Check if a table exists in the Hive Metastore.
 
     Args:
+        logger (logging.Logger): Logger instance.
         spark (SparkSession): The active Spark session.
         database_name (str): The name of the database containing the table.
         table_name (str): The name of the table to check.
@@ -61,11 +88,44 @@ def table_exists(spark, database_name, table_name):
         logger.error(f"Error checking table existence '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
+def drop_snapshot_table_if_exists(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> None:
+    """
+    Drop the Iceberg snapshot table if it already exists.
+
+    Args:
+        spark (SparkSession): The active Spark session.
+        database_name (str): The name of the database.
+        table_name (str): The name of the original table.
+
+    Returns:
+        None
+    """
+    
+    logger.info("Drop the Iceberg snapshot table if it already exists.")
+    
+    snapshot_table_name = f"{table_name}_SNPICEBERG"
+    full_snapshot_table_name = f"{database_name}.{snapshot_table_name}"
+
+    logger.info(f"Checking if snapshot table {full_snapshot_table_name} exists")
+    table_exists = spark.sql(f"SHOW TABLES IN {database_name} LIKE '{snapshot_table_name}'").count() > 0
+
+    if table_exists:
+        logger.info(f"Snapshot table {full_snapshot_table_name} exists. Dropping it.")
+        try:
+            spark.sql(f"DROP TABLE IF EXISTS {full_snapshot_table_name}")
+            logger.info(f"Successfully dropped snapshot table {full_snapshot_table_name}\n")
+        except Exception as e:
+            logger.error(f"Failed to drop snapshot table {full_snapshot_table_name}: {str(e)}\n")
+            raise
+    else:
+        logger.info(f"Snapshot table {full_snapshot_table_name} does not exist. No action needed.\n")
+
+def validate_hive_metastore(logger: logging.Logger, spark: SparkSession, max_retries: int=3, retry_delay: int=5) -> bool:
     """
     Validate the connection to the Hive metastore with retry logic.
 
     Args:
+        logger (logging.Logger): Logger instance.
         spark (SparkSession): The Spark session.
         max_retries (int): Maximum number of retries.
         retry_delay (int): Delay between retries in seconds.
@@ -91,7 +151,26 @@ def validate_hive_metastore(spark, max_retries=3, retry_delay=5):
                 raise
     return False
 
-def analyze_table_structure(spark, database_name, tables):
+def get_schema_path(logger: logging.Logger, base_path: str, table_name: str) -> str:
+    """
+    Get the schema file path for a given table.
+
+    Args:
+        logger (logging.Logger): Logger instance.
+        base_path (str): The base path where schema files are stored.
+        table_name (str): The name of the table.
+
+    Returns:
+        str: The full path to the schema file.
+    """
+
+    logger.info(f"Getting schema path for table: {table_name}")
+    
+    schema_filename = f"{table_name}.json"
+    
+    return os.path.join(base_path, "schemas", schema_filename)
+
+def analyze_table_structure(logger: logging.Logger, spark: SparkSession, database_name: str, tables: str) -> list:
     """
     Analyze the structure of given tables in a database.
 
@@ -99,6 +178,7 @@ def analyze_table_structure(spark, database_name, tables):
     bucketed, both, or neither.
 
     Args:
+        logger (logging.Logger): Logger instance.
         spark (SparkSession): The active Spark session.
         database_name (str): The name of the database containing the tables.
         tables (list): A list of table names to analyze.
@@ -109,14 +189,20 @@ def analyze_table_structure(spark, database_name, tables):
     Raises:
         Exception: If an error occurs while analyzing table structure.
     """
+
+    logger.info(f"Analyzing structure of tables in database: {database_name}")
+
     results = []
     for table_name in tables:
         logger.info(f"Analyzing structure of table: {database_name}.{table_name}")
         try:
             create_table_stmt = spark.sql(f"SHOW CREATE TABLE {database_name}.{table_name}").collect()[0]['createtab_stmt']
+            logger.debug(f"Create table statement: {create_table_stmt}")
             
             is_partitioned = 'PARTITIONED BY' in create_table_stmt
+            logger.debug(f"Is partitioned: {is_partitioned}")
             is_bucketed = 'CLUSTERED BY' in create_table_stmt and 'INTO' in create_table_stmt and 'BUCKETS' in create_table_stmt
+            logger.debug(f"Is bucketed: {is_bucketed}")
             
             if is_partitioned and is_bucketed:
                 structure = "Particionada e Bucketed"
@@ -134,134 +220,217 @@ def analyze_table_structure(spark, database_name, tables):
                 "table": table_name,
                 "structure": structure
             })
-            
+            logger.debug(f"Results: {results}")
+
             logger.info(f"Structure analysis completed for {database_name}.{table_name}")
+
         except Exception as e:
             logger.error(f"Error analyzing structure of {database_name}.{table_name}: {str(e)}", exc_info=True)
     
     return results
 
-def collect_statistics(spark: SparkSession, df, columns=None):
-    """Collects statistics for a given Spark DataFrame.
+def extract_bucket_info(logger: logging.Logger, create_stmt: str) -> tuple:
+    """
+    Extract bucket information from a CREATE TABLE statement.
+
+    Args:
+        logger (logging.Logger): Logger instance.
+        create_stmt (str): The CREATE TABLE statement.
+
+    Returns:
+        tuple: A tuple containing the bucketed column and number of buckets, or (None, None) if not bucketed.
+    """
+
+    logger.info("Extracting bucket information from CREATE TABLE statement")
+
+    bucket_pattern = r'CLUSTERED BY \((.*?)\)\s+INTO (\d+) BUCKETS'
+    logger.debug(f"Bucket pattern: {bucket_pattern}")
+    bucket_info = re.search(bucket_pattern, create_stmt, re.IGNORECASE | re.DOTALL)
+    logger.debug(f"Bucket info: {bucket_info}")
+
+    if bucket_info:
+        bucketed_column = bucket_info.group(1).strip()
+        num_buckets = int(bucket_info.group(2))
+        logger.debug(f"Bucketed column: {bucketed_column}, Number of buckets: {num_buckets}")
+        return bucketed_column, num_buckets
+    
+    return None, None
+
+def get_table_columns(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> list:
+    """
+    Retrieves a list of valid column names from the table schema.
+
+    This function fetches the schema of the specified table and extracts a list of column
+    names, excluding partition information and special columns (e.g., '# col_name', 'data_type').
+
+    Args:
+        logger (logging.Logger): Logger instance for logging.
+        spark (SparkSession): Active Spark session.
+        database_name (str): Name of the database containing the table.
+        table_name (str): Name of the table.
+
+    Returns:
+        list: A list of valid column names for the table.
+
+    Raises:
+        Exception: If an error occurs while retrieving the table schema.
+    """
+
+    logger.info(f"Retrieving table schema for {database_name}.{table_name}")
+
+    try:
+        df = spark.sql(f"DESCRIBE {database_name}.{table_name}")
+        logger.debug(f"Table schema for {database_name}.{table_name}:\n{df.show()}")
+        
+        valid_columns = df.filter(
+            (~col("col_name").isin("# col_name", "data_type")) &
+            (~col("col_name").startswith("#")) &
+            (~col("col_name").startswith("Part")) &
+            (col("col_name") != "")
+        ).select("col_name").rdd.flatMap(lambda x: x).collect()
+        
+        logger.info(f"Valid columns: {', '.join(valid_columns)}")
+
+        return valid_columns
+    
+    except Exception as e:
+        logger.error(f"Error retrieving table schema for {database_name}.{table_name}: {str(e)}")
+        raise
+
+def rename_backup_tables(logger: logging.Logger, spark: SparkSession, tables: list, database_name: str) -> None:
+    """
+    Renames tables with '_backup_' in their name to '_original'.
 
     Args:
         spark (SparkSession): The active Spark session.
-        df (pyspark.sql.DataFrame): The DataFrame to collect statistics from.
-        columns (list, optional): A list of column names to collect statistics for.
-            If None, statistics will be collected for all columns.
+        database_name (str): The name of the database containing the tables.
 
-    Returns:
-        dict: A dictionary containing the collected statistics.
+    Raises:
+        Exception: If an error occurs during the renaming process.
     """
+    
+    logger.info(f"Renaming backup tables in database {database_name}")
+    
     try:
-        if columns:
-            df = df.select(columns)
+
+        tables_to_rename = [table.tableName for table in tables if '_backup_' in table.tableName]
         
-        columns = df.columns
-        logger.info(f"Collecting statistics for columns: {columns}")
-
-        # Basic statistics
-        desc_stats = df.describe().collect()
-
-        # Convert to dictionary for easier use
-        stats_dict = {}
-        for row in desc_stats:
-            metric = row['summary']
-            stats_dict[metric] = {}
-            for col in columns:
-                if col in row:
-                    stats_dict[metric][col] = row[col]
-                else:
-                    stats_dict[metric][col] = None
-                    logger.warning(f"Column {col} not found in describe() result for metric {metric}")
-
-        # Null value counts
-        null_counts = {}
-        for col in columns:
-            null_counts[col] = df.filter(df[col].isNull()).count()
-
-        stats = {
-            "descriptive_statistics": stats_dict,
-            "null_counts": null_counts
-        }
-
-        logger.info("Statistics collection completed successfully")
-        return stats
+        for table_name in tables_to_rename:
+            logger.debug(f"Renaming table {table_name} to {table_name.replace('_backup_', '_original')}")
+            spark.sql(f"ALTER TABLE {database_name}.{table_name} RENAME TO {database_name}.{table_name.replace('_backup_', '_original')}")
+            logger.info(f"Table {table_name} renamed to {table_name.replace('_backup_', '_original')}")
+    
     except Exception as e:
-        logger.error(f"Error collecting statistics: {str(e)}", exc_info=True)
-        return None
+        logger.error(f"Error renaming tables: {str(e)}")
+        raise
 
-def gerar_numero_cartao():
+def gerar_numero_cartao(logger: logging.Logger):
     """
     Generate a random credit card number.
+
+    Args:
+        logger (logging.Logger): Logger instance.
 
     Returns:
         str: A 16-digit random credit card number.
     """
+
     logger.debug("Generating credit card number")
+    
     return ''.join([str(random.randint(0, 9)) for _ in range(16)])
 
-def gerar_transacao():
+def gerar_cliente(logger: logging.Logger, fake: Faker) -> dict:
     """
-    Generate a random transaction record.
+    Generate a random client record with a unique, formatted user ID.
+    
+    The function ensures that the id_usuario is unique and formatted with leading zeros 
+    to have a length of 9 digits. It also maintains a 1:1 relationship between id_usuario and nome.
 
-    Returns:
-        dict: A dictionary containing transaction details.
-    """
-    logger.debug("Generating transaction record")
-
-    # Calculate the date range for the last 10 years
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=365 * 10)
-
-    return {
-        "id_usuario": random.randint(1, 1000),
-        "data_transacao": fake.date_time_between(start_date=start_date, end_date=end_date),
-        "valor": round(random.uniform(10, 100000), 2),
-        "estabelecimento": fake.company(),
-        "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação", "Outros"]),
-        "status": random.choice(["Aprovada", "Negada", "Pendente", "Estornada", "Cancelada", "Fraude"])
-    }
-
-def gerar_cliente():
-    """
-    Generate a random client record.
+    Args:
+        logger (logging.Logger): Logger instance.
+        fake (Faker): Faker instance for generating fake data.
 
     Returns:
         dict: A dictionary containing client details.
     """
+
     logger.debug("Generating client record")
+
     ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
+    
+    id_usuario = str(next(id_counter)).zfill(9)
+    
     return {
-        "id_usuario": random.randint(1, 1000),
+        "id_usuario": id_usuario,
         "nome": fake.name(),
         "email": fake.email(),
-        "data_nascimento": datetime.strptime(fake.date_of_birth(minimum_age=18, maximum_age=90).isoformat(), "%Y-%m-%d").date(),
+        "data_nascimento": fake.date_of_birth(minimum_age=18, maximum_age=90),
         "endereco": fake.address().replace('\n', ', '),
-        "limite_credito": random.choice([1000, 2000, 5000, 10000, 20000]),
-        "numero_cartao": gerar_numero_cartao(),
+        "limite_credito": random.choice([1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 20000]),
+        "numero_cartao": gerar_numero_cartao(logger),
         "id_uf": random.choice(ufs)
     }
 
-def gerar_dados(nome_tabela, num_records):
+def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: list) -> dict:
     """
-    Generate random data for the specified table.
+    Generate a random transaction record.
 
     Args:
-        nome_tabela (str): The name of the table to generate data for.
-        num_records (int): The number of records to generate.
+        logger (logging.Logger): Logger instance.
+        fake (Faker): Faker instance for generating fake data.
+        clientes_id_usuarios (list): Optional list of client user IDs.
 
     Returns:
-        list: A list of dictionaries containing generated data.
-
-    Raises:
-        ValueError: If the table name is unknown.
+        dict: A dictionary containing transaction details.
     """
-    logger.info(f"Generating {num_records} records for table: {nome_tabela}\n")
-    if nome_tabela == 'transacoes_cartao':
-        return [gerar_transacao() for _ in range(num_records)]
-    elif nome_tabela == 'clientes':
-        return [gerar_cliente() for _ in range(num_records)]
-    else:
-        logger.error(f"Unknown table: {nome_tabela}")
-        raise ValueError(f"Unknown table: {nome_tabela}")
+    
+    logger.debug("Generating transaction record")
+    
+    end_date = datetime.now()
+    logger.debug(f"End date: {end_date}")
+    start_date = end_date - timedelta(days=365 * 10)  # 10 years ago
+    logger.debug(f"Start date: {start_date}")
+
+    return {
+        "id_usuario": random.choice(clientes_id_usuarios) if clientes_id_usuarios else random.randint(1, 1000),
+        "data_transacao": fake.date_time_between(start_date=start_date, end_date=end_date),
+        "valor": round(random.uniform(10, 1000), 2),
+        "estabelecimento": fake.company(),
+        "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação", "Outros"]),
+        "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Extornada"])
+    }
+
+def gerar_dados(logger: logging.Logger, table_name: str, num_records: int, clientes_id_usuarios: list=None) -> list:
+    """
+    Generate random data for a given table.
+
+    Args:
+        logger (logging.Logger): Logger instance.
+        table_name (str): Name of the table to generate data for.
+        num_records (int): Number of records to generate.
+        clientes_id_usuarios (list): Optional list of client user IDs.
+
+    Returns:
+        list: A list of dictionaries containing the generated data.
+    """
+
+    logger.info(f"Generating {num_records} data registries for table: {table_name}")
+
+    try:
+
+        if table_name == 'clientes':
+            logger.info(f"Data generated for table: {table_name}")
+            return [gerar_cliente(logger, fake) for _ in range(num_records)]
+        
+        elif table_name == 'transacoes_cartao':
+            if not clientes_id_usuarios:
+                    raise ValueError("IDs de clientes necessários para gerar transações")
+            
+            logger.info(f"Data generated for table: {table_name}")
+            return [gerar_transacao(logger, fake, clientes_id_usuarios) for _ in range(num_records)]
+        else:
+            raise ValueError(f"Tabela desconhecida: {table_name}")
+        
+    except Exception as e:
+        logger.error(f"Erro na geração de dados: {str(e)}")
+        raise
