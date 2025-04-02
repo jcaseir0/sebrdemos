@@ -249,6 +249,7 @@ def main():
     spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
     spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
     spark_conf.set("spark.security.credentials.hiveserver2.enabled", "true")
+    logger.debug(f"Spark configuration: {spark_conf.getAll()}")
     
     spark = SparkSession.builder.config(conf=spark_conf).appName("CreateTable").enableHiveSupport().getOrCreate()
     
