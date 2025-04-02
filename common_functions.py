@@ -1,4 +1,5 @@
-import os, logging, random, time, re
+import os, logging, random, time, re, hashlib
+from typing import Dict, Tuple
 from itertools import count as itertools_count
 import configparser
 from datetime import datetime, timedelta
@@ -14,6 +15,8 @@ fake = Faker('pt_BR')
 logger.debug(f"Faker instance created: {fake}")
 id_counter = itertools_count(1)
 logger.debug(f"ID counter created: {id_counter}")
+generated_ids: Dict[str, str] = {}  # {nome_completo: id_usuario}
+generated_names: Dict[str, str] = {}  # {id_usuario: nome_completo}
 
 def setup_logging():
     '''
@@ -309,10 +312,16 @@ def gerar_numero_cartao(logger: logging.Logger):
 
 def gerar_cliente(logger: logging.Logger, fake: Faker) -> dict:
     """
-    Generate a random client record with a unique, formatted user ID.
+    Generate a random client record with a unique, non-sequential user ID.
     
     The function ensures that the id_usuario is unique and formatted with leading zeros 
     to have a length of 9 digits. It also maintains a 1:1 relationship between id_usuario and nome.
+
+    Features:
+    - ID de 9 dígitos com alta variedade
+    - Relação 1:1 entre id_usuario e nome
+    - Prevenção de colisões
+    - Compatível com geração distribuída
 
     Args:
         logger (logging.Logger): Logger instance.
@@ -326,17 +335,51 @@ def gerar_cliente(logger: logging.Logger, fake: Faker) -> dict:
 
     ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
     
-    id_usuario = str(next(id_counter)).zfill(9)
-    
+    while True:
+        # Gerar dados básicos
+        nome = fake.name()
+        data_nasc = fake.date_of_birth(minimum_age=18, maximum_age=90)
+        id_uf = random.choice(ufs)
+        
+        # Criar hash único baseado em múltiplos atributos
+        hash_base = f"{nome}{data_nasc}{id_uf}"
+        hash_digest = hashlib.md5(hash_base.encode()).hexdigest()
+        
+        # Gerar ID de 9 dígitos com alta variedade
+        id_num = int(hash_digest, 16) % 10**9
+        id_usuario = f"{id_num:09d}"
+        
+        # Verificar colisões e unicidade
+        if id_usuario in generated_names:
+            if generated_names[id_usuario] == nome:
+                # Caso válido de mesma pessoa
+                break
+            else:
+                # Resolver colisão adicionando salt
+                salt = random.randint(0, 999)
+                hash_digest = hashlib.md5(f"{hash_base}{salt}".encode()).hexdigest()
+                id_num = int(hash_digest, 16) % 10**9
+                id_usuario = f"{id_num:09d}"
+                continue
+                
+        if nome in generated_ids:
+            id_usuario = generated_ids[nome]
+            break
+            
+        # Registrar novos valores
+        generated_ids[nome] = id_usuario
+        generated_names[id_usuario] = nome
+        break
+
     return {
         "id_usuario": id_usuario,
-        "nome": fake.name(),
+        "nome": nome,
         "email": fake.email(),
-        "data_nascimento": fake.date_of_birth(minimum_age=18, maximum_age=90),
+        "data_nascimento": data_nasc,
         "endereco": fake.address().replace('\n', ', '),
         "limite_credito": random.choice([1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 20000]),
         "numero_cartao": gerar_numero_cartao(logger),
-        "id_uf": random.choice(ufs)
+        "id_uf": id_uf
     }
 
 def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: list) -> dict:
