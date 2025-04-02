@@ -239,6 +239,7 @@ def main():
 
     # Extract the server DNS from the JDBC URL to construct the Thrift server URL
     server_dns = jdbc_url.split('//')[1].split('/')[0]
+    logger.debug(f"Server DNS: {server_dns}")
     thrift_server = f"thrift://{server_dns}:9083"
     logger.debug(f"Thrift Server: {thrift_server}")
 
