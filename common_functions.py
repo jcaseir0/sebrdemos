@@ -360,9 +360,9 @@ def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: l
     logger.debug(f"Start date: {start_date}")
 
     return {
-        "id_usuario": random.choice(clientes_id_usuarios) if clientes_id_usuarios else random.randint(1, 1000),
+        "id_usuario": random.choice(clientes_id_usuarios) if clientes_id_usuarios else random.randint(1, 100000),
         "data_transacao": fake.date_time_between(start_date=start_date, end_date=end_date),
-        "valor": round(random.uniform(10, 1000), 2),
+        "valor": round(random.uniform(1, 99999), 2),
         "estabelecimento": fake.company(),
         "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação", "Outros"]),
         "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Extornada"])
