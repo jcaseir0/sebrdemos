@@ -91,8 +91,10 @@ def main():
         config = configparser.ConfigParser()
         config.read('config.ini')
         
-        database_name = config.get("DEFAULT", "dbname", fallback="default")
-        tables_to_process = config.get("DEFAULT", "tables", fallback="").split(",")
+        database_name = config.get("DEFAULT", "dbname")
+        logger.info(f"Database name: {database_name}")
+        tables_to_process = config.get("DEFAULT", "tables").split(",")
+        logger.info(f"Tables to process: {tables_to_process}")
 
         # Executar limpeza para cada tabela
         for table in tables_to_process:
