@@ -51,15 +51,19 @@ def drop_backup_tables(logger: logging.Logger, spark: SparkSession, database_nam
         # Listar todas as tabelas do banco
         logger.debug(f"Listing tables in database {database_name}")
         tables = spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect()
-        
+        logger.info(f"Found {len(tables)} tables in database {database_name}")
+        logger.info(f"Tables found: {tables}")
         # Filtrar tabelas backup
         backup_tables = [t for t in tables if '_backup_' in t]
         logger.info(f"Found {len(backup_tables)} backup tables to drop")
-
+        logger.info(f"Backup tables found: {backup_tables}")
+        if not backup_tables:
+            logger.info("No backup tables found to drop")
+            return
         # Dropar cada tabela backup
         for table in backup_tables:
             full_table_name = f"{database_name}.{table}"
-            logger.debug(f"Attempting to drop table: {full_table_name}")
+            logger.info(f"Attempting to drop table: {full_table_name}")
             spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
             logger.info(f"Successfully dropped backup table: {full_table_name}")
 
