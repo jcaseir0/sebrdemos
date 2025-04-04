@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import logging
-import configparser
+import logging, sys, os
 from pyspark.sql import SparkSession
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common_functions import setup_logging, load_config
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -77,6 +78,7 @@ def main():
     Handles Spark session initialization and executes cleanup tasks.
     """
     try:
+        logger = setup_logging()
         logger.info("Starting table cleanup process")
         
         # Inicializar Spark
@@ -88,8 +90,7 @@ def main():
 
         # Carregar configurações
         logger.debug("Loading configuration")
-        config = configparser.ConfigParser()
-        config.read('config.ini')
+        config = load_config(logger)
         
         database_name = config.get("DEFAULT", "dbname")
         logger.info(f"Database name: {database_name}")
