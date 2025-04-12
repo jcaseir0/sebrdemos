@@ -1,218 +1,217 @@
--- Work in progress
 -- Hive SQL
-
+-- Runtime Version: 7.2.18-1.cdh7.2.18.p800.63673109
 -- ICEBERG SHADOW MIGRATION
 
--- Create table as SELECT - HiveIcebergStorageHandler, é o mecanismo padrão para lidar com tabelas Iceberg no Hive. O suporte a Iceberg no Hive é feito através de um mecanismo diferente, geralmente usando o STORED BY em vez de STORED AS.
-CREATE EXTERNAL TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive_2
+-- Create table as SELECT - HiveIcebergStorageHandler, é o mecanismo padrão para lidar com tabelas Iceberg no Hive. 
+-- O suporte a Iceberg no Hive é feito através de um mecanismo diferente, geralmente usando o STORED BY em vez de STORED AS.
+CREATE EXTERNAL TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 PARTITIONED BY (data_execucao)
-USING 'org.apache.iceberg.mr.hive.HiveIcebergStorageHandler'
+STORED BY 'org.apache.iceberg.mr.hive.HiveIcebergStorageHandler'
 TBLPROPERTIES ('format-version'='2')
 AS SELECT * FROM bancodemo.transacoes_cartao;
 
 -- Verificar os atributos da nova tabela Iceberg:
-DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue_hive;
+DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
 -- Verificar os atributos da antiga para comparação:
 DESCRIBE FORMATTED bancodemo.transacoes_cartao;
 
 -- Validação de registros entre Origem e Destino da migração:
 SELECT COUNT(*) FROM bancodemo.transacoes_cartao;
-SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive;
+SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue;
 
 -- Validação de integridade dos dados entre Origem e Destino da migração:
 SELECT * FROM bancodemo.transacoes_cartao LIMIT 10;
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive LIMIT 10;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue LIMIT 10;
 
 -- Verificar os snapshots da tabela  Iceberg
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
 
 -- Verificar o schema da tabela history:
-DESCRIBE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history
+DESCRIBE bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
 
 -- Verificar os snapshots dos últimos 5 dias
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history
 WHERE made_current_at >= date_sub(current_timestamp(), 5);
 
 -- TIME TRAVEL
--- Consulta a partir de um snapshot ou tempo específico
+-- Verificar os snapshots da tabela Iceberg
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
+
+-- Consulta a partir de um momento da modificação:
 SELECT * 
-FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-FOR SYSTEM_TIME AS OF '2025-02-06 16:16:00'
+FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_TIME AS OF ${system_time}
 LIMIT 10;
 
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
+-- Verificar os snapshots da tabela Iceberg
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
+
+-- Consulta através do snapshot_id
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 FOR SYSTEM_VERSION AS OF ${snapshot_id_migration}
-WHERE id_usuario = 1 AND estabelecimento = 'Mercado Bitcoin'
-LIMIT 10;
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
 /* ACID TRANSACTION
-- Full ACID tables are created by default in Hive 3, while Impala creates INSERT-ONLY managed tables by default */
-INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue_hive 
-VALUES (1, '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros', 'Aprovada', '06-02-2025');
+Full ACID tables are created by default in Hive 3, while Impala creates INSERT-ONLY managed tables by default */
+-- Insert
+INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue 
+VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros', 'Aprovada', '06-02-2025');
 
 -- Verificar os snapshots da tabela após alteração
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
 
 -- Consulta com o novo snapshot_id
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-FOR SYSTEM_VERSION AS OF ${snapshot_id_update}
-WHERE id_usuario = 1 AND estabelecimento = 'Mercado Bitcoin'
-LIMIT 10;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
--- Consulta com usando o creation_time - É importante que a clausula FOR esteja depois do SELECT
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-FOR SYSTEM_TIME AS OF '2025-02-06 20:44:00'
-WHERE id_usuario = 1 AND estabelecimento = 'Mercado Bitcoin'
-LIMIT 10;
+-- Consulta do mesmo registro usando o snapshot_id antigo
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_VERSION AS OF ${snapshot_id_migration}
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
 -- Atualização
-UPDATE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
+UPDATE bancodemo.transacoes_cartao_iceberg_ctas_hue
 SET valor = 510.99 
-WHERE id_usuario = 1 AND estabelecimento = 'Mercado Bitcoin';
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
 -- Validando a atualização
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-WHERE id_usuario = 1 AND estabelecimento = 'Mercado Bitcoin'
-LIMIT 10;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
 -- Verificar os snapshots da tabela após alteração
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
 
--- Validando das informações
-SELECT * 
-FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-WHERE id_usuario = 1;
+-- Consulta com o novo snapshot_id e npvp valor
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_VERSION AS OF ${snapshot_id_update}
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
+
+-- Consulta do mesmo registro usando o snapshot_id antigo
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
 -- Exclusão de dados
-DELETE FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-WHERE id_usuario = 1;
+DELETE FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+WHERE id_usuario = '000000036';
 
--- Validando das informações após exclusão
-SELECT * 
-FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-WHERE id_usuario = 1;
+-- Verificar os snapshots da tabela após alteração
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
+
+-- Consulta com o novo snapshot_id com o registro excluído
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_VERSION AS OF ${snapshot_id_delete}
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
+
+-- Consulta do mesmo registro usando o snapshot_id antigo
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FOR SYSTEM_VERSION AS OF ${snapshot_id_update}
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 
 -- TABLE ROLLBACK
--- Verificar os snapshots da tabela após alteração
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history;
-
 -- Vamos garantir que o formato de escrita seja Parquet e o número máximo de versões anteriores de metadados que devem ser mantidas.
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive 
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
 
--- Deve-se informar o snapshot-id do moento que deseja voltar, o campo parent_id auxilia nesse momento.
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive EXECUTE ROLLBACK(${snapshot_id_update});
+-- Deve-se informar o snapshot-id do momento que deseja voltar, o campo parent_id auxilia nesse momento.
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_parent_id});
 
 -- Validando das informações após exclusão
-SELECT * 
-FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive
-WHERE id_usuario = 1;
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+WHERE id_usuario = '000000036';
 
--- O rollback é adicionado a lista para garantir rastreabilidade:
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue_hive.history;
+-- O rollback é adicionado a lista de snapshots para garantir rastreabilidade:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
 
 -- IN-PLACE TABLE EVOLUTION:
 -- Verificar as colunas antes da alteração:
-DESCRIBE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive;
+DESCRIBE bancodemo.transacoes_cartao_iceberg_ctas_hue;
 
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive ADD COLUMNS (limite_credito INT);
+-- Adicionar a nova coluna
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limite_credito INT);
 
 -- Verificar as colunas depois da alteração:
-DESCRIBE bancodemo.transacoes_cartao_iceberg_ctas_hue_hive;
+DESCRIBE bancodemo.transacoes_cartao_iceberg_ctas_hue;
 
--- A sintaxe MERGE junta as tabelas transacoes_cartao e clientes com base na coluna id_usuario e atualiza a coluna limite_credito na tabela transacoes_cartao com o valor correspondente da tabela clientes.
+/*A sintaxe MERGE junta as tabelas transacoes_cartao_iceberg_ctas_hue e clientes com base na coluna id_usuario e atualiza 
+a coluna limite_credito na tabela transacoes_cartao_iceberg_ctas_hue com o valor correspondente da tabela clientes. */
 USE bancodemo;
 
-MERGE INTO transacoes_cartao_iceberg_ctas_hue_hive
-USING clientes_iceberg_ctas_hue
-ON transacoes_cartao_iceberg_ctas_hue_hive.id_usuario = clientes_iceberg_ctas_hue.id_usuario
+MERGE INTO transacoes_cartao_iceberg_ctas_hue
+USING clientes
+ON transacoes_cartao_iceberg_ctas_hue.id_usuario = clientes.id_usuario
 WHEN MATCHED THEN UPDATE SET
-  limite_credito = clientes_iceberg_ctas_hue.limite_credito;
+  limite_credito = clientes.limite_credito;
 
 -- Consulta de validação:
 SELECT id_usuario, limite_credito
-FROM transacoes_cartao_iceberg_ctas_hue_hive WHERE limite_credito > 2000 LIMIT 10;
+FROM transacoes_cartao_iceberg_ctas_hue WHERE limite_credito > 2000 LIMIT 10;
 
-/* Configurações da credencial da AWS:
-rm -r ~/.aws/cli/cache
-aws configure
+/* Compacta arquivos pequenos, mescla deltas de exclusão e atualização, reescreve todos os arquivos, convertendo-os 
+para o esquema mais recente da tabela, reescreve todas as partições de acordo com a especificação de partição mais recente. */
+OPTIMIZE TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue;
 
-* Colete as informações para configuração no portal da AWS.
-  - Clique em Access Keys e vá para a última sessão e copie as seguintes informações AWS Access Key ID, AWS Secret Access Key, AWS Session token
+-- Funções disponíveis apenas no Hive
+-- BRANCHING
+-- Consultar branches:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.REFS;
 
-* Configurações para a credencial:
-```shell
-AWS Access Key ID [None]: AWS_Access_Key  
-AWS Secret Access Key [None]: AWS Secret_Access_Key
-Default region name [None]: us-east-1
-Default output format [None]: json
-```
+-- Verificar os snapshots da tabela:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
 
-* Por fim adicione o token de sessão na credencaial:
-```shell
-aws configure set aws_session_token AWS_session_token
-```
+-- Criar um branch baseado em um snapshot específico:
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH after_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
 
-* Validar mais uma vez a credentials:
-aws sts get-caller-identity
-*/
--- Para verificar o antes e depois na camada de storage, você pode usar comandos do AWS CLI para listar os objetos no bucket S3 antes e após a otimização:
-aws s3 ls s3://jcaseiro-aws-buk-e1c3ce14/data/warehouse/tablespace/external/hive/bancodemo.db/transacoes_cartao_iceberg_ctas_hue_hive/ --recursive --human-readable --summarize
+-- Criar um branch baseado em um timestamp específico:
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH after_update FOR SYSTEM_TIME AS OF ${system_time_update};
 
-Total Objects: 30
-   Total Size: 34.1 MiB
+-- Criar um branch no estado atual da tabela:
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH current_prod;
 
--- Compacta arquivos pequenos, mescla deltas de exclusão e atualização, reescreve todos os arquivos, convertendo-os para o esquema mais recente da tabela, reescreve todas as partições de acordo com a especificação de partição mais recente
-OPTIMIZE TABLE bancodemo.clientes_iceberg_ctas_hue;
-  
--- Para verificar o antes e depois na camada de storage, você pode usar comandos do AWS CLI para listar os objetos no bucket S3 antes e após a otimização:
-aws s3 ls s3://jcaseiro-aws-buk-e1c3ce14/data/warehouse/tablespace/external/hive/bancodemo.db/transacoes_cartao_iceberg_ctas_hue_hive/ --recursive --human-readable --summarize
+-- Criar um branch na tabela com retenção de snapshots:
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
+CREATE BRANCH after_migration FOR SYSTEM_VERSION AS OF ${snapshot_id_migration}
+WITH SNAPSHOT RETENTION 5 SNAPSHOTS;
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Consultar branches:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.REFS;
+
+-- Leia e escreva dados isoladamente, sem impactar a tabela principal:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.branch_after_insert LIMIT 10;
+
+-- Consultar branches:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.REFS;
+
+-- Atualize o estado de uma branch para refletir outro snapshot ou branch:
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST-FORWARD 'current_prod' 'main';
+
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue DROP BRANCH after_insert;
+
+-- TAGGING
+-- Criar uma tag para marcar um snapshot específico:
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE TAG tag_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
+
+-- Consultar tags (Igual Branches):
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.REFS;
+
+-- Auditoria e Controle de Versão com tag:
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue FOR SYSTEM_VERSION AS OF 'tag_insert' LIMIT 10;
+
 
 -- ICEBERG MIGRATION IN-PLACE
-
--- Criação de tabela para manter a mesma estrutura anterior migração:
-CREATE EXTERNAL TABLE bancodemo.clientes_inplace (
-    id_usuario INT,
-    nome STRING,
-    email STRING,
-    data_nascimento DATE,
-    endereco STRING,
-    limite_credito INT,
-    numero_cartao STRING,
-    id_uf STRING
-)
-CLUSTERED BY (id_uf) INTO 27 BUCKETS
-STORED AS PARQUET;
-
--- Carregar os dados da tabela origem:
-INSERT OVERWRITE TABLE bancodemo.clientes_inplace
-SELECT * FROM bancodemo.clientes;
+-- Verificar os atributos da tabela original:
+DESCRIBE FORMATTED bancodemo.transacoes_cartao;
 
 -- Coletar estatísticas:
-ANALYZE TABLE bancodemo.clientes_inplace COMPUTE STATISTICS;
-ANALYZE TABLE bancodemo.clientes_inplace COMPUTE STATISTICS FOR COLUMNS;
+ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS;
+ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS FOR COLUMNS;
 
--- Verificar a estrutura da nova tabela
-DESCRIBE FORMATTED bancodemo.clientes_inplace
+-- Convert the Table to Iceberg
+ALTER TABLE bancodemo.transacoes_cartao CONVERT TO ICEBERG;
 
--- Criar uma tabela Iceberg para manter a mesma estrutura da tabela anterior:
-CREATE EXTERNAL TABLE bancodemo.clientes_inplace_iceberg
-PARTITIONED BY (id_uf)
-USING 'org.apache.iceberg.mr.hive.HiveIcebergStorageHandler'
-TBLPROPERTIES ('format-version'='2')
-AS SELECT * FROM bancodemo.clientes_inplace;
+-- Verificar os atributos da nova tabela Iceberg:
+DESCRIBE FORMATTED bancodemo.transacoes_cartao;
 
--- Verificação dos dados da tabela Iceberg comparado com original:
-SELECT COUNT(*) FROM bancodemo.clientes_inplace_iceberg;
-SELECT COUNT(*) FROM bancodemo.clientes_inplace;
-
--- Renomear as tabelas:
-ALTER TABLE bancodemo.clientes_inplace RENAME TO bancodemo.clientes_inplace_old;
-ALTER TABLE bancodemo.clientes_inplace_iceberg RENAME TO bancodemo.clientes_inplace;
-
--- Fazer as mesmas avaliações na migração SHADOW:
-
--- Depois das validações, excluir a tabela temporaria:
-DROP TABLE bancodemo.clientes_inplace_old;
+-- Otimizar tabela para melhorar o desempenho e a eficiência da tabela ao reorganizar os arquivos de dados subjacentes:
+OPTIMIZE TABLE bancodemo.transacoes_cartao;
