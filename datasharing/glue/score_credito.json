@@ -1,0 +1,13 @@
+{
+    "fields": [
+      {"name": "id_score", "type": "integer", "nullable": false, "metadata": {}},
+      {"name": "id_usuario", "type": "integer", "nullable": false, "metadata": {}},
+      {"name": "valor_score", "type": "integer", "nullable": false, "metadata": {}},
+      {"name": "data_calculo", "type": "date", "nullable": false, "metadata": {}},
+      {"name": "faixa_risco", "type": "string", "nullable": false, "metadata": {}},
+      {"name": "historico_pagamentos", "type": "string", "nullable": false, "metadata": {}},
+      {"name": "nivel_endividamento", "type": "decimal(5,2)", "nullable": false, "metadata": {}},
+      {"name": "ultima_atualizacao", "type": "timestamp", "nullable": false, "metadata": {}}
+    ]
+}
+  

@@ -1,0 +1,14 @@
+{
+    "fields": [
+      {"name": "id_financiamento", "type": "integer", "nullable": false, "metadata": {}},
+      {"name": "id_usuario", "type": "integer", "nullable": false, "metadata": {}},
+      {"name": "valor_emprestimo", "type": "decimal(15,2)", "nullable": false, "metadata": {}},
+      {"name": "taxa_juros", "type": "decimal(5,2)", "nullable": false, "metadata": {}},
+      {"name": "prazo_meses", "type": "integer", "nullable": false, "metadata": {}},
+      {"name": "status", "type": "string", "nullable": false, "metadata": {}},
+      {"name": "data_solicitacao", "type": "timestamp", "nullable": false, "metadata": {}},
+      {"name": "data_aprovacao", "type": "timestamp", "nullable": true, "metadata": {}},
+      {"name": "valor_parcela", "type": "decimal(15,2)", "nullable": true, "metadata": {}},
+      {"name": "saldo_devedor", "type": "decimal(15,2)", "nullable": true, "metadata": {}}
+    ]
+}  
