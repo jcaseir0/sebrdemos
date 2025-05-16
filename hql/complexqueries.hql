@@ -88,3 +88,5 @@ SELECT
   (SQRT((COUNT(*)*SUM(limite_credito*limite_credito) - POW(SUM(limite_credito),2)) * 
         (COUNT(*)*SUM(total_gastos*total_gastos) - POW(SUM(total_gastos),2)))) AS correlacao
 FROM dados_correlacao;
+
+-- 

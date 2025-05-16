@@ -48,7 +48,7 @@ DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 
 -- Consulta com o novo snapshot_id
 SELECT * FROM bancodemo.clientes_iceberg_ctas_hue
-FOR SYSTEM_VERSION AS OF 4736479257160236434
+FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000035' AND nome = 'João Silva';
 
 -- Verificar o novo snapshot gerado pela alteração:
@@ -56,7 +56,7 @@ DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 
 -- Consulta com usando o creation_time
 SELECT * FROM bancodemo.clientes_iceberg_ctas_hue
-FOR SYSTEM_TIME AS OF '2025-04-11 00:00:36'
+FOR SYSTEM_TIME AS OF ${system_time}
 WHERE id_usuario = '000000035' AND nome = 'João Silva';
 
 -- Verificar o novo snapshot gerado pela alteração:
@@ -64,9 +64,8 @@ DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 
 -- Consulta da versão anterior do INSERT (É importante que a clausula FOR esteja depois do SELECT)
 SELECT * FROM bancodemo.clientes_iceberg_ctas_hue 
-FOR SYSTEM_VERSION AS OF 3685182346690324217
-ORDER BY 1
-LIMIT 10;
+FOR SYSTEM_VERSION AS OF ${snapshot_id_migration}
+WHERE id_usuario = '000000035' AND nome = 'João Silva';
 
 -- TABLE ROLLBACK
 -- Vamos garantir que o formato de escrita seja Parquet e o número máximo de versões anteriores de metadados que devem ser mantidas.
@@ -89,7 +88,7 @@ WHERE id_usuario = '000000002' AND nome = 'Leonardo Gardom';
 DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 
 -- Deve-se informar o snapshot-id anterior ao snapshot-id do INSERT, ou o campo parent_id, que auxilia nesse momento.
-ALTER TABLE bancodemo.clientes_iceberg_ctas_hue EXECUTE ROLLBACK(4736479257160236434);
+ALTER TABLE bancodemo.clientes_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_parent_id});
 
 -- Verificar se o registro existe
 SELECT * FROM bancodemo.clientes_iceberg_ctas_hue
@@ -102,7 +101,7 @@ DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 -- Consulta a partir de um snapshot ou tempo específico
 SELECT * 
 FROM bancodemo.clientes_iceberg_ctas_hue
-FOR SYSTEM_TIME AS OF '2025-04-11 00:05:54'
+FOR SYSTEM_TIME AS OF ${system_time}
 LIMIT 10;
 
 -- Verificar os snapshot_ids gerados:
@@ -110,7 +109,7 @@ DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 
 -- Consultar as informações baseado no snapshot_id
 SELECT * FROM bancodemo.clientes_iceberg_ctas_hue
-FOR SYSTEM_VERSION AS OF 4736479257160236434
+FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000035' AND nome = 'João Silva';-- 3935914403179409639 é o timestamp do snapshot
 
 -- IN-PLACE TABLE EVOLUTION:
@@ -146,6 +145,9 @@ DESCRIBE HISTORY bancodemo.clientes_iceberg_ctas_hue
 OPTIMIZE TABLE bancodemo.clientes_iceberg_ctas_hue;
 
 -- ICEBERG MIGRATION IN-PLACE
+-- Verificar os atributos da tabela original:
+DESCRIBE FORMATTED bancodemo.clientes;
+
 -- Convert the Table to Iceberg
 ALTER TABLE bancodemo.clientes CONVERT TO ICEBERG;
 ALTER TABLE bancodemo.clientes SET TBLPROPERTIES('format-version'='2');
