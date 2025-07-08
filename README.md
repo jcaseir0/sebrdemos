@@ -1,123 +1,92 @@
-# Simulador de Dados Bancários
+# Migração de Tabelas Hive Parquet para Iceberg em um Grande Banco Financeiro
 
-Este projeto simula dados bancários, incluindo transações de cartão de crédito e informações de clientes, utilizando PySpark e Hive.
+## Introdução
 
-## Estrutura do Projeto
+Imagine um **grande banco financeiro** com operações em todo o país, onde o departamento analítico armazena e processa um **vasto volume de dados** em tabelas Hive no formato Parquet. Com o crescimento das demandas por governança, performance e flexibilidade, surge a necessidade de migrar essas tabelas para o formato **Apache Iceberg**, aproveitando recursos avançados de gerenciamento de dados e integração com plataformas modernas como o **Cloudera Data Engineering (CDE)**. Este documento apresenta o contexto, fundamentos do Iceberg, melhores práticas de migração e uma demonstração prática para implantação no CDE.
 
-- `main.py`: Script principal que cria ou atualiza as tabelas Hive e insere os dados simulados.
-- `utils.py`: Contém funções auxiliares para geração de dados aleatórios.
-- `config.ini`: Arquivo de configuração para definir parâmetros das tabelas.
-- `transacoes_cartao.json`: Define o esquema da tabela de transações.
-- `clientes.json`: Define o esquema da tabela de clientes.
+---
 
-## Requisitos
+## O Formato de Tabela Iceberg
 
-- Python 3.7+
-- PySpark
-- Faker
+**Apache Iceberg** é um formato de tabela open source projetado para grandes volumes de dados analíticos em data lakes. Suas principais funcionalidades incluem:
 
-## Instalação
+- **Esquema evolutivo**: Permite adicionar, remover e renomear colunas sem recriar a tabela.
+- **Particionamento flexível**: Alteração de estratégias de particionamento sem reescrever todos os dados.
+- **Transações ACID**: Suporte a operações atômicas, evitando inconsistências em ambientes concorrentes.
+- **Time travel**: Consulta a versões históricas dos dados para auditoria e recuperação.
+- **Performance otimizada**: Gerenciamento eficiente de metadados e leitura seletiva de arquivos.
 
-1. Clone o repositório:
+Essas características tornam o Iceberg ideal para ambientes de dados modernos, promovendo governança, escalabilidade e integração com engines como Spark, Flink e Trino.
 
-```bash
-git clone https://github.com/jcaseir0/banco_demo.git
-cd banco_demo
-```
+---
 
-2. Instale as dependências:
-```bash
-echo "pyspark
-faker[pt_BR]" > requirements.txt
-pip install -r requirements.txt 
-```
+## Migração de Parquet/Hive para Iceberg – Melhores Práticas
 
-## Configuração
+A migração de tabelas Hive Parquet para Iceberg pode ser realizada de duas formas principais: **in-place** ou **shadow**. A escolha depende de fatores como downtime aceitável, volume de dados e requisitos de auditoria.
 
-O projeto utiliza um arquivo de configuração `config.ini` para definir parâmetros como o nome do banco de dados, o número de registros a serem gerados para cada tabela, e opções de particionamento e bucketing.
+### Opções de Migração
 
-Estrutura do `config.ini`:
+<table style="border-collapse: collapse;" alignment="center">
+  <tr>
+    <td align="center"><b>Estratégia</b></td>
+    <td align="center"><b>Vantagens</b></td>
+    <td align="center"><b>Desvantagens</b></td>
+  </tr>
+  <tr>
+    <td align="center" rowspan="3"><b>In-place</b></td>
+    <td align="center">Sem duplicação de dados</td>
+    <td align="center">Downtime potencial</td>
+    <tr>
+      <td align="center">Menor uso de storage</td>
+      <td align="center">Risco de falhas durante a conversão</td>
+    </tr>
+    <tr>
+      <td align="center">Menor complexidade operacional</td>
+      <td align="center">Sem rollback fácil</td>
+    </tr>
+  </tr>
+  <tr>
+    <td align="center" rowspan="3"><b>Shadow</b></td>
+    <td align="center">Zero downtime</td>
+    <td align="center">Duplicação temporária de dados</td>
+    <tr>
+      <td align="center">Permite testes e validação</td>
+      <td align="center">Uso extra de storage</td>
+    </tr>
+    <tr>
+      <td align="center">Rollback simples</td>
+      <td align="center">Processo mais longo</td>
+    </tr>
+  </tr>
+</table>
 
-```ini
-[DEFAULT]
-database_name = banco_simulado
+#### Diferenças principais
 
-[transacoes_cartao]
-num_records = 10000
-particionamento = True
-bucketing = False
-num_buckets = 10
+- **In-place**: Converte a tabela existente diretamente para Iceberg, substituindo o formato Parquet. Ideal para ambientes controlados onde downtime é aceitável.
+- **Shadow**: Cria uma nova tabela Iceberg a partir dos dados Parquet, mantendo ambas as versões até a validação completa. Recomendado para ambientes críticos, pois garante continuidade operacional e rollback rápido.
 
-[clientes]
-num_records = 1000
-particionamento = False
-bucketing = True
-num_buckets = 5
-```
+**Recomendação**: Para bancos de grande porte, a abordagem **shadow** é geralmente mais segura, permitindo auditoria, validação e mitigação de riscos durante a transição.
 
-Ajuste estes valores conforme necessário antes de executar o script. As configurações permitem que você controle o número de registros gerados para cada tabela através da variável `num_records`. O código lê este arquivo para determinar o nome do banco de dados, o número de registros a serem gerados para cada tabela e se a tabela será particionada/bucketing.
+---
 
-## Uso
+## Cloudera Data Engineering (CDE)
 
-Para criar as tabelas e inserir os dados simulados, execute o script `main.py` especificando quais tabelas você deseja criar:
+O **Cloudera Data Engineering (CDE)** é uma plataforma gerenciada para orquestração e execução de pipelines Spark, facilitando a automação de cargas de trabalho de dados em escala empresarial. Com o CDE, é possível:
 
-```bash
-python main.py transacoes_cartao clientes
-```
+- Agendar e monitorar jobs Spark.
+- Gerenciar dependências e variáveis de ambiente.
+- Integrar com sistemas de storage e metastore Hive/Iceberg.
+- Garantir segurança e governança corporativa.
 
-Você pode especificar uma ou ambas as tabelas:
+### Roteiros de demonstração
 
-- `transacoes_cartao`: Cria a tabela de transações de cartão de crédito.
-- `clientes`: Cria a tabela de informações de clientes.
+#### Cloudera Data Engineering
 
-## Logging
-O script utiliza o módulo logging do Python para fornecer informações detalhhadas sobre o processo de execução. As mensagens de log incluem:
+- Passo-a-passo para implementar o laboratório com CDE: [Tutorial](tutorials/repositório-do-git.md)
 
-- Informações sobre o carregamento de configurações
-- Verificação de existência de tabelas
-- Detalhes sobre a criação ou atualização de tabelas
-- Erros e exceções que possam ocorrer durante a execução
+#### Cloudera Data Warehouse e Data Hub
 
-Os logs são exibidos no console e podem ser redirecionados para um arquivo se necessário.
+- Avaliação das funcionalidades e migração do Iceberg no Hive: [Tutorial](tutorials/ComandosHQLIcebergHive.md)
+- Avaliação das funcionalidades e migração do Iceberg no Impala: [Tutorial](tutorials/ComandosSQLIcebergImpala.md)
 
-## Descrição das Tabelas
-
-### transacoes_cartao
-
-Contém informações sobre transações de cartão de crédito:
-
-- `id_usuario`: ID do usuário que realizou a transação
-- `data_transacao`: Data e hora da transação
-- `valor`: Valor da transação
-- `estabelecimento`: Nome do estabelecimento
-- `categoria`: Categoria da transação
-- `status`: Status da transação (Aprovada, Negada, Pendente)
-
-### clientes
-
-Contém informações sobre os clientes:
-
-- `id_usuario`: ID único do cliente
-- `nome`: Nome do cliente
-- `email`: Endereço de e-mail do cliente
-- `data_nascimento`: Data de nascimento do cliente
-- `endereco`: Endereço do cliente
-- `limite_credito`: Limite de crédito do cliente
-- `numero_cartao`: Número do cartão de crédito do cliente
-- `id_uf`: Códigos dos estados brasileiros
-
-## Customização
-
-- Para modificar o esquema das tabelas, edite os arquivos JSON correspondentes (`transacoes_cartao.json` e `clientes.json`).
-- Para alterar a lógica de geração de dados, modifique as funções no arquivo `utils.py`.
-- Para ajustar as configurações de particionamento, bucketing ou número de registros, edite o arquivo `config.ini`.
-
-## Contribuindo
-
-Contribuições são bem-vindas! Por favor, sinta-se à vontade para submeter um Pull Request.
-
-## Configuração do Repositório do Cloudera Data Engineering
-
-## Licença
-
-Este projeto está licenciado sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+---

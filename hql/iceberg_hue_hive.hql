@@ -1,5 +1,6 @@
 -- Hive SQL
--- Runtime Version: 7.2.18-1.cdh7.2.18.p800.63673109
+-- Certified Runtime Version: 7.2.18-1.cdh7.2.18.p800.63673109, 
+-- Certified Data Hub Flavors: 
 -- ICEBERG SHADOW MIGRATION
 
 -- Create table as SELECT - HiveIcebergStorageHandler, é o mecanismo padrão para lidar com tabelas Iceberg no Hive. 
@@ -289,15 +290,13 @@ WHERE id_usuario = '000000123';
 
 ALTER TABLE <database>.<tabela> CREATE BRANCH after_insert FOR SYSTEM_VERSION AS OF <snapshot_id>;
 
--- Leia e escreva dados isoladamente, sem impactar a tabela principal:
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.branch_after_insert LIMIT 10;
-
 -- Consultar branches:
 SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.REFS;
 
--- PAra remover a branch e todas alterações:
+-- Para remover a branch e todas alterações:
 ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue DROP BRANCH after_insert;
 
+-- COMPACTION / OTIMIZATION
 /* Compacta arquivos pequenos, mescla deltas de exclusão e atualização, reescreve todos os arquivos, convertendo-os 
 para o esquema mais recente da tabela, reescreve todas as partições de acordo com a especificação de partição mais recente. */
 OPTIMIZE TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue;
