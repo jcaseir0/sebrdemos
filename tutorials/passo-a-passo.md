@@ -196,7 +196,7 @@ Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as inform
 
 Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/main/airflow/job-malha-airflow.py)**.
 
-Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário nas linhas: `19, 27, 35 e 43`, em todas elas substitua `userXXX` pelo seu usuário, por exemplo `user001`. 
+Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário nas linhas: `19, 27, 35 e 43`, em todas elas substitua `userXXX` pelo seu usuário, por exemplo `job_name='create-table-validation_userXXX`, vira `job_name='create-table-validation_user001`.
 
 Altere o nome do arquivo para refletir o nome do seu usário, no seu computador.
 
