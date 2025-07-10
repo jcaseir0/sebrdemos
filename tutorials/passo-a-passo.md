@@ -90,7 +90,8 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 
 No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podendo ser de diversos tipos, como Spark, Python, Bash e principalmente Airflow. Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
 
-Para a criação dos Jobs será necessário estar com o Data Engineering Data Hub criado ou o Cloudera Data Warehouse habilitado. Para mariores informações de como fazê-los, acesse esse [tutorial](tutorials/PreparacaoDemo.md).
+> [!WARNING]
+> Para a criação dos Jobs será necessário estar com o Data Engineering Data Hub criado ou o Cloudera Data Warehouse habilitado. Para mariores informações de como fazê-los, acesse esse [tutorial](tutorials/PreparacaoDemo.md).
 
 A necessidade se faz necessária para popular o metadados do catálogo de dados, utilizando o engine do Hive. Para isso, será necessário copiar a URL do JDBC. Para isso, siga o passo-a-passo abaixo:
 
@@ -104,8 +105,8 @@ A necessidade se faz necessária para popular o metadados do catálogo de dados,
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
-4. **Name:** nome do job: user001-create-table
+3. Selecione o tipo **Spark 3.5.1** (Ou a versão desjada).
+4. **Name:** nome do job: userXXX-create-table
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
 7. Selecione o arquivo **create_table.py** -> **Select File**
@@ -121,18 +122,18 @@ A necessidade se faz necessária para popular o metadados do catálogo de dados,
 Iremos criar os outros Jobs necessários para o laboratório, **siga as instruções acima repetindo os passos de 3 a 11**, mas alterando os seguintes itens:
 
 **Job para a validação da criação das tabelas**
-4. **Name:** nome do job: user001-create-table-validation
+4. **Name:** nome do job: userXXX-create-table-validation
 7. Selecione o diretório spark e depois o arquivo **simplequeries.py** -> **Select File**
 8. Deixe **Arguments (Optional):** sem preencher
 9. Não há necessidade de selecionar o **Python Environment**
 10. Não há necessidade de alterar o perfil de recursos, manter padrão
 
 **Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes**
-4. **Name:** nome do job: user001-insert-table
+4. **Name:** nome do job: userXXX-insert-table
 7. Selecione o arquivo **insert_table.py** -> **Select File**
 
 **Job para a validação da ingestão das tabelas**
-4. **Name:** nome do job: user001-insert-table-validation
+4. **Name:** nome do job: userXXX-insert-table-validation
 7. Selecione o diretório spark e depois o arquivo **complexqueries.py** -> **Select File**
 8. Deixe **Arguments (Optional):** sem preencher
 9. Não há necessidade de selecionar o **Python Environment**
@@ -144,7 +145,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 **Jobs do Tipo Airflow no CDE**
 
-- **Criação de jobs Airflow:**O usuário desenvolve um arquivo Python contendo o DAG do Airflow. Esse arquivo é enviado via interface web ou CLI do CDE, podendo incluir recursos adicionais necessários para o workflow
+- **Criação de jobs Airflow:** O usuário desenvolve um arquivo Python contendo o DAG do Airflow. Esse arquivo é enviado via interface web ou CLI do CDE, podendo incluir recursos adicionais necessários para o workflow
 
 - **Operadores específicos:** O CDE oferece operadores Airflow nativos, como o CdeRunJobOperator (para acionar outros jobs Spark no CDE) e operadores para executar queries em Data Warehouses do Cloudera, ampliando a integração entre serviços
 
@@ -169,9 +170,24 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
   
 - **Escalabilidade:** Cada cluster virtual pode rodar múltiplos jobs simultâneos de forma isolada.
 
-- Integração nativa com os mecanismos de segurança e auditoria do Cloudera.
+- **Governança e Segurança:** Integração nativa com os mecanismos de segurança e auditoria do Cloudera.
 
-- Interface amigável para criação, agendamento e monitoramento dos jobs, além de integração com CLI para automação.
+- **Facilidade de uso:** Interface amigável para criação, agendamento e monitoramento dos jobs, além de integração com CLI para automação.
+
+### Criação a do job Airflow a partir de uma aplicação Python
+
+> [!WARNING]
+> Será necessário editar o arquivo
+
+1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
+2. Selecione o tipo **Airflow**.
+3. **Name:** nome do job: userXXX-malha-airflow
+4. **DAG File:** Selecionar Repository
+5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
+6. Selecione diretório cde e o arquivo **job-malha-airflow.py** -> **Select File**
+7. Manter as outras opções sem preenchimento
+8. Por fim, clicar em **Create and Run**
+
 ---
 
 > Para detalhes completos dos scripts e exemplos de uso, consulte o repositório do projeto e utilize os scripts conforme o fluxo descrito acima.

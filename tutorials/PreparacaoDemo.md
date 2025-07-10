@@ -49,6 +49,13 @@ Aguardar em torno de 1 hora para a criação do cluster virtual.
 1. Acessar o **console do Cloudera Data Platform (CDP)** e depois na opção **Data Warehouse**
 2. Clicar em **Create Data Hub**
 
+## Criação do repositório local com git
+
+Para facilitar as explicações, iremos adotar como editor o [Microsoft Visual Code](https://code.visualstudio.com/)
+
+1. Abrir o editor MS-Visual Code
+2. Acessar o site https://github.com/jcaseir0/sebrdemos, clicar no botão **<> Code** e copiar o link do HTTPS
+
 [Retornar a página da demontração CDE](repositório-do-git.md)
 
 [Retornar a página inicial](../README.md)
