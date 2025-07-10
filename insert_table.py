@@ -7,12 +7,8 @@ from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def create_spark_session(logger: logging.Logger, jdbc_url: str, thrift_server: str) -> SparkSession:
+def create_spark_session(logger: logging.Logger) -> SparkSession:
     """Creates and configures a Spark session.
-
-    Args:
-        jdbc_url (str): JDBC URL for Hive metastore.
-        thrift_server (str): Thrift server URI.
 
     Returns:
         SparkSession: Configured Spark session.
@@ -21,11 +17,13 @@ def create_spark_session(logger: logging.Logger, jdbc_url: str, thrift_server: s
     try:
         spark_conf = SparkConf()
         spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-        spark_conf.set("hive.metastore.uris", thrift_server)
         spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
-        spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
 
-        spark = SparkSession.builder.config(conf=spark_conf).appName("UpdateTable").enableHiveSupport().getOrCreate()
+        spark = SparkSession \
+        .builder \
+        .appName("UpdateTable") \
+        .enableHiveSupport() \
+        .getOrCreate()
 
         logger.info("Spark session created successfully")
         return spark
@@ -252,16 +250,13 @@ def main():
 
     spark = None
     try:
-        jdbc_url = sys.argv[1]
-        logger.debug(f"JDBC URL: {jdbc_url}")
-
-        server_dns = jdbc_url.split('//')[1].split('/')[0]
-        thrift_server = f"thrift://{server_dns}:9083"
-        logger.debug(f"Thrift Server: {thrift_server}")
-
-        spark = create_spark_session(logger, jdbc_url, thrift_server)
+        username = sys.argv[1]
+        print("PySpark Runtime Arg: ", sys.argv[1])
+        
+        spark = create_spark_session(logger)
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
-        database_name = config.get("DEFAULT", "dbname")
+        database_name_ini = config.get("DEFAULT", "dbname")
+        database_name = database_name_ini + '_' + username
         tables = [table for table in spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect() 
                   if '_backup_' not in table]
         logger.info(f"Tables: {tables}")
