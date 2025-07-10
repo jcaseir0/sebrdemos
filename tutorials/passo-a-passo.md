@@ -190,7 +190,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.
 
-Baixe no seu computador o arquivo **[common_functions.py](https://github.com/jcaseir0/sebrdemos/blob/main/cde/job-malha-airflow.py)**.
+Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/main/airflow/job-malha-airflow.py)**.
 
 Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário nas linhas: `19, 27, 35 e 43`, em todas elas substitua `userXXX` pelo seu usuário, por exemplo `user001`. 
 
