@@ -198,7 +198,7 @@ Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jc
 
 Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário nas linhas: `19, 27, 35 e 43`, em todas elas substitua `userXXX` pelo seu usuário, por exemplo `job_name='create-table-validation_userXXX`, vira `job_name='create-table-validation_user001`.
 
-Altere o nome do arquivo para refletir o nome do seu usário, no seu computador.
+Altere o nome do arquivo para refletir o nome do seu usário, no seu computador, deve ficar: `job-malha-airflow_user001.py`.
 
 Agora vamos criar o job do Airflow:
 
