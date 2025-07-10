@@ -28,6 +28,10 @@ transacoes.show(5)
 logger.info("Clientes")
 clientes.show(5)
 
+# Contagem de linhas em cada tabela
+num_clientes = clientes.count()
+num_transacoes = transacoes.count()
+
 # 1. Análise de gastos por cliente e categoria, com ranking
 def gastos_por_cliente_categoria():
     # Verificar se as tabelas foram carregadas corretamente
@@ -94,7 +98,12 @@ def correlacao_limite_gastos():
     return df_joined.withColumn("correlacao_limite_gastos", lit(correlacao))
 
 # Execute and show results
-logger.info("Executing financial analysis queries\n")
+print(f"\nNúmero de linhas da tabela clientes: {num_clientes}")
+num_clientes.show(10)
+print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}")
+num_transacoes.show(10)
+
+logger.info("\nExecuting financial analysis queries\n")
 
 logger.info("1. Gastos por cliente e categoria, com ranking")
 gastos_por_cliente_categoria().show()

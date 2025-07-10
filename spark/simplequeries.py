@@ -8,6 +8,10 @@ spark = SparkSession.builder.appName("FinancialAnalysis").getOrCreate()
 clientes = spark.table("bancodemo.clientes")
 transacoes = spark.table("bancodemo.transacoes_cartao")
 
+# Contagem de linhas em cada tabela
+num_clientes = clientes.count()
+num_transacoes = transacoes.count()
+
 # 1. Total de gastos por cliente
 total_gastos = clientes.join(transacoes, "id_usuario") \
     .groupBy("id_usuario", "nome") \
@@ -68,6 +72,10 @@ gastos_mensais = clientes.join(transacoes, "id_usuario") \
     .orderBy("id_usuario", "mes")
 
 # Show results (first 10 rows for each query)
+print(f"\nNúmero de linhas da tabela clientes: {num_clientes}")
+num_clientes.show(10)
+print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}")
+num_transacoes.show(10)
 print("\nTotal de gastos por cliente:")
 total_gastos.show(10)
 print("Número de transações por cliente:")

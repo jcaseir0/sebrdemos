@@ -11,6 +11,7 @@ Será considerado que o **Environment** já foi criado e que o usuário tenha ac
    - **Name:** Pode ser o nome de uma área que utilizara: credito-env
    - **Environment:** Caixa de seleção para selecionar o seu ambiente criado.
    - **Workload Type:** MemoryOptimized - r5.4xlarge
+   - **Selecionar** Enable Public Load Balancer (Para acesso público)
    - **Manter o resto das configurações padrão**
    - Caso queira, adicionar tags para facilitar a administração financeira dos recursos
    - Desabilitar a criação do **Default Virtual Cluster**

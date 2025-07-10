@@ -79,34 +79,49 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 3. Na janela aberta, preencher os campos:
    **Create A Repository**
    - **Repository Name:** nome do repositório: iceberg-demo
-   - **Branch:** main 
+   - **URL:** https://github.com/jcaseir0/sebrdemos.git
+   - **Branch:** main
+   - **Manter o resto das configurações padrão**
    - Clicar em **Create**
 
 ## Criação do Job no CDE
 
 Para a criação dos Jobs será necessário estar com o Data Engineering Data Hub criado ou o Cloudera Data Warehouse habilitado. Para mariores informações de como fazê-los, acesse esse [tutorial](tutorials/PreparacaoDemo.md).
 
-1. **Upload dos arquivos**: Envie os scripts Python (`common_functions.py`, `create_table.py`, `insert_table.py`), arquivos de schema e `requirements.txt` para o workspace do CDE.
-2. **Configuração do ambiente**: Defina as variáveis de ambiente e paths necessários (ex: JDBC URL, paths de schemas).
-3. **Criação do Job**:
-   - No painel do CDE, clique em "Create Job".
-   - Selecione o tipo "Spark".
-   - Informe o script principal (`create_table.py` ou `insert_table.py`).
-   - Adicione argumentos conforme necessário (exemplo: JDBC URL).
-   - Configure recursos (CPU, memória, número de executores).
-   - Anexe o arquivo `requirements.txt` para garantir as dependências.
-4. **Execução**: Inicie o job e monitore os logs diretamente pelo CDE.
-5. **Validação**: Após a execução, valide as tabelas e dados conforme os logs e queries de amostragem.
+A necessidade se faz necessária para popular o metadados do catálogo de dados, utilizando o engine do Hive. Para isso, será necessário copiar a URL do JDBC. Para isso, siga o passo-a-passo abaixo:
 
----
+1. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Warehouse**;
+2. Na aba **Virtual Warehouses**, encontre o cluster **credito-vw**.
+3. Clique no menu com três pontos na vertical e na opção **Copy JDBC URL**
+4. Anote essa informação, será algo conforme abaixo:
+   - jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
 
-## Principais programas em Python
+### Criação do Job
 
-- **common_functions.py**: Centraliza funções para logging, validação do Hive Metastore, análise de estrutura de tabelas (particionamento, bucketing), geração de dados sintéticos para clientes e transações, e manipulação de schemas JSON[1].
-- **create_table.py**: Automatiza a criação de tabelas no Hive/Parquet, suportando diferentes estratégias de particionamento e bucketing, além de remover tabelas antigas e validar a estrutura criada[2].
-- **insert_table.py**: Realiza a inserção de dados nas tabelas criadas, gerando dados sintéticos e garantindo integridade e consistência, inclusive para tabelas particionadas e bucketed[3].
-- **clientes.json / transacoes_cartao.json**: Definem os schemas das tabelas para garantir que os dados gerados estejam no formato esperado pelo Spark e Hive[5][6].
-- **requirements.txt**: Lista as dependências necessárias para execução dos scripts, como o pacote `faker` para geração de dados fictícios[4].
+1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
+2. Na janela aberta, preencher os campos:
+   **Job de criação das tabelas e dados**
+   1. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+   2. **Name:** nome do job: user001-create-table
+   3. **Select Application Files:** Repository
+   4. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
+   5. Selecione o arquivo **create_table.py** -> **Select File**
+   6. **Arguments (Optional):**  jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
+   7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
+   8. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. PAra o nosso caso iremos definir esse perfil de recursos para o nosso job:
+     - **Executor Cores:** 2
+     - **Driver Memory:** 4
+     - **Executor Memory:** 4
+     - **Manter o resto das configurações padrão**
+   9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+
+Iremos criar os outros Jobs necessários para o laboratório, siga as instruções acima, de 1 a 9, mas alterando os seguintes itens:
+
+   **Job para a validação da criação das tabelas**
+   2. **Name:** nome do job: user001-create-table-validation
+   5. Selecione o diretório spark e depois o arquivo **simplequeries.py** -> **Select File**
+   6. Deixe **Arguments (Optional):** sem preencher
+   7. Não há necessidade de selecionar o **Python Environment**
 
 ---
 
