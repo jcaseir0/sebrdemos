@@ -18,8 +18,15 @@ spark = SparkSession.builder \
 logger.info("Spark session initialized successfully")
 
 # Read tables
-clientes = spark.table("bancodemo.clientes")
-transacoes = spark.table("bancodemo.transacoes_cartao")
+username = sys.argv[1]
+print("PySpark Runtime Arg: ", sys.argv[1])
+
+username_final = '_' + username
+
+clientes = spark.table(f"bancodemo{username_final}.clientes")
+transacoes = spark.table(f"bancodemo{username_final}.transacoes_cartao")
+
+print("Nome das tabelas: ", clientes + transacoes)
 
 # Exibir amostras das tabelas para verificar os dados
 logger.info("Displaying sample data from tables\n")
