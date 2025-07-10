@@ -102,11 +102,14 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 7. Selecione o arquivo **create_table.py** -> **Select File**
 8. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
-10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
-  - **Executor Cores:** 2
-  - **Driver Memory:** 4
-  - **Executor Memory:** 4
-  - **Manter o resto das configurações padrão**
+10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
+   
+    Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
+    - **Executor Cores:** 2
+    - **Driver Memory:** 4
+    - **Executor Memory:** 4
+    - **Manter o resto das configurações padrão**
+      
 11. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 Vamos criar os outros Jobs necessários para o laboratório.
