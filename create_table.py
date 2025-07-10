@@ -234,28 +234,25 @@ def main():
 
     config = load_config(logger)
     # JDBC URL is now passed as a command line argument
-    jdbc_url = sys.argv[1]
-    logger.debug(f"JDBC URL: {jdbc_url}")
-
-    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
-    server_dns = jdbc_url.split('//')[1].split('/')[0]
-    logger.debug(f"Server DNS: {server_dns}")
-    thrift_server = f"thrift://{server_dns}:9083"
-    logger.debug(f"Thrift Server: {thrift_server}")
+    username = sys.argv[1]
+    print("PySpark Runtime Arg: ", sys.argv[1])
 
     spark_conf = SparkConf()
     spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-    spark_conf.set("hive.metastore.uris", thrift_server)
     spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
-    spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
     spark_conf.set("spark.security.credentials.hiveserver2.enabled", "true")
     logger.debug(f"Spark configuration: {spark_conf.getAll()}")
-    
-    spark = SparkSession.builder.config(conf=spark_conf).appName("CreateTable").enableHiveSupport().getOrCreate()
+
+    spark = SparkSession \
+    .builder \
+    .appName("CreateTable") \
+    .enableHiveSupport() \
+    .getOrCreate()
     
     validate_hive_metastore(logger, spark)
 
-    database_name = config['DEFAULT'].get('dbname')
+    database_name_ini = config['DEFAULT'].get('dbname')
+    database_name = database_name_ini + '_' +  username
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
 
