@@ -5,8 +5,13 @@ from pyspark.sql.functions import sum, count, avg, max, date_format
 spark = SparkSession.builder.appName("FinancialAnalysis").getOrCreate()
 
 # Load tables
-clientes = spark.table("bancodemo.clientes")
-transacoes = spark.table("bancodemo.transacoes_cartao")
+username = sys.argv[1]
+print("PySpark Runtime Arg: ", sys.argv[1])
+
+username_final = '_' + username
+
+clientes = spark.table(f"bancodemo{username_final}.clientes")
+transacoes = spark.table(f"bancodemo{username_final}.transacoes_cartao")
 
 # Contagem de linhas em cada tabela
 num_clientes = clientes.count()
