@@ -79,8 +79,9 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 1. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
 2. Clicar em **Repositories**, no menu da coluna à esquerda e na nova página, clicar no botão **Create Repository** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 3. Na janela aberta, preencher os campos:
+   
    **Create A Repository**
-   - **Repository Name:** nome do repositório: iceberg-demo
+   - **Repository Name:** nome do repositório: iceberg-demo_userXXX
    - **URL:** https://github.com/jcaseir0/sebrdemos.git
    - **Branch:** main
    - **Manter o resto das configurações padrão**
@@ -97,7 +98,7 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 3. Selecione o tipo **Spark 3.5.1**.
 4. **Name:** nome do job: create-table_userXXX
 5. **Select Application Files:** Repository
-6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
+6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**
 7. Selecione o arquivo **create_table.py** -> **Select File**
 8. **Arguments:** userXXX 
 9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
