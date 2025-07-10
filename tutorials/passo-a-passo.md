@@ -94,7 +94,7 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+3. Selecione o tipo **Spark 3.5.1**.
 4. **Name:** nome do job: create-table_userXXX
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
@@ -113,7 +113,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 #### Job 2 - Job para a validação da criação das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+3. Selecione o tipo **Spark 3.5.1**.
 4. **Name:** nome do job: create-table-validation_userXXX
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
@@ -126,7 +126,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+3. Selecione o tipo **Spark 3.5.1**.
 4. **Name:** nome do job: insert-table_userXXX
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
@@ -139,7 +139,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+3. Selecione o tipo **Spark 3.5.1**.
 4. **Name:** nome do job: insert-table-validation_userXXX
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
