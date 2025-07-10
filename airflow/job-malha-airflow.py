@@ -16,7 +16,7 @@ dag = DAG(
 )
 
 create_table = CDEJobRunOperator(
-    job_name='create-table',
+    job_name='create-table_userXXX',
     depends_on_past=False,
     trigger_rule='all_success',
     task_id='create_table',
@@ -24,7 +24,7 @@ create_table = CDEJobRunOperator(
 )
 
 create_table_validation = CDEJobRunOperator(
-    job_name='create-table-validation',
+    job_name='create-table-validation_userXXX',
     depends_on_past=True,
     trigger_rule='all_success',
     task_id='create_table_validation',
@@ -32,7 +32,7 @@ create_table_validation = CDEJobRunOperator(
 )
 
 insert_table = CDEJobRunOperator(
-    job_name='insert-table',
+    job_name='insert-table_userXXX',
     depends_on_past=True,
     trigger_rule='all_success',
     task_id='insert_table',
@@ -40,7 +40,7 @@ insert_table = CDEJobRunOperator(
 )
 
 insert_table_validation = CDEJobRunOperator(
-    job_name='insert-table-validation',
+    job_name='insert-table-validation_userXXX',
     depends_on_past=True,
     trigger_rule='all_success',
     task_id='insert_table_validation',
