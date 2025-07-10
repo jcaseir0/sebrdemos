@@ -14,6 +14,9 @@ username_final = '_' + username
 clientes = spark.table(f"bancodemo{username_final}.clientes")
 transacoes = spark.table(f"bancodemo{username_final}.transacoes_cartao")
 
+print("Debug 1", clientes)
+print("Debug 2", transacoes)
+
 # Contagem de linhas em cada tabela
 num_clientes = clientes.count()
 num_transacoes = transacoes.count()
