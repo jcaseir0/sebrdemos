@@ -135,7 +135,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
 7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-8.  Não há necessidade de selecionar o **Python Environment**
+8. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 9. Não há necessidade de alterar o perfil de recursos, manter padrão
 10. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
