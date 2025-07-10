@@ -99,7 +99,7 @@ def validate_table_creation(logger: logging.Logger, spark, database_name, table_
     results = []
     username = sys.argv[1]
     print("PySpark Runtime Arg: ", sys.argv[1])
-    print("Database name:" database_name)
+    print("Database name:", database_name)
     
     try:
         # Get all tables in the database
