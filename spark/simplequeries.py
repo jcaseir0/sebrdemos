@@ -28,7 +28,7 @@ total_gastos = clientes.join(transacoes, "id_usuario") \
     .orderBy("total_gastos", ascending=False)
 
 # 2. Número de transações por cliente
-num_transacoes = clientes.join(transacoes, "id_usuario") \
+num_transacoes_df = clientes.join(transacoes, "id_usuario") \
     .groupBy("id_usuario", "nome") \
     .agg(count("*").alias("total_transacoes")) \
     .orderBy("total_transacoes", ascending=False)
@@ -82,13 +82,11 @@ gastos_mensais = clientes.join(transacoes, "id_usuario") \
 
 # Show results (first 10 rows for each query)
 print(f"\nNúmero de linhas da tabela clientes: {num_clientes}")
-num_clientes.show(10)
-print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}")
-num_transacoes.show(10)
+print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}") # Corrigido aqui
 print("\nTotal de gastos por cliente:")
 total_gastos.show(10)
 print("Número de transações por cliente:")
-num_transacoes.show(10)
+num_transacoes_df.show(10) # Corrigido aqui (renomeado para evitar conflito)
 print("Média de gastos por transação para cada cliente:")
 media_gastos.show(10)
 print("Clientes com maior valor de transação única:")
