@@ -82,7 +82,7 @@ O **Cloudera Data Engineering (CDE)** é uma plataforma gerenciada para orquestr
 
 #### Cloudera Data Engineering
 
-- Passo-a-passo para implementar o laboratório com CDE: [Tutorial](tutorials/repositório-do-git.md)
+- Passo-a-passo para implementar o laboratório com CDE: [Tutorial](tutorials/passo-a-passo.md)
 
 #### Cloudera Data Warehouse e Data Hub
 

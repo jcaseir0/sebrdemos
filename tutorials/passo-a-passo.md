@@ -59,6 +59,8 @@ Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de p
 
 Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto https://github.com/jcaseir0/sebrdemos.git na branch main.
 
+## Lab. 1 - Preparação do ambiente virtual Python e configuração do projeto no Github
+
 ### Criação do recurso de ambiente virtual Python
 
 1. Baixar o arquivo **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/main/requirements.txt)** local para seu desktop;
@@ -84,7 +86,9 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
    - **Manter o resto das configurações padrão**
    - Clicar em **Create**
 
-## Criação do Job no CDE
+## Lab. 2 - Criação dos Jobs para criação dos dados e validação
+
+No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podendo ser de diversos tipos, como Spark, Python, Bash e principalmente Airflow. Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
 
 Para a criação dos Jobs será necessário estar com o Data Engineering Data Hub criado ou o Cloudera Data Warehouse habilitado. Para mariores informações de como fazê-los, acesse esse [tutorial](tutorials/PreparacaoDemo.md).
 
@@ -96,33 +100,78 @@ A necessidade se faz necessária para popular o metadados do catálogo de dados,
 4. Anote essa informação, será algo conforme abaixo:
    - jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
 
-### Criação do Job
+### Criação dos Jobs Spark no CDE
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. Na janela aberta, preencher os campos:
-   **Job de criação das tabelas e dados**
-   1. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
-   2. **Name:** nome do job: user001-create-table
-   3. **Select Application Files:** Repository
-   4. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
-   5. Selecione o arquivo **create_table.py** -> **Select File**
-   6. **Arguments (Optional):**  jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
-   7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
-   8. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. PAra o nosso caso iremos definir esse perfil de recursos para o nosso job:
-     - **Executor Cores:** 2
-     - **Driver Memory:** 4
-     - **Executor Memory:** 4
-     - **Manter o resto das configurações padrão**
-   9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+2. **Job de criação das tabelas e dados**
+3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+4. **Name:** nome do job: user001-create-table
+5. **Select Application Files:** Repository
+6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
+7. Selecione o arquivo **create_table.py** -> **Select File**
+8. **Arguments (Optional):**  jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
+9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
+10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. PAra o nosso caso iremos definir esse perfil de recursos para o nosso job:
+   - **Executor Cores:** 2
+   - **Driver Memory:** 4
+   - **Executor Memory:** 4
+   - **Manter o resto das configurações padrão**
+11. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
-Iremos criar os outros Jobs necessários para o laboratório, siga as instruções acima, de 1 a 9, mas alterando os seguintes itens:
+Iremos criar os outros Jobs necessários para o laboratório, **siga as instruções acima repetindo os passos de 3 a 11**, mas alterando os seguintes itens:
 
-   **Job para a validação da criação das tabelas**
-   2. **Name:** nome do job: user001-create-table-validation
-   5. Selecione o diretório spark e depois o arquivo **simplequeries.py** -> **Select File**
-   6. Deixe **Arguments (Optional):** sem preencher
-   7. Não há necessidade de selecionar o **Python Environment**
+**Job para a validação da criação das tabelas**
+4. **Name:** nome do job: user001-create-table-validation
+7. Selecione o diretório spark e depois o arquivo **simplequeries.py** -> **Select File**
+8. Deixe **Arguments (Optional):** sem preencher
+9. Não há necessidade de selecionar o **Python Environment**
+10. Não há necessidade de alterar o perfil de recursos, manter padrão
 
+**Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes**
+4. **Name:** nome do job: user001-insert-table
+7. Selecione o arquivo **insert_table.py** -> **Select File**
+
+**Job para a validação da ingestão das tabelas**
+4. **Name:** nome do job: user001-insert-table-validation
+7. Selecione o diretório spark e depois o arquivo **complexqueries.py** -> **Select File**
+8. Deixe **Arguments (Optional):** sem preencher
+9. Não há necessidade de selecionar o **Python Environment**
+10. Não há necessidade de alterar o perfil de recursos, manter padrão
+
+## Lab. 3 - Criação dos Jobs Airflow e agendado no CDE
+
+O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAGs (Directed Acyclic Graphs), muito utilizada para automatizar pipelines de dados. No CDE, cada cluster virtual já inclui uma instância embutida do Airflow, facilitando a criação, agendamento e monitoramento de workflows sem necessidade de infraestrutura adicional
+
+**Jobs do Tipo Airflow no CDE**
+
+- **Criação de jobs Airflow:**O usuário desenvolve um arquivo Python contendo o DAG do Airflow. Esse arquivo é enviado via interface web ou CLI do CDE, podendo incluir recursos adicionais necessários para o workflow
+
+- **Operadores específicos:** O CDE oferece operadores Airflow nativos, como o CdeRunJobOperator (para acionar outros jobs Spark no CDE) e operadores para executar queries em Data Warehouses do Cloudera, ampliando a integração entre serviços
+
+- **Execução e Monitoramento:** Os jobs Airflow podem ser executados manualmente ("Run Now") ou de acordo com um agendamento. O monitoramento é feito pela interface do CDE, que fornece logs, alertas e notificações sobre o status do job, facilitando o troubleshooting
+
+- **Extensibilidade:** É possível instalar operadores customizados e bibliotecas Python adicionais, permitindo integração com sistemas externos e personalização dos workflows
+
+**Jobs Agendados no CDE**
+
+- **Agendamento via interface:** Ao criar ou editar um job, é possível definir um agendamento usando expressões cron, especificando horários, datas de início e fim, e frequência de execução.
+
+- **Configurações Avançadas:**
+  - Enable Catchup: Permite que execuções perdidas sejam realizadas retroativamente.
+  - Depends on Previous: Garante que cada execução só ocorra após o sucesso da anterior.
+  - Start/End Time: Define o período de vigência do agendamento.
+
+- **Execução sob demanda:**Mesmo jobs agendados podem ser disparados manualmente, se necessário.
+
+**Integração Airflow com o CDEe vantagens**
+
+- **Orquestração centralizada:** Permite gerenciar pipelines complexos de dados de ponta a ponta.
+  
+- **Escalabilidade:** Cada cluster virtual pode rodar múltiplos jobs simultâneos de forma isolada.
+
+- Integração nativa com os mecanismos de segurança e auditoria do Cloudera.
+
+- Interface amigável para criação, agendamento e monitoramento dos jobs, além de integração com CLI para automação.
 ---
 
 > Para detalhes completos dos scripts e exemplos de uso, consulte o repositório do projeto e utilize os scripts conforme o fluxo descrito acima.
