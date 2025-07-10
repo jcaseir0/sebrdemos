@@ -101,7 +101,7 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**
 7. Selecione o arquivo **create_table.py** -> **Select File**
 8. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
+9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
    - **Executor Cores:** 2
    - **Driver Memory:** 4
