@@ -28,7 +28,8 @@ def create_table(logger: logging.Logger, spark, database_name, table_name, confi
         bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
         clustered_by = config.get(table_name, 'clustered_by', fallback=None)
         num_buckets = config.getint(table_name, 'num_buckets', fallback=0)
-        database_name = config['DEFAULT'].get('dbname')
+        database_name_ini = config['DEFAULT'].get('dbname')
+        database_name = database_name_ini + '_' +  username
 
         logger.debug(f"Table configuration: partition={partition}, partition_by={partition_by}, bucketing={bucketing}, clustered_by={clustered_by}, num_buckets={num_buckets}")
 
@@ -94,6 +95,8 @@ def validate_table_creation(logger: logging.Logger, spark, database_name, table_
     """
     results = []
     try:
+        database_name_ini = config['DEFAULT'].get('dbname')
+        database_name = database_name_ini + '_' +  username
         # Get all tables in the database
         tables = spark.sql(f"SHOW TABLES IN {database_name}").collect()
 
@@ -165,6 +168,9 @@ def remove_specified_tables(logger: logging.Logger, spark: SparkSession, databas
     logger.info(f"Starting removal of specified tables in database '{database_name}'")
     
     try:
+        database_name_ini = config['DEFAULT'].get('dbname')
+        database_name = database_name_ini + '_' +  username
+        
         tables_to_remove = [t.strip() for t in config['DEFAULT']['tables'].split(',')]
         logger.debug(f"Tables to remove: {tables_to_remove}")
 
