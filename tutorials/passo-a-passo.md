@@ -68,7 +68,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 3. Clicar em **Resources**, no menu da coluna à esquerda e na nova página, clicar no botão **Create a Resource** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 4. Na janela aberta, preencher os campos:
    **Create Resource**
-   - **Resource Name:** nome do recurso: env-py
+   - **Resource Name:** nome do recurso: env-py_userXXX
    - **Type:** Python Environment
    - Clicar em **Create**
 5. Depois clicar em **Upload File** e selecionar o arquivo requirements.txt baixado anteriormente.
@@ -90,54 +90,63 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 
 No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podendo ser de diversos tipos, como Spark, Python, Bash e principalmente Airflow. Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
 
-> [!WARNING]
-> Para a criação dos Jobs será necessário estar com o Data Engineering Data Hub criado ou o Cloudera Data Warehouse habilitado. Para mariores informações de como fazê-los, acesse esse [tutorial](tutorials/PreparacaoDemo.md).
-
-A necessidade se faz necessária para popular o metadados do catálogo de dados, utilizando o engine do Hive. Para isso, será necessário copiar a URL do JDBC. Para isso, siga o passo-a-passo abaixo:
-
-1. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Warehouse**;
-2. Na aba **Virtual Warehouses**, encontre o cluster **credito-vw**.
-3. Clique no menu com três pontos na vertical e na opção **Copy JDBC URL**
-4. Anote essa informação, será algo conforme abaixo:
-   - jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
-
 ### Criação dos Jobs Spark no CDE
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1** (Ou a versão desjada).
-4. **Name:** nome do job: userXXX-create-table
+3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+4. **Name:** nome do job: create-table_userXXX
 5. **Select Application Files:** Repository
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
 7. Selecione o arquivo **create_table.py** -> **Select File**
-8. **Arguments (Optional):**  jdbc:hive2://hs2-<cluster_name>.dw-<environment_name>.a472-9q3k.cloudera.site/default;transportMode=http;httpPath=cliservice;socketTimeout=60;ssl=true;auth=browser;
+8. **Arguments (Optional):** userXXX 
 9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
-10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. PAra o nosso caso iremos definir esse perfil de recursos para o nosso job:
+10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
    - **Executor Cores:** 2
    - **Driver Memory:** 4
    - **Executor Memory:** 4
    - **Manter o resto das configurações padrão**
 11. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
-Iremos criar os outros Jobs necessários para o laboratório, **siga as instruções acima repetindo os passos de 3 a 11**, mas alterando os seguintes itens:
+Vamos criar os outros Jobs necessários para o laboratório.
 
-**Job para a validação da criação das tabelas**
-4. **Name:** nome do job: userXXX-create-table-validation
-7. Selecione o diretório spark e depois o arquivo **simplequeries.py** -> **Select File**
-8. Deixe **Arguments (Optional):** sem preencher
+#### Job 2 - Job para a validação da criação das tabelas
+
+1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
+3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+4. **Name:** nome do job: create-table-validation_userXXX
+5. **Select Application Files:** Repository
+6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
+7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+8. Não há necessidade de selecionar o **Python Environment**
+9. Não há necessidade de alterar o perfil de recursos, manter padrão
+10. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+
+#### Job 3 - Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes
+
+1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
+2. **Job de criação das tabelas e dados**
+3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+4. **Name:** nome do job: insert-table_userXXX
+5. **Select Application Files:** Repository
+6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
+7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+8.  Não há necessidade de selecionar o **Python Environment**
+9. Não há necessidade de alterar o perfil de recursos, manter padrão
+10. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+
+#### Job 4 - Job para a validação da ingestão das tabelas
+
+1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
+2. **Job de criação das tabelas e dados**
+3. Selecione o tipo **Spark 3.5.1** (Ou a versão desejada).
+4. **Name:** nome do job: insert-table-validation_userXXX
+5. **Select Application Files:** Repository
+6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
+8. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 9. Não há necessidade de selecionar o **Python Environment**
 10. Não há necessidade de alterar o perfil de recursos, manter padrão
-
-**Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes**
-4. **Name:** nome do job: userXXX-insert-table
-7. Selecione o arquivo **insert_table.py** -> **Select File**
-
-**Job para a validação da ingestão das tabelas**
-4. **Name:** nome do job: userXXX-insert-table-validation
-7. Selecione o diretório spark e depois o arquivo **complexqueries.py** -> **Select File**
-8. Deixe **Arguments (Optional):** sem preencher
-9. Não há necessidade de selecionar o **Python Environment**
-10. Não há necessidade de alterar o perfil de recursos, manter padrão
+11. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 ## Lab. 3 - Criação dos Jobs Airflow e agendado no CDE
 
@@ -162,9 +171,9 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
   - Depends on Previous: Garante que cada execução só ocorra após o sucesso da anterior.
   - Start/End Time: Define o período de vigência do agendamento.
 
-- **Execução sob demanda:**Mesmo jobs agendados podem ser disparados manualmente, se necessário.
+- **Execução sob demanda:** Mesmo jobs agendados podem ser disparados manualmente, se necessário.
 
-**Integração Airflow com o CDEe vantagens**
+**Integração Airflow com o CDE e vantagens**
 
 - **Orquestração centralizada:** Permite gerenciar pipelines complexos de dados de ponta a ponta.
   
@@ -174,19 +183,28 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 - **Facilidade de uso:** Interface amigável para criação, agendamento e monitoramento dos jobs, além de integração com CLI para automação.
 
-### Criação a do job Airflow a partir de uma aplicação Python
+### Lab. 3 - Criando o job do Airflow
 
 > [!WARNING]
 > Será necessário editar o arquivo
 
+Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.
+
+Baixe no seu computador o arquivo **[common_functions.py](https://github.com/jcaseir0/sebrdemos/blob/main/cde/job-malha-airflow.py)**.
+
+Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário nas linhas: `19, 27, 35 e 43`, em todas elas substitua `userXXX` pelo seu usuário, por exemplo `user001`. 
+
+Altere o nome do arquivo para refletir o nome do seu usário, no seu computador.
+
+Agora vamos criar o job do Airflow:
+
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. Selecione o tipo **Airflow**.
-3. **Name:** nome do job: userXXX-malha-airflow
-4. **DAG File:** Selecionar Repository
-5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
-6. Selecione diretório cde e o arquivo **job-malha-airflow.py** -> **Select File**
-7. Manter as outras opções sem preenchimento
-8. Por fim, clicar em **Create and Run**
+2. **Job de criação das tabelas e dados**
+3. Selecione o tipo **Airflow**
+4. **Name:** nome do job: job-malha-airflow_userXXX
+5. Clique em **Upload** e depois em **Select a file**, selecione o arquivo `job-malha-airflow_userXXX.py`.
+6. Na oção **Select a Resource** escolha **Create a Resource**, dê um nome para ele `job-malha-airflow_userXXX` e clique em Upload.
+7. Agora clique na seta azul e selecione Create.
 
 ---
 
