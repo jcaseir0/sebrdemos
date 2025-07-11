@@ -105,7 +105,6 @@ def correlacao_limite_gastos():
 
 # Execute and show results
 print(f"\nNúmero de linhas da tabela clientes: {num_clientes}")
-num_clientes.show(10)
 print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}")
 
 logger.info("\nExecuting financial analysis queries\n")
