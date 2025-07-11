@@ -66,6 +66,81 @@ def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini'
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
+def create_iceberg_table_as_select(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, iceberg_catalog: str = "iceberg_catalog") -> None:
+    """
+    Cria uma tabela Iceberg a partir de um SELECT * FROM {table_name}.
+
+    Esta função cria uma nova tabela no formato Iceberg chamada '{table_name}_iceberg'
+    no mesmo database, utilizando todos os dados da tabela original.
+
+    Args:
+        logger (logging.Logger): Logger para registrar informações e erros.
+        spark (SparkSession): Sessão Spark ativa.
+        database_name (str): Nome do database onde está a tabela original e será criada a Iceberg.
+        table_name (str): Nome da tabela fonte.
+        iceberg_catalog (str, opcional): Nome do catálogo Iceberg no Spark. Padrão: 'iceberg_catalog'.
+
+    Raises:
+        Exception: Se ocorrer qualquer erro durante a criação da tabela Iceberg.
+    """
+    iceberg_table = f"{database_name}.{table_name}_iceberg"
+    source_table = f"{database_name}.{table_name}"
+
+    logger.info(f"Criando tabela Iceberg: {iceberg_table} a partir de {source_table}")
+
+    try:
+        # Drop se já existir (opcional, pode remover se não quiser sobrescrever)
+        logger.debug(f"Removendo tabela Iceberg existente (se houver): {iceberg_table}")
+        spark.sql(f"DROP TABLE IF EXISTS {iceberg_catalog}.{iceberg_table}")
+
+        # Criação da nova tabela Iceberg
+        logger.info(f"Executando CREATE TABLE AS SELECT para {iceberg_table}")
+        spark.sql(f"""
+            CREATE TABLE {iceberg_catalog}.{iceberg_table}
+            USING ICEBERG
+            AS SELECT * FROM {source_table}
+        """)
+        logger.info(f"Tabela Iceberg '{iceberg_table}' criada com sucesso.")
+    except Exception as e:
+        logger.error(f"Erro ao criar tabela Iceberg '{iceberg_table}': {str(e)}")
+        raise
+
+def create_hive_table_for_miginplace(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> None:
+    """
+    Cria uma tabela Hive chamada '{table_name}_hive' a partir de um SELECT * FROM {table_name}.
+
+    Esta função cria uma nova tabela Hive no mesmo database, copiando todos os dados da tabela original.
+
+    Args:
+        logger (logging.Logger): Logger para registrar informações e erros.
+        spark (SparkSession): Sessão Spark ativa.
+        database_name (str): Nome do database onde está a tabela original e será criada a Hive.
+        table_name (str): Nome da tabela fonte.
+
+    Raises:
+        Exception: Se ocorrer qualquer erro durante a criação da tabela Hive.
+    """
+    hive_table = f"{database_name}.{table_name}_hive"
+    source_table = f"{database_name}.{table_name}"
+
+    logger.info(f"Criando tabela Hive: {hive_table} a partir de {source_table}")
+
+    try:
+        # Drop se já existir (opcional, pode remover se não quiser sobrescrever)
+        logger.debug(f"Removendo tabela Hive existente (se houver): {hive_table}")
+        spark.sql(f"DROP TABLE IF EXISTS {hive_table}")
+
+        # Criação da nova tabela Hive
+        logger.info(f"Executando CREATE TABLE AS SELECT para {hive_table}")
+        spark.sql(f"""
+            CREATE TABLE {hive_table}
+            AS SELECT * FROM {source_table}
+        """)
+        logger.info(f"Tabela Hive '{hive_table}' criada com sucesso.")
+    except Exception as e:
+        logger.error(f"Erro ao criar tabela Hive '{hive_table}': {str(e)}")
+        raise
+
 def table_exists(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> bool:
     """
     Check if a table exists in the Hive Metastore.

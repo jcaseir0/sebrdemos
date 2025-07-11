@@ -14,12 +14,12 @@ A seguir, os scripts principais para implantação da migração no CDE:
 - **[create_table.py](https://github.com/jcaseir0/sebrdemos/blob/main/create_table.py)**: Criação de tabelas Hive/Parquet com suporte a particionamento e bucketing, validação de estruturas e remoção segura de tabelas antigas caso existam.
 - **[insert_table.py](https://github.com/jcaseir0/sebrdemos/blob/main/insert_table.py)**: Inserção e atualização de dados nas tabelas, com controle de particionamento e bucketing, geração de amostras e validação de integridade dos dados.
 - **[schemas/clientes.json](https://github.com/jcaseir0/sebrdemos/blob/main/schemas/clientes.json) e [schemas/transacoes_cartao.json](https://github.com/jcaseir0/sebrdemos/blob/main/schemas/transacoes_cartao.json)**: Schemas JSON para as tabelas de clientes e transações, garantindo consistência dos dados e facilidade na visualização e alteração dos tipos de dados das colunas.
-- **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/main/requirements.txt)**: Dependências do projeto, incluindo geração de dados sintéticos com Faker.
+- **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/main/requirements.txt)**: Dependências de bibliotecas python, incluindo geração de dados sintéticos com Faker.
 - **[config.ini](https://github.com/jcaseir0/sebrdemos/blob/main/config.ini)**: Parâmetros para personalização das tabelas.
 
 ## Parametrizações na criação das tabelas
 
-O projeto utiliza um arquivo de configuração `config.ini` para definir parâmetros como o nome do banco de dados, o número de registros a serem gerados para cada tabela, e opções de particionamento e bucketing.
+As aplicações python utiliza um arquivo de configuração `config.ini` para definir parâmetros como o nome do banco de dados, o número de registros a serem gerados para cada tabela, e opções de particionamento e bucketing.
 
 Estrutura do `config.ini`:
 
@@ -57,9 +57,9 @@ Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usa
 
 Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de projetos e promovam aplicativos de ambientes não-produtivos para ambientes produtivos. Atualmente, a Cloudera oferece suporte a provedores de Git, como GitHub, GitLab e Bitbucket.
 
-Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto https://github.com/jcaseir0/sebrdemos.git na branch main.
+Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o repositório https://github.com/jcaseir0/sebrdemos.git na branch main.
 
-## Lab. 1 - Preparação do ambiente virtual Python e configuração do projeto no Github
+## Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github
 
 ### Criação do recurso de ambiente virtual Python
 
@@ -164,7 +164,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 - **Execução sob demanda:**Mesmo jobs agendados podem ser disparados manualmente, se necessário.
 
-**Integração Airflow com o CDEe vantagens**
+**Integração Airflow com o CDE e vantagens**
 
 - **Orquestração centralizada:** Permite gerenciar pipelines complexos de dados de ponta a ponta.
   
@@ -174,20 +174,49 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 - **Facilidade de uso:** Interface amigável para criação, agendamento e monitoramento dos jobs, além de integração com CLI para automação.
 
-### Criação a do job Airflow a partir de uma aplicação Python
+### Criação do job Airflow a partir de uma aplicação Python
 
 > [!WARNING]
-> Será necessário editar o arquivo
+> Será necessário editar o arquivo [**job-malha-airflow.py**](../airflow/job-malha-airflow.py), baixe (Download Raw File) ou altere no seu repositório local. Para maiores informações sobre a gestão do repositório local, siga esse [tutorial](../tutorials/PreparacaoDemo.md).
+
+> [!WARNING]
+> Garantir que o virtual Warehouse de Hive que o JDBC URL foi copiado esteja iniciado.
+
+**Edições necessárias:**
+
+Adicionar o prefixo: `userXXX_` nas linhas abaixo, exemplo: De `dag_id='malha_airflow',` para `dag_id='userXXX_malha_airflow',`:
+
+**Linha 08:** `dag_id='malha_airflow',`
+**Linha 19:** `job_name='create-table',`
+**Linha 27:** `job_name='create-table-validation',`
+**Linha 35:** `job_name='insert-table',`
+**Linha 43:** `job_name='insert-table-validation',`
+
+Depois de efetuar as alterações no arquivo, seguir conforme abaixo:
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 2. Selecione o tipo **Airflow**.
 3. **Name:** nome do job: userXXX-malha-airflow
-4. **DAG File:** Selecionar Repository
-5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
-6. Selecione diretório cde e o arquivo **job-malha-airflow.py** -> **Select File**
-7. Manter as outras opções sem preenchimento
-8. Por fim, clicar em **Create and Run**
+4. **DAG File:** Selecionar Resource > **Upload** > 
+5. Na nova janela aberta: 
+   1. Selecionar o arquivo editado: **job-malha-airflow.py**
+   2. **Select a Resource:** Create a Resource
+   3. **Resource Name:** demofiles
+6. Manter as outras opções sem preenchimento
+7. Por fim, clicar em **Create and Run**
+
+Caso tenha feito a alteração no seu repositório local e feito um push no seu fork, siga os passos abaixo:
+
+1. No painel do CDE, clique em Repositories, garanta que o seu virtual cluster esteja selecionado e clique no menu de Actions selecione **Sync** para syncronizar o repositório com as suas alterações recentes.
+2. Depois clique em **Jobs** e depois em **Create Job**.
+3. Selecione o tipo **Airflow**.
+4. **Name:** nome do job: userXXX-malha-airflow
+5. **DAG File:** Repository 
+6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
+7. Selecione diretório **airflow** e o arquivo **job-malha-airflow.py** -> **Select File**
+8. Manter as outras opções sem preenchimento
+9. Por fim, clicar em **Create and Run**
 
 ---
 
-> Para detalhes completos dos scripts e exemplos de uso, consulte o repositório do projeto e utilize os scripts conforme o fluxo descrito acima.
+> Para detalhes completos dos scripts e exemplos de uso, consulte o repositório e utilize os scripts conforme o fluxo descrito acima.
