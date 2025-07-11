@@ -201,14 +201,13 @@ Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as inform
 
 Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/main/airflow/job-malha-airflow.py)**.
 
-Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário nas linhas: `19, 27, 35 e 43`, em todas elas substitua `userXXX` pelo seu usuário, por exemplo `job_name='create-table-validation_userXXX`, vira `job_name='create-table-validation_user001`.
+Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário na linha: `8`, substitua `userXXX` pelo seu usuário, por exemplo.
 
-Altere o nome do arquivo para refletir o nome do seu usário, no seu computador, deve ficar: `job-malha-airflow_user001.py`.
+Altere o nome do arquivo no seu computador, para refletir o nome do seu usário, deve ficar: `job-malha-airflow_user001.py`.
 
 Agora vamos criar o job do Airflow:
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. **Job de criação das tabelas e dados**
 3. Selecione o tipo **Airflow**
 4. **Name:** nome do job: job-malha-airflow_userXXX
 5. Clique em **Upload** e depois em **Select a file**, selecione o arquivo `job-malha-airflow_userXXX.py`.
