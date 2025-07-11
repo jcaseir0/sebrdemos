@@ -136,7 +136,13 @@ Vamos criar os outros Jobs necessários para o laboratório.
 6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
 7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 8. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
-9. Não há necessidade de alterar o perfil de recursos, manter padrão
+9. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
+   
+    Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
+    - **Executor Cores:** 2
+    - **Driver Memory:** 4
+    - **Executor Memory:** 4
+    - **Manter o resto das configurações padrão**
 10. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 #### Job 4 - Job para a validação da ingestão das tabelas
