@@ -2,18 +2,23 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import sum, count, avg, max, date_format
 import logging, sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common_functions import load_config
+from common_functions import load_config, create_spark_session
 
 # Initialize Spark session
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("SimpleFinancialAnalysis").getOrCreate()
+logger.info("Initializing Spark session")
+
+app_name = "SimpleFinancialAnalysis"
+spark = create_spark_session(logger, app_name)
+
+logger.info("Spark session initialized successfully")
 
 # Load Variables
 config = load_config(logger)
-username = sys.argv[1]
+username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
 logger.debug(f"Loading username correctly? Var: {username}")
 database_name = config['DEFAULT'].get('dbname') + '_' + username
 logger.debug(f"Database name: {database_name}")

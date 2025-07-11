@@ -2,36 +2,10 @@ import logging, sys
 from configparser import ConfigParser
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-from common_functions import load_config, gerar_dados, table_exists, get_table_columns
+from common_functions import load_config, create_spark_session, gerar_dados, table_exists, get_table_columns
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-def create_spark_session(logger: logging.Logger, jdbc_url: str, thrift_server: str) -> SparkSession:
-    """Creates and configures a Spark session.
-
-    Args:
-        jdbc_url (str): JDBC URL for Hive metastore.
-        thrift_server (str): Thrift server URI.
-
-    Returns:
-        SparkSession: Configured Spark session.
-    """
-    logger.info("Creating Spark session")
-    try:
-        spark_conf = SparkConf()
-        spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-        spark_conf.set("hive.metastore.uris", thrift_server)
-        spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
-        spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
-
-        spark = SparkSession.builder.config(conf=spark_conf).appName("UpdateTable").enableHiveSupport().getOrCreate()
-
-        logger.info("Spark session created successfully")
-        return spark
-    except Exception as e:
-        logger.error(f"Error creating Spark session: {e}")
-        raise
 
 def insert_data(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, columns: list,
                 partition_by: str = None, is_bucketed: bool = False) -> None:
@@ -250,18 +224,19 @@ def main():
         return
     logger.debug("Configuration loaded")
 
-    spark = None
     try:
-        jdbc_url = sys.argv[1]
-        logger.debug(f"JDBC URL: {jdbc_url}")
+        username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
+        logger.debug(f"Loading username correctly? Var: {username}")
+        database_name = config['DEFAULT'].get('dbname') + '_' + username
+        logger.debug(f"Database name: {database_name}")
 
-        server_dns = jdbc_url.split('//')[1].split('/')[0]
-        thrift_server = f"thrift://{server_dns}:9083"
-        logger.debug(f"Thrift Server: {thrift_server}")
+        # Initialize Spark session
+        logger.info("Initializing Spark session")
+        app_name = "InsertTable"
+        extra_conf = {"spark.sql.sources.partitionOverwriteMode": "dynamic"}
+        spark = create_spark_session(logger, app_name, extra_conf)
+        logger.info("Spark session initialized successfully")
 
-        spark = create_spark_session(logger, jdbc_url, thrift_server)
-        spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
-        database_name = config.get("DEFAULT", "dbname")
         tables = [table for table in spark.sql(f"SHOW TABLES IN {database_name}").select("tableName").rdd.flatMap(lambda x: x).collect() 
                   if '_backup_' not in table]
         logger.info(f"Tables: {tables}")

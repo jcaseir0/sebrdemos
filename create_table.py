@@ -2,10 +2,9 @@ import os, json, logging, sys, time, shutil
 from configparser import ConfigParser
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
-from pyspark import SparkConf
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql.functions import lit
-from common_functions import load_config, gerar_dados, table_exists, validate_hive_metastore, get_schema_path
+from common_functions import load_config, create_spark_session, gerar_dados, table_exists, validate_hive_metastore, get_schema_path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -239,13 +238,11 @@ def main():
     tables = config['DEFAULT']['tables'].split(',')
     base_path = "/app/mount"
 
-    spark_conf = SparkConf()
-    spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-    spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
-    spark_conf.set("spark.security.credentials.hiveserver2.enabled", "true")
-    logger.debug(f"Spark configuration: {spark_conf.getAll()}")
-    
-    spark = SparkSession.builder.config(conf=spark_conf).appName("CreateTable").enableHiveSupport().getOrCreate()
+    app_name = "CreateTable"
+    spark = create_spark_session(logger, app_name)
+    # Se quiser passar configurações extras:
+    # extra_conf = {"spark.executor.memory": "2g"}
+    # spark = create_spark_session(app_name, logger, extra_conf)
     
     validate_hive_metastore(logger, spark)
 

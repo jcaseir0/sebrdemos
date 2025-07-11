@@ -3,7 +3,7 @@ from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trun
 from pyspark.sql.window import Window
 import logging, sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common_functions import load_config
+from common_functions import load_config, create_spark_session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -11,17 +11,16 @@ logger = logging.getLogger(__name__)
 
 # Initialize Spark session
 logger.info("Initializing Spark session")
-spark = SparkSession.builder \
-    .appName("ComplexFinancialAnalysis") \
-    .config("spark.sql.catalogImplementation", "hive") \
-    .enableHiveSupport() \
-    .getOrCreate()
+
+app_name = "ComplexFinancialAnalysis"
+extra_conf = {"spark.sql.catalogImplementation": "hive"}
+spark = create_spark_session(logger, app_name, extra_conf)
 
 logger.info("Spark session initialized successfully")
 
 # Load Variables
 config = load_config(logger)
-username = sys.argv[1]
+username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
 logger.debug(f"Loading username correctly? Var: {username}")
 database_name = config['DEFAULT'].get('dbname') + '_' + username
 logger.debug(f"Database name: {database_name}")

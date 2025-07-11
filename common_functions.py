@@ -5,6 +5,7 @@ import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import SparkSession
+from pyspark import SparkConf
 from faker import Faker
 from pyspark.sql.functions import col
 
@@ -65,6 +66,39 @@ def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini'
     except Exception as e:
         logger.error(f"Error loading configuration: {str(e)}")
         raise
+
+def create_spark_session(logger: logging.Logger, app_name: str, extra_conf: dict = None) -> SparkSession:
+    """
+    Cria e retorna uma SparkSession com suporte a Hive, permitindo configurar o appName e parâmetros extras.
+
+    Args:
+        app_name (str): Nome do aplicativo Spark.
+        logger: Logger para registrar informações de configuração.
+        extra_conf (dict, opcional): Dicionário com configurações Spark adicionais.
+
+    Returns:
+        SparkSession: Sessão Spark configurada.
+    """
+    spark_conf = SparkConf()
+    spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
+    spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
+    spark_conf.set("spark.security.credentials.hiveserver2.enabled", "true")
+    
+    if extra_conf:
+        for key, value in extra_conf.items():
+            spark_conf.set(key, value)
+    
+    logger.debug(f"Spark configuration: {spark_conf.getAll()}")
+
+    spark = (
+        SparkSession.builder
+        .config(conf=spark_conf)
+        .appName(app_name)
+        .enableHiveSupport()
+        .getOrCreate()
+    )
+    logger.info(f"SparkSession criada com appName: {app_name}")
+    return spark
 
 def create_iceberg_table_as_select(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, iceberg_catalog: str = "iceberg_catalog") -> None:
     """
