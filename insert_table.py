@@ -75,6 +75,7 @@ def insert_data(logger: logging.Logger, spark: SparkSession, database_name: str,
                 FROM temp_view
             """)
         else:
+            print("Debug: Entrei no else")
             logger.debug("Inserting data without partition or with bucketing")
             spark.sql(f"""
                 INSERT INTO {database_name}.{table_name}
