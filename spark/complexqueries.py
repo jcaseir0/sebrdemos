@@ -27,8 +27,6 @@ username_final = '_' + username
 clientes = spark.table(f"bancodemo{username_final}.clientes")
 transacoes = spark.table(f"bancodemo{username_final}.transacoes_cartao")
 
-print("Nome das tabelas: ", clientes + transacoes)
-
 # Exibir amostras das tabelas para verificar os dados
 logger.info("Displaying sample data from tables\n")
 logger.info("Transações")
