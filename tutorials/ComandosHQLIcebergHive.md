@@ -453,7 +453,7 @@ SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-ver
 
 - **Tags** e **branches** são recursos avançados do Iceberg no Hive, permitindo controle de versões, auditoria e desenvolvimento seguro.
 - O **time travel** permite consultar dados históricos facilmente.
-- O uso de comandos como **MERGE**, **ROLLBACK** e **OPTIMIZE** facilita a manutenção e governança de dados em ambientes analíticos modernos.
+- O uso de comandos como **MERGE**, **ROLLBACK** facilita a manutenção e governança de dados em ambientes analíticos modernos.
 
 Se precisar de exemplos práticos ou dúvidas sobre algum comando específico, peça detalhes!
 
