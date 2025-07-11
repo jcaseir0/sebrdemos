@@ -122,10 +122,10 @@ INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue
 VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros', 'Aprovada', '06-02-2025');
 ```
 
+## 8. Consulta de Histórico (Snapshots)
+
 **Explicação:**
 Lista todos os snapshots (versões) da tabela, permitindo auditoria e time travel.
-
-## 8. Consulta de Histórico (Snapshots)
 
 ```sql
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
