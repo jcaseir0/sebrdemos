@@ -17,12 +17,16 @@ Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usand
 
 ## 2. Verificação de Metadados das Tabelas
 
-```sql
-DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
-```
+Tabela transacoes_cartao
 
 ```sql
 DESCRIBE FORMATTED bancodemo.transacoes_cartao;
+```
+
+Tabela transacoes_cartao_iceberg_ctas_hue
+
+```sql
+DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 **Explicação:**
@@ -30,9 +34,13 @@ Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, parti
 
 ## 3. Validação de Registros
 
+Tabela transacoes_cartao
+
 ```sql
 SELECT COUNT(*) FROM bancodemo.transacoes_cartao;
 ```
+
+Tabela transacoes_cartao_iceberg_ctas_hue
 
 ```sql
 SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue;
@@ -43,9 +51,13 @@ Conta o número de registros em cada tabela, permitindo validar se a migração 
 
 ## 4. Validação de Integridade
 
+Tabela transacoes_cartao
+
 ```sql
 SELECT * FROM bancodemo.transacoes_cartao LIMIT 10;
 ```
+
+Tabela transacoes_cartao_iceberg_ctas_hue
 
 ```sql
 SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
