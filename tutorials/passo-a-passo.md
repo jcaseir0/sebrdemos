@@ -108,7 +108,6 @@ Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necess
     - **Driver Memory:** 4
     - **Executor Memory:** 4
     - **Manter o resto das configurações padrão**
-      
 9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 Vamos criar os outros Jobs necessários para o laboratório.
