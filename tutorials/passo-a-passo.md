@@ -199,7 +199,20 @@ Caso tenha feito a alteração no seu repositório local e feito um push no seu 
 8. Manter as outras opções sem preenchimento
 9. Por fim, clicar em **Create and Run**
 
-## Lab. 4 - Migração das tabelas para o formato de tabelas Iceberg
+## Lab. 4 - Monitorando o job do airflow através do Airflow UI
+
+1. Com o job do airflow em execução, no painel do CDE, clique em **Administration**
+2. Clicar no serviço do CDE habilitado em cima do seu ambiente
+3. Abrirá à direita, os Virtual Clusters existentes nesse ambiente, clicar no botão do meio, que se passar o mouse em cima apresentará **Virtual Cluster Details**
+4. Na tela de detalhes, clicar à direita no link **Airflow UI**, onde abrirá a interface com as DAGs
+5. Clicar no job em execução: **userXXX-malha-airflow**, onde será apresentado os detalhes do job em execução
+6. A primeira aba **Details** apresenta um resumo de execução
+7. A segunda aba **Graph** apresenta A ordem de execução dos CDE jobs
+8. A quarta aba **Code** apresenta o seu código
+9. Na quinta e sexta aba, **Run Duration** e **Task Duration** uma comparação das execusões dos jobs airflow e de cada CDE jobs, respectivamente
+10. E por fim em Calendar um mapa de calor com a quantidade de sucesso ou falha.
+
+## Lab. 5 - Migração das tabelas para o formato de tabelas Iceberg
 
 Repetir o passo a passo a partir do item 3 até o 10 da sessão [Criação de Job no CDE](#Criação-dos-Jobs-Spark-no-CDE) e mudar apenas os itens abaixo para a criação do novo job:
 
