@@ -1,7 +1,9 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col, countDistinct, lit
 from pyspark.sql.window import Window
-import logging
+import logging, sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common_functions import load_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,9 +19,16 @@ spark = SparkSession.builder \
 
 logger.info("Spark session initialized successfully")
 
-# Read tables
-clientes = spark.table("bancodemo.clientes")
-transacoes = spark.table("bancodemo.transacoes_cartao")
+# Load Variables
+config = load_config(logger)
+username = sys.argv[1]
+logger.debug(f"Loading username correctly? Var: {username}")
+database_name = config['DEFAULT'].get('dbname') + '_' + username
+logger.debug(f"Database name: {database_name}")
+
+# Load tables
+clientes = spark.table(f"{database_name}.clientes")
+transacoes = spark.table(f"{database_name}.transacoes_cartao")
 
 # Exibir amostras das tabelas para verificar os dados
 logger.info("Displaying sample data from tables\n")
