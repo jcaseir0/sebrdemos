@@ -196,8 +196,10 @@ def generate_and_write_data(logger: logging.Logger, spark: SparkSession, config:
         if 'transacoes_cartao' in table_name:
             clientes_ids = [cliente['id_usuario'] for cliente in clientes_data] if clientes_data else None
             data = gerar_dados(logger, table_name, num_records_update, clientes_ids)
+            print("Debug: passei pelo gerar_dados transacoes_cartao")
         elif 'clientes' in table_name:
             data = gerar_dados(logger, table_name, num_records_update) if clientes_data is None else clientes_data
+            print("Debug: passei pelo gerar_dados clientes")
             
         logger.debug(f"Sample data: {data[:3]}")
 
