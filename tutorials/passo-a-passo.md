@@ -93,24 +93,23 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
 
 ### Criação dos Jobs Spark no CDE
+#### Job 1 - Job para criação das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-3. **Job de criação das tabelas e dados**
-5. Selecione o tipo **Spark 3.5.1**.
-7. **Name:** nome do job: create-table_userXXX
-8. **Select Application Files:** Repository
-9. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**
-10. Selecione o arquivo **create_table.py** -> **Select File**
-11. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-12. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
-13. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
+2. Selecione o tipo **Spark 3.5.1**.
+3. **Name:** nome do job: create-table_userXXX
+4. **Select Application Files:** Repository
+5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, selecione o arquivo **create_table.py** -> **Select File**
+6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
+8. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
     Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
     - **Executor Cores:** 2
     - **Driver Memory:** 4
     - **Executor Memory:** 4
     - **Manter o resto das configurações padrão**
       
-14. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 Vamos criar os outros Jobs necessários para o laboratório.
 
@@ -118,44 +117,42 @@ Vamos criar os outros Jobs necessários para o laboratório.
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
 3. Selecione o tipo **Spark 3.5.1**.
-4. **Name:** nome do job: create-table-validation_userXXX
-5. **Select Application Files:** Repository
-6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
-7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-8. Não há necessidade de selecionar o **Python Environment**
-9. Não há necessidade de alterar o perfil de recursos, manter padrão
-10. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+3. **Name:** nome do job: create-table-validation_userXXX
+4. **Select Application Files:** Repository
+5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
+6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+7. Não há necessidade de selecionar o **Python Environment**
+8. Não há necessidade de alterar o perfil de recursos, manter padrão
+9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 #### Job 3 - Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. 2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1**.
-4. **Name:** nome do job: insert-table_userXXX
-5. **Select Application Files:** Repository
-6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
-7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-8. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
-9. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
+2. Selecione o tipo **Spark 3.5.1**.
+3. **Name:** nome do job: insert-table_userXXX
+4. **Select Application Files:** Repository
+5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
+6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
+8. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
     Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
     - **Executor Cores:** 2
     - **Driver Memory:** 4
     - **Executor Memory:** 4
     - **Manter o resto das configurações padrão**
-10. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 #### Job 4 - Job para a validação da ingestão das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1**.
-4. **Name:** nome do job: insert-table-validation_userXXX
-5. **Select Application Files:** Repository
-6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
-8. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-9. Não há necessidade de selecionar o **Python Environment**
-10. Não há necessidade de alterar o perfil de recursos, manter padrão
-11. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+2. Selecione o tipo **Spark 3.5.1**.
+3. **Name:** nome do job: insert-table-validation_userXXX
+4. **Select Application Files:** Repository
+5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
+6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+7. Não há necessidade de selecionar o **Python Environment**
+8. Não há necessidade de alterar o perfil de recursos, manter padrão
+9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 ## Lab. 3 - Criação dos Jobs Airflow e agendado no CDE
 
