@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Initialize Spark session
 logger.info("Initializing Spark session")
 spark = SparkSession.builder \
-    .appName("FinancialAnalysis") \
+    .appName("ComplexFinancialAnalysis") \
     .config("spark.sql.catalogImplementation", "hive") \
     .enableHiveSupport() \
     .getOrCreate()
