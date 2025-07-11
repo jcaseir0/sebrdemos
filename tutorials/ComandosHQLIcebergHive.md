@@ -1,5 +1,3 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" class="logo" width="120"/>
-
 # Documentação dos Comandos HQL do Script Iceberg + Hive
 
 Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Query Language) presente no script fornecido, organizado por tópicos. Cada comando é apresentado em uma caixa de código SQL, seguido de uma explicação clara sobre seu propósito e funcionamento.
@@ -21,6 +19,9 @@ Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usand
 
 ```sql
 DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
+```
+
+```sql
 DESCRIBE FORMATTED bancodemo.transacoes_cartao;
 ```
 
@@ -31,6 +32,9 @@ Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, parti
 
 ```sql
 SELECT COUNT(*) FROM bancodemo.transacoes_cartao;
+```
+
+```sql
 SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue;
 ```
 
@@ -41,6 +45,9 @@ Conta o número de registros em cada tabela, permitindo validar se a migração 
 
 ```sql
 SELECT * FROM bancodemo.transacoes_cartao LIMIT 10;
+```
+
+```sql
 SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = ${hivetableid} AND valor = ${hivetablevalor};
 ```
@@ -104,7 +111,9 @@ Consulta a tabela como ela estava em um determinado snapshot, útil para auditor
 ```sql
 ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_update;
+```
 
+```sql
 UPDATE bancodemo.transacoes_cartao_iceberg_ctas_hue
 SET valor = 510.99
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
@@ -118,7 +127,9 @@ Marca o estado anterior com uma tag e atualiza o valor de uma transação espec�
 ```sql
 ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_delete;
+```
 
+```sql
 DELETE FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = '000000036';
 ```
@@ -168,6 +179,9 @@ Consulta a tabela conforme ela estava em um determinado momento no tempo, usando
 
 ```sql
 ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE TAG tag_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
+```
+
+```sql
 ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_parent_id});
 ```
 
@@ -178,6 +192,9 @@ Cria uma tag para um snapshot específico e faz rollback para um snapshot anteri
 
 ```sql
 ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH dev_branch;
+```
+
+```sql
 INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue.branch_dev_branch VALUES (...);
 ```
 
@@ -206,6 +223,9 @@ Converte uma tabela Hive tradicional para o formato Iceberg, preservando dados e
 
 ```sql
 ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS;
+```
+
+```sql
 ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS FOR COLUMNS;
 ```
 
