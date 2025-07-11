@@ -9,6 +9,8 @@ Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Qu
 
 ## 1. Criação de Tabela Iceberg com CTAS
 
+**Explicação:**
+
 Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usando o storage handler do Iceberg. O comando copia todos os dados da tabela original `transacoes_cartao` para a nova tabela Iceberg, já no formato Iceberg e na versão 2 do formato.
 
 O CTAS é a forma de criar uma tabela usando o padrão `Create Table As Select`.
@@ -24,6 +26,8 @@ AS SELECT * FROM ${databasename}.transacoes_cartao;
 ```
 
 ## 2. Verificação de Metadados das Tabelas
+
+**Explicação:**
 
 Com o comando `DESCRIBE FORMATTED` podemos ver os metadados associados a cada uma das tabelas. 
 Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, particionamento, localização e propriedades do Iceberg. Útil para comparar atributos entre a tabela original e a migrada.
@@ -44,6 +48,8 @@ DESCRIBE FORMATTED ${databasename}.transacoes_cartao_iceberg_ctas_hue;
 
 ## 3. Validação de Registros
 
+**Explicação:**
+
 Conta o número de registros em cada tabela, permitindo validar se a migração copiou todos os dados corretamente.
 
 Tabela transacoes_cartao
@@ -59,6 +65,8 @@ SELECT COUNT(*) FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 ## 4. Validação de Integridade
+
+**Explicação:**
 
 Exibe amostras de dados das duas tabelas para validação manual e compara registros específicos usando filtros.
 
@@ -79,26 +87,29 @@ WHERE id_usuario = ${hivetableid} AND valor = ${hivetablevalor};
 
 ## 5. Validação Cruzada
 
+**Explicação:**
+Compara registros entre as tabelas usando subconjuntos de valores, útil para checagem cruzada de integridade após migração.
+
 ```sql
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10)
 AND valor IN (SELECT valor FROM ${databasename}.transacoes_cartao LIMIT 10);
 ```
 
-**Explicação:**
-Compara registros entre as tabelas usando subconjuntos de valores, útil para checagem cruzada de integridade após migração.
-
 ## 6. Controle de Versão com TAGs
+
+**Explicação:**
+Cria uma tag (marcador de versão) antes de operações críticas, permitindo rastrear e voltar a este ponto posteriormente.
 
 ```sql
 ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_insert;
 ```
 
-**Explicação:**
-Cria uma tag (marcador de versão) antes de operações críticas, permitindo rastrear e voltar a este ponto posteriormente.
-
 ## 7. Inserção de Dados
+
+**Explicação:**
+Insere um novo registro na tabela Iceberg, simulando uma transação de cartão.
 
 ```sql
 INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue
@@ -106,16 +117,13 @@ VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros',
 ```
 
 **Explicação:**
-Insere um novo registro na tabela Iceberg, simulando uma transação de cartão.
+Lista todos os snapshots (versões) da tabela, permitindo auditoria e time travel.
 
 ## 8. Consulta de Histórico (Snapshots)
 
 ```sql
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
 ```
-
-**Explicação:**
-Lista todos os snapshots (versões) da tabela, permitindo auditoria e time travel.
 
 ## 9. Consulta com Snapshot Específico
 
