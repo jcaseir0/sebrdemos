@@ -4,6 +4,8 @@ Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Qu
 
 ## 1. Criação de Tabela Iceberg com CTAS
 
+Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usando o storage handler do Iceberg. O comando copia todos os dados da tabela original `transacoes_cartao` para a nova tabela Iceberg, já no formato Iceberg e na versão 2 do formato.
+
 ```sql
 CREATE EXTERNAL TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 PARTITIONED BY (data_execucao)
@@ -12,10 +14,12 @@ TBLPROPERTIES ('format-version'='2')
 AS SELECT * FROM bancodemo.transacoes_cartao;
 ```
 
-**Explicação:**
-Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usando o storage handler do Iceberg. O comando copia todos os dados da tabela original `transacoes_cartao` para a nova tabela Iceberg, já no formato Iceberg e na versão 2 do formato.
-
 ## 2. Verificação de Metadados das Tabelas
+
+Com o comando `DESCRIBE FORMATTED` podemos ver os metadados associados a cada uma das tabelas. 
+Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, particionamento, localização e propriedades do Iceberg. Útil para comparar atributos entre a tabela original e a migrada.
+
+Perceba a diferança em relação ao tipo da tabela, qual é o parâmetro que foi alterado?
 
 Tabela transacoes_cartao
 
@@ -29,10 +33,9 @@ Tabela transacoes_cartao_iceberg_ctas_hue
 DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
 ```
 
-**Explicação:**
-Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, particionamento, localização e propriedades do Iceberg. Útil para comparar atributos entre a tabela original e a migrada.
-
 ## 3. Validação de Registros
+
+Conta o número de registros em cada tabela, permitindo validar se a migração copiou todos os dados corretamente.
 
 Tabela transacoes_cartao
 
@@ -46,10 +49,11 @@ Tabela transacoes_cartao_iceberg_ctas_hue
 SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue;
 ```
 
-**Explicação:**
-Conta o número de registros em cada tabela, permitindo validar se a migração copiou todos os dados corretamente.
-
 ## 4. Validação de Integridade
+
+Exibe amostras de dados das duas tabelas para validação manual e compara registros específicos usando filtros.
+
+Guarde os valores dos campos `` e `` da primeira consulta, esses valores serão utilizados na consulta da tabela `transacoes_cartao_iceberg_ctas_hue`
 
 Tabela transacoes_cartao
 
@@ -63,9 +67,6 @@ Tabela transacoes_cartao_iceberg_ctas_hue
 SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = ${hivetableid} AND valor = ${hivetablevalor};
 ```
-
-**Explicação:**
-Exibe amostras de dados das duas tabelas para validação manual e compara registros específicos usando filtros.
 
 ## 5. Validação Cruzada
 
