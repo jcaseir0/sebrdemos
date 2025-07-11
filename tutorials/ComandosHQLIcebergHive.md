@@ -62,7 +62,7 @@ SELECT COUNT(*) FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue;
 
 Exibe amostras de dados das duas tabelas para validação manual e compara registros específicos usando filtros.
 
-Guarde os valores dos campos `` e `` da primeira consulta, esses valores serão utilizados na consulta da tabela `transacoes_cartao_iceberg_ctas_hue`
+Guarde os valores dos campos `id_usuario` e `valor` da primeira consulta, esses valores serão utilizados na consulta da tabela `transacoes_cartao_iceberg_ctas_hue`
 
 Tabela transacoes_cartao
 
