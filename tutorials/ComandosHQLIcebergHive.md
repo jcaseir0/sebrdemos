@@ -6,6 +6,8 @@ Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Qu
 
 Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usando o storage handler do Iceberg. O comando copia todos os dados da tabela original `transacoes_cartao` para a nova tabela Iceberg, já no formato Iceberg e na versão 2 do formato.
 
+O CTAS é a forma de criar uma tabela usando o padrão `Create Table As Select`.
+
 ```sql
 CREATE EXTERNAL TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 PARTITIONED BY (data_execucao)
