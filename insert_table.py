@@ -61,9 +61,12 @@ def insert_data(logger: logging.Logger, spark: SparkSession, database_name: str,
     try:
         column_list = ", ".join(columns)
         logger.info(f"Inserting Columns: {column_list}")
+        print("Debug: Sai do try")
 
         if partition_by:
+            print("Debug: Entrei no if do partition by")
             current_date = datetime.now().strftime("%d-%m-%Y")
+            print("Debug: Calculei o current_date:", current_date)
             logger.info(f"Inserting data with partition: {partition_by}='{current_date}'")
             spark.sql(f"""
                 INSERT INTO {database_name}.{table_name}
