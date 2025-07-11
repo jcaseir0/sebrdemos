@@ -150,6 +150,7 @@ Podemos realizar consultas baseadas nas informações de snapshots diferentes, o
 Consulta a tabela como ela estava em um determinado snapshot, útil para auditoria e recuperação de versões anteriores.
 
 Nessa consulta, devemos usar o `snapshot_id`, coluna de resultado da consulta anterior.
+
 Faça um teste usando cada um dos snapshots disponíveis, o que mudou?
 
 ```sql
