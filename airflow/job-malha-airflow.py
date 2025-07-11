@@ -1,8 +1,11 @@
 from airflow import DAG
 from airflow.utils import timezone
+from airflow.operators.dummy_operator import DummyOperator
 from cloudera.cdp.airflow.operators.cde_operator import CDEJobRunOperator
 from datetime import timedelta
 from dateutil import parser
+
+username = "user001" # Enter your username here
 
 dag = DAG(
     dag_id='malha_airflow',
@@ -21,7 +24,7 @@ start = DummyOperator(
 )
 
 create_table = CDEJobRunOperator(
-    job_name='create-table_userXXX',
+    job_name='create-table_'+username,
     depends_on_past=False,
     trigger_rule='all_success',
     task_id='create_table',
@@ -29,7 +32,7 @@ create_table = CDEJobRunOperator(
 )
 
 create_table_validation = CDEJobRunOperator(
-    job_name='create-table-validation_userXXX',
+    job_name='create-table-validation_'+username,
     depends_on_past=True,
     trigger_rule='all_success',
     task_id='create_table_validation',
@@ -37,7 +40,7 @@ create_table_validation = CDEJobRunOperator(
 )
 
 insert_table = CDEJobRunOperator(
-    job_name='insert-table_userXXX',
+    job_name='insert-table_'+username,
     depends_on_past=True,
     trigger_rule='all_success',
     task_id='insert_table',
@@ -45,7 +48,7 @@ insert_table = CDEJobRunOperator(
 )
 
 insert_table_validation = CDEJobRunOperator(
-    job_name='insert-table-validation_userXXX',
+    job_name='insert-table-validation_'+username,
     depends_on_past=True,
     trigger_rule='all_success',
     task_id='insert_table_validation',
