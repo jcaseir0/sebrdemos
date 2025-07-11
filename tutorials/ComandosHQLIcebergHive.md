@@ -3,7 +3,9 @@
 Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Query Language) presente no script fornecido, organizado por tópicos. Cada comando é apresentado em uma caixa de código SQL, seguido de uma explicação clara sobre seu propósito e funcionamento.
 
 > [!WARNING]
-> Será necessário atualizar o nome do banco de dados nas execuções. Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`. 
+> Será necessário atualizar o nome do banco de dados nas execuções. Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
+
+![alt text](../img/create_database.png)
 
 ## 1. Criação de Tabela Iceberg com CTAS
 
