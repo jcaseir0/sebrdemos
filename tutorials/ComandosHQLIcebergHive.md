@@ -241,6 +241,15 @@ Hove alteração no resultado?
 ## 13. Evolução de Esquema (Schema Evolution)
 
 **Explicação:**
+Uma das funcionalidades do Iceberg é a capacidade de modificar o schema das tabelas sem a necessidade de reescrever os dados.
+
+Isso significa que você pode adicionar, remover, renomear ou reordenar colunas, alterar tipos de dados e até mesmo ajustar estratégias de partição sem afetar os dados ou consultas existentes. O Iceberg rastreia alterações de esquema em metadados, garantindo compatibilidade com versões anteriores e futuras.
+
+O Iceberg armazena informações de esquema em metadados, separando-as dos arquivos de dados reais.
+Quando você faz uma alteração de esquema, o Iceberg atualiza os metadados, criando um novo snapshot do schema da tabela.
+Consultas mais antigas continuam a trabalhar com seu esquema original, enquanto consultas mais recentes podem ver o esquema atualizado.
+Essa abordagem evita a reescrita de todo o conjunto de dados para alterações de esquema, tornando o processo rápido e eficiente.
+
 Vamos adicionar uma nova coluna à tabela Iceberg de forma dinâmica, sem recriar a tabela.
 
 ```sql
