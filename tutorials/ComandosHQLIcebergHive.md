@@ -33,13 +33,13 @@ Perceba a diferança em relação ao tipo da tabela, qual é o parâmetro que fo
 Tabela transacoes_cartao
 
 ```sql
-DESCRIBE FORMATTED bancodemo.transacoes_cartao;
+DESCRIBE FORMATTED ${databasename}.transacoes_cartao;
 ```
 
 Tabela transacoes_cartao_iceberg_ctas_hue
 
 ```sql
-DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
+DESCRIBE FORMATTED ${databasename}.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 ## 3. Validação de Registros
@@ -49,13 +49,13 @@ Conta o número de registros em cada tabela, permitindo validar se a migração 
 Tabela transacoes_cartao
 
 ```sql
-SELECT COUNT(*) FROM bancodemo.transacoes_cartao;
+SELECT COUNT(*) FROM ${databasename}.transacoes_cartao;
 ```
 
 Tabela transacoes_cartao_iceberg_ctas_hue
 
 ```sql
-SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue;
+SELECT COUNT(*) FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 ## 4. Validação de Integridade
@@ -67,22 +67,22 @@ Guarde os valores dos campos `` e `` da primeira consulta, esses valores serão 
 Tabela transacoes_cartao
 
 ```sql
-SELECT * FROM bancodemo.transacoes_cartao LIMIT 10;
+SELECT * FROM ${databasename}.transacoes_cartao LIMIT 10;
 ```
 
 Tabela transacoes_cartao_iceberg_ctas_hue
 
 ```sql
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = ${hivetableid} AND valor = ${hivetablevalor};
 ```
 
 ## 5. Validação Cruzada
 
 ```sql
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
-WHERE id_usuario IN (SELECT id_usuario FROM bancodemo.transacoes_cartao LIMIT 10)
-AND valor IN (SELECT valor FROM bancodemo.transacoes_cartao LIMIT 10);
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
+WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10)
+AND valor IN (SELECT valor FROM ${databasename}.transacoes_cartao LIMIT 10);
 ```
 
 **Explicação:**
@@ -91,7 +91,7 @@ Compara registros entre as tabelas usando subconjuntos de valores, útil para ch
 ## 6. Controle de Versão com TAGs
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_insert;
 ```
 
@@ -101,7 +101,7 @@ Cria uma tag (marcador de versão) antes de operações críticas, permitindo ra
 ## 7. Inserção de Dados
 
 ```sql
-INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue
+INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue
 VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros', 'Aprovada', '06-02-2025');
 ```
 
@@ -111,7 +111,7 @@ Insere um novo registro na tabela Iceberg, simulando uma transação de cartão.
 ## 8. Consulta de Histórico (Snapshots)
 
 ```sql
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
 ```
 
 **Explicação:**
@@ -120,7 +120,7 @@ Lista todos os snapshots (versões) da tabela, permitindo auditoria e time trave
 ## 9. Consulta com Snapshot Específico
 
 ```sql
-SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
@@ -131,12 +131,12 @@ Consulta a tabela como ela estava em um determinado snapshot, útil para auditor
 ## 10. Atualização de Dados
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_update;
 ```
 
 ```sql
-UPDATE bancodemo.transacoes_cartao_iceberg_ctas_hue
+UPDATE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 SET valor = 510.99
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
@@ -147,12 +147,12 @@ Marca o estado anterior com uma tag e atualiza o valor de uma transação espec�
 ## 11. Exclusão de Dados
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_delete;
 ```
 
 ```sql
-DELETE FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+DELETE FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = '000000036';
 ```
 
@@ -162,7 +162,7 @@ Cria uma tag antes da exclusão e remove registros de um usuário específico.
 ## 12. Evolução de Esquema (Schema Evolution)
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limite_credito INT);
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limite_credito INT);
 ```
 
 **Explicação:**
@@ -171,10 +171,10 @@ Adiciona uma nova coluna à tabela Iceberg de forma dinâmica, sem recriar a tab
 ## 13. Atualização em Massa com MERGE
 
 ```sql
-MERGE INTO bancodemo.transacoes_cartao_iceberg_ctas_hue AS t
+MERGE INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue AS t
 USING (
   SELECT id_usuario, MAX(limite_credito) AS limite_credito
-  FROM bancodemo.clientes
+  FROM ${databasename}.clientes
   GROUP BY id_usuario
 ) AS c
 ON t.id_usuario = c.id_usuario
@@ -189,7 +189,7 @@ Atualiza a coluna `limite_credito` na tabela Iceberg com valores vindos da tabel
 
 ```sql
 SELECT *
-FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 FOR SYSTEM_TIME AS OF '${system_time}'
 LIMIT 10;
 ```
@@ -200,11 +200,11 @@ Consulta a tabela conforme ela estava em um determinado momento no tempo, usando
 ## 15. Tagging e Rollback
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE TAG tag_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue CREATE TAG tag_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
 ```
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_parent_id});
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_parent_id});
 ```
 
 **Explicação:**
@@ -213,11 +213,11 @@ Cria uma tag para um snapshot específico e faz rollback para um snapshot anteri
 ## 16. Branching (Ramificações)
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH dev_branch;
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH dev_branch;
 ```
 
 ```sql
-INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue.branch_dev_branch VALUES (...);
+INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue.branch_dev_branch VALUES (...);
 ```
 
 **Explicação:**
@@ -226,7 +226,7 @@ Cria uma branch (ramificação) para desenvolvimento isolado, permitindo altera�
 ## 17. Otimização e Compaction
 
 ```sql
-OPTIMIZE TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue;
+OPTIMIZE TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 **Explicação:**
@@ -235,7 +235,7 @@ Compacta arquivos pequenos e reorganiza os dados da tabela para melhorar desempe
 ## 18. Conversão de Tabela para Iceberg
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao CONVERT TO ICEBERG;
+ALTER TABLE ${databasename}.transacoes_cartao CONVERT TO ICEBERG;
 ```
 
 **Explicação:**
@@ -244,11 +244,11 @@ Converte uma tabela Hive tradicional para o formato Iceberg, preservando dados e
 ## 19. Análise de Estatísticas
 
 ```sql
-ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS;
+ANALYZE TABLE ${databasename}.transacoes_cartao COMPUTE STATISTICS;
 ```
 
 ```sql
-ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS FOR COLUMNS;
+ANALYZE TABLE ${databasename}.transacoes_cartao COMPUTE STATISTICS FOR COLUMNS;
 ```
 
 **Explicação:**
@@ -257,7 +257,7 @@ Calcula estatísticas da tabela e das colunas para otimizar o desempenho de cons
 ## 20. Propriedades Avançadas
 
 ```sql
-ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
 ```
 
