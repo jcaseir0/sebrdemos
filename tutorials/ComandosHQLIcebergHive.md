@@ -106,6 +106,12 @@ ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_insert;
 ```
 
+Para validar que a tag foi criada corretamente:
+
+```sql
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
+```
+
 ## 7. Inserção de Dados
 
 **Explicação:**
