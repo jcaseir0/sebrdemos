@@ -2,8 +2,17 @@
 
 Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Query Language) presente no script fornecido, organizado por tópicos. Cada comando é apresentado em uma caixa de código SQL, seguido de uma explicação clara sobre seu propósito e funcionamento.
 
+Para realizar as consultas, vamos utilizar o `Cloudera Data Warehouse`.
+
+![alt text](../img/cdw.png)
+
+Em seguida clique no Hue, do ambiente `hive-vw` que estiver disponivel.
+
+![alt text](../img/hue.png)
+
 > [!WARNING]
-> Será necessário atualizar o nome do banco de dados nas execuções. Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
+> Será necessário usar o nome do banco de dados como parâmetro nas execuções.
+> Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
 
 ![alt text](../img/create_database.png)
 
@@ -162,7 +171,7 @@ WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ## 11. Atualização de Dados
 
 **Explicação:**
-Antes de atualizar os dados, vamos criar uma nova tag e e  seguida realizar um UPDATE nos dados.
+Antes de atualizar os dados, vamos criar uma nova tag e em seguida realizar um UPDATE nos dados.
 
 Criando uma nova tag:
 
@@ -171,7 +180,7 @@ ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_update;
 ```
 
-Validando a tag:
+Validando a tag, perceba que cada tag está associada a um snapshot:
 
 ```sql
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
@@ -185,10 +194,12 @@ SET valor = 510.99
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
 
+Você consegue buscar os dados antes e depois do update? 
+
 ## 12. Exclusão de Dados
 
 **Explicação:**
-Agora vamos criar uma tag antes da exclusão e em seguida remover registros de um usuário específico.
+Agora vamos criar uma tag antes da exclusão e em seguida remover um registro específico.
 
 ```sql
 ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
@@ -207,6 +218,25 @@ Removendo registros:
 DELETE FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = '000000036';
 ```
+
+Agora vamos tentar buscar a linha que foi apagada da tabela. 
+
+```sql
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
+```
+
+Quando executamos essa consulta, ela vai ser executa na versão atual da tabela e não na Tag que criamos.
+Por isso o resultado é que aquela linha foi apagada.
+
+Para buscar em tag especifica, podemos usar a seguinte sintaxe: 
+
+```sql
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.tag_pre_delete
+WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
+```
+
+Hove alteração no resultado? 
 
 ## 13. Evolução de Esquema (Schema Evolution)
 
