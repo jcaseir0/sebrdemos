@@ -112,7 +112,16 @@ Para validar que a tag foi criada corretamente:
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
 ```
 
-## 7. Inserção de Dados
+## 7.  Consulta de Histórico (Snapshots) - Antes do insert
+
+**Explicação:**
+Antes de fazer o insert de dados na tabela, vamos validar como estão os Snapshots dela.
+
+```sql
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
+```
+
+## 8. Inserção de Dados
 
 **Explicação:**
 Insere um novo registro na tabela Iceberg, simulando uma transação de cartão.
@@ -122,16 +131,26 @@ INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue
 VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros', 'Aprovada', '06-02-2025');
 ```
 
-## 8. Consulta de Histórico (Snapshots)
-
+## 9. Consulta de Histórico (Snapshots) - Depois do insert
+ 
 **Explicação:**
 Lista todos os snapshots (versões) da tabela, permitindo auditoria e time travel.
+
+Perceba que um novo Snapshot foi criado depois do processo de insert. 
 
 ```sql
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
 ```
 
-## 9. Consulta com Snapshot Específico
+## 10. Consulta com Snapshot Específico
+
+**Explicação:**
+Podemos realizar consultas baseadas nas informações de snapshots diferentes, ou seja, versões diferentes da tabela.
+
+Consulta a tabela como ela estava em um determinado snapshot, útil para auditoria e recuperação de versões anteriores.
+
+Nessa consulta, devemos usar o `snapshot_id`, coluna de resultado da consulta anterior.
+Faça um teste usando cada um dos snapshots disponíveis, o que mudou?
 
 ```sql
 SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
@@ -139,15 +158,25 @@ FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
 
-**Explicação:**
-Consulta a tabela como ela estava em um determinado snapshot, útil para auditoria e recuperação de versões anteriores.
+## 11. Atualização de Dados
 
-## 10. Atualização de Dados
+**Explicação:**
+Antes de atualizar os dados, vamos criar uma nova tag e e  seguida realizar um UPDATE nos dados.
+
+Criando uma nova tag:
 
 ```sql
 ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_update;
 ```
+
+Validando a tag:
+
+```sql
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
+```
+
+Atualizando os dados:
 
 ```sql
 UPDATE ${databasename}.transacoes_cartao_iceberg_ctas_hue
@@ -155,34 +184,42 @@ SET valor = 510.99
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
 
-**Explicação:**
-Marca o estado anterior com uma tag e atualiza o valor de uma transação específica.
+## 12. Exclusão de Dados
 
-## 11. Exclusão de Dados
+**Explicação:**
+Agora vamos criar uma tag antes da exclusão e em seguida remover registros de um usuário específico.
 
 ```sql
 ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_delete;
 ```
 
+Validando a tag:
+
+```sql
+SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
+```
+
+Removendo registros:
+
 ```sql
 DELETE FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = '000000036';
 ```
 
-**Explicação:**
-Cria uma tag antes da exclusão e remove registros de um usuário específico.
+## 13. Evolução de Esquema (Schema Evolution)
 
-## 12. Evolução de Esquema (Schema Evolution)
+**Explicação:**
+Vamos adicionar uma nova coluna à tabela Iceberg de forma dinâmica, sem recriar a tabela.
 
 ```sql
 ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limite_credito INT);
 ```
 
-**Explicação:**
-Adiciona uma nova coluna à tabela Iceberg de forma dinâmica, sem recriar a tabela.
+## 14. Atualização em Massa com MERGE
 
-## 13. Atualização em Massa com MERGE
+**Explicação:**
+Vamos atualizar a coluna `limite_credito` na tabela Iceberg com valores vindos da tabela de clientes, usando merge (upsert).
 
 ```sql
 MERGE INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue AS t
@@ -196,10 +233,10 @@ WHEN MATCHED THEN
 UPDATE SET limite_credito = COALESCE(c.limite_credito, t.limite_credito);
 ```
 
-**Explicação:**
-Atualiza a coluna `limite_credito` na tabela Iceberg com valores vindos da tabela de clientes, usando merge (upsert).
+## 15. Time Travel por Timestamp
 
-## 14. Time Travel por Timestamp
+**Explicação:**
+Consulta a tabela conforme ela estava em um determinado momento no tempo, usando o recurso de time travel do Iceberg.
 
 ```sql
 SELECT *
@@ -207,9 +244,6 @@ FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
 FOR SYSTEM_TIME AS OF '${system_time}'
 LIMIT 10;
 ```
-
-**Explicação:**
-Consulta a tabela conforme ela estava em um determinado momento no tempo, usando o recurso de time travel do Iceberg.
 
 ## 15. Tagging e Rollback
 
