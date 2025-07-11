@@ -89,28 +89,28 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 
 ## Lab. 2 - Criação dos Jobs para criação dos dados e validação
 
-No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podendo ser de diversos tipos, como Spark, Python, Bash e principalmente Airflow. Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
+No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podendo ser de diversos tipos, como Spark, Python, Bash e principalmente Airflow. 
+Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
 
 ### Criação dos Jobs Spark no CDE
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. **Job de criação das tabelas e dados**
-3. Selecione o tipo **Spark 3.5.1**.
-4. **Name:** nome do job: create-table_userXXX
-5. **Select Application Files:** Repository
-6. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**
-7. Selecione o arquivo **create_table.py** -> **Select File**
-8. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-9. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
-10. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
-   
+3. **Job de criação das tabelas e dados**
+5. Selecione o tipo **Spark 3.5.1**.
+7. **Name:** nome do job: create-table_userXXX
+8. **Select Application Files:** Repository
+9. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**
+10. Selecione o arquivo **create_table.py** -> **Select File**
+11. **Arguments:** Coloque o nome do seu usuário: `userXXX`
+12. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
+13. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
     Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
     - **Executor Cores:** 2
     - **Driver Memory:** 4
     - **Executor Memory:** 4
     - **Manter o resto das configurações padrão**
       
-11. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+14. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
 Vamos criar os outros Jobs necessários para o laboratório.
 
