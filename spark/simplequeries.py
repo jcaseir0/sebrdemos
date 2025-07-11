@@ -73,9 +73,7 @@ gastos_mensais = clientes.join(transacoes, "id_usuario") \
 
 # Show results (first 10 rows for each query)
 print(f"\nNúmero de linhas da tabela clientes: {num_clientes}")
-num_clientes.show(10)
 print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}")
-num_transacoes.show(10)
 print("\nTotal de gastos por cliente:")
 total_gastos.show(10)
 print("Número de transações por cliente:")

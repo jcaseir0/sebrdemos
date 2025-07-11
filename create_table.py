@@ -9,7 +9,7 @@ from common_functions import load_config, gerar_dados, table_exists, validate_hi
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def create_table(logger: logging.Logger, spark, database_name, table_name, config):
+def create_table(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, config: ConfigParser) -> None:
     """
     Create a table in Hive with the specified configuration.
 
@@ -28,7 +28,6 @@ def create_table(logger: logging.Logger, spark, database_name, table_name, confi
         bucketing = config.getboolean(table_name, 'bucketing', fallback=False)
         clustered_by = config.get(table_name, 'clustered_by', fallback=None)
         num_buckets = config.getint(table_name, 'num_buckets', fallback=0)
-        database_name = config['DEFAULT'].get('dbname')
 
         logger.debug(f"Table configuration: partition={partition}, partition_by={partition_by}, bucketing={bucketing}, clustered_by={clustered_by}, num_buckets={num_buckets}")
 
@@ -60,7 +59,7 @@ def create_table(logger: logging.Logger, spark, database_name, table_name, confi
         logger.error(f"Error creating table '{database_name}.{table_name}': {str(e)}")
         raise
 
-def validate_partition_and_bucketing(logger: logging.Logger, config, table_name):
+def validate_partition_and_bucketing(logger: logging.Logger, config: ConfigParser, table_name: str) -> None:
     """
     Validate that a table does not have both partitioning and bucketing enabled.
 
@@ -79,7 +78,7 @@ def validate_partition_and_bucketing(logger: logging.Logger, config, table_name)
         logger.error(f"Error: The '{table_name}' table cannot have partition and bucketing True.")
         sys.exit(1)
 
-def validate_table_creation(logger: logging.Logger, spark, database_name, table_name):
+def validate_table_creation(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> list:
     """
     Validate the creation of all tables in the specified database and provide a summary of their structure and content.
 
@@ -233,31 +232,22 @@ def main():
     logger.info("Starting main function")
 
     config = load_config(logger)
-    # JDBC URL is now passed as a command line argument
-    jdbc_url = sys.argv[1]
-    logger.debug(f"JDBC URL: {jdbc_url}")
-
-    # Extract the server DNS from the JDBC URL to construct the Thrift server URL
-    server_dns = jdbc_url.split('//')[1].split('/')[0]
-    logger.debug(f"Server DNS: {server_dns}")
-    thrift_server = f"thrift://{server_dns}:9083"
-    logger.debug(f"Thrift Server: {thrift_server}")
+    username = sys.argv[1]
+    logger.debug(f"Loading username correctly? Var: {username}")
+    database_name = config['DEFAULT'].get('dbname') + '_' + username
+    logger.debug(f"Database name: {database_name}")
+    tables = config['DEFAULT']['tables'].split(',')
+    base_path = "/app/mount"
 
     spark_conf = SparkConf()
     spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-    spark_conf.set("hive.metastore.uris", thrift_server)
     spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
-    spark_conf.set("spark.sql.hive.hiveserver2.jdbc.url", jdbc_url)
     spark_conf.set("spark.security.credentials.hiveserver2.enabled", "true")
     logger.debug(f"Spark configuration: {spark_conf.getAll()}")
     
     spark = SparkSession.builder.config(conf=spark_conf).appName("CreateTable").enableHiveSupport().getOrCreate()
     
     validate_hive_metastore(logger, spark)
-
-    database_name = config['DEFAULT'].get('dbname')
-    tables = config['DEFAULT']['tables'].split(',')
-    base_path = "/app/mount"
 
     # Remove as tabelas se existirem
     for table_name in tables:
