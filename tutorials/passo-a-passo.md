@@ -129,7 +129,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 #### Job 3 - Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. **Job de criação das tabelas e dados**
+2. 2. **Job de criação das tabelas e dados**
 3. Selecione o tipo **Spark 3.5.1**.
 4. **Name:** nome do job: insert-table_userXXX
 5. **Select Application Files:** Repository
@@ -137,7 +137,6 @@ Vamos criar os outros Jobs necessários para o laboratório.
 7. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 8. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 9. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
-   
     Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
     - **Executor Cores:** 2
     - **Driver Memory:** 4
