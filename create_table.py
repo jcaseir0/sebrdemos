@@ -232,7 +232,7 @@ def main():
     logger.info("Starting main function")
 
     config = load_config(logger)
-    username = sys.argv[1]
+    username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
     logger.debug(f"Loading username correctly? Var: {username}")
     database_name = config['DEFAULT'].get('dbname') + '_' + username
     logger.debug(f"Database name: {database_name}")
