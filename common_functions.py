@@ -139,7 +139,7 @@ def create_iceberg_table_as_select(logger: logging.Logger, spark: SparkSession, 
         logger.error(f"Erro ao criar tabela Iceberg '{iceberg_table}': {str(e)}")
         raise
 
-def create_hive_table_for_miginplace(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> None:
+def create_table_for_miginplace(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> None:
     """
     Cria uma tabela Hive chamada '{table_name}_hive' a partir de um SELECT * FROM {table_name}.
 
@@ -154,7 +154,7 @@ def create_hive_table_for_miginplace(logger: logging.Logger, spark: SparkSession
     Raises:
         Exception: Se ocorrer qualquer erro durante a criação da tabela Hive.
     """
-    hive_table = f"{database_name}.{table_name}_hive"
+    hive_table = f"{database_name}.{table_name}_miginplace"
     source_table = f"{database_name}.{table_name}"
 
     logger.info(f"Criando tabela Hive: {hive_table} a partir de {source_table}")

@@ -25,29 +25,43 @@ logger.debug(f"Loading username correctly? Var: {username}")
 database_name = config['DEFAULT'].get('dbname') + '_' + username
 logger.debug(f"Database name: {database_name}")
 
-# Load tables
-clientes = spark.table(f"{database_name}.clientes")
-transacoes = spark.table(f"{database_name}.transacoes_cartao")
+# Check if the 'iceberg' argument is there
+tableformat_iceberg = len(sys.argv) > 2 and sys.argv[2] == 'iceberg'
+
+# Get tables from config
+tables = config['DEFAULT']['tables'].split(',')
+
+# If sys.argv[2] exists and 'iceberg' value, change the table names
+if tableformat_iceberg:
+    tables = [f"{table.strip()}_miginplace" for table in tables]
+else:
+    tables = [table.strip() for table in tables]
+
+# Carrega as tabelas dinamicamente em variáveis
+for table in tables:
+    # Remove o sufixo para nomear a variável corretamente
+    var_name = table.replace('_miginplace', '') if tableformat_iceberg else table
+    globals()[var_name] = spark.table(f"{database_name}.{table}")
 
 # Exibir amostras das tabelas para verificar os dados
 logger.info("Displaying sample data from tables\n")
 logger.info("Transações")
-transacoes.show(5)
+transacoes_cartao.show(5)
 logger.info("Clientes")
 clientes.show(5)
 
 # Contagem de linhas em cada tabela
 num_clientes = clientes.count()
-num_transacoes = transacoes.count()
+num_transacoes = transacoes_cartao.count()
 
 # 1. Análise de gastos por cliente e categoria, com ranking
 def gastos_por_cliente_categoria():
     # Verificar se as tabelas foram carregadas corretamente
-    if 'id_usuario' not in transacoes.columns or 'categoria' not in transacoes.columns:
+    if 'id_usuario' not in transacoes_cartao.columns or 'categoria' not in transacoes_cartao.columns:
         raise ValueError("As colunas esperadas não estão presentes na tabela transacoes_cartao.")
     
     # Calcular o total de gastos por usuário e categoria
-    gastos_agregados = transacoes.groupBy("id_usuario", "categoria") \
+    gastos_agregados = transacoes_cartao.groupBy("id_usuario", "categoria") \
         .agg(sum("valor").alias("total_gastos"))
     
     # Criar uma janela para o ranking por categoria
@@ -60,16 +74,16 @@ def gastos_por_cliente_categoria():
 
 # 2. Detecção de padrões de gastos anômalos
 def gastos_anomalos():
-    cliente_stats = transacoes.groupBy("id_usuario") \
+    cliente_stats = transacoes_cartao.groupBy("id_usuario") \
         .agg(avg("valor").alias("media_gasto"), stddev("valor").alias("desvio_padrao_gasto"))
     
-    return transacoes.join(cliente_stats, "id_usuario") \
+    return transacoes_cartao.join(cliente_stats, "id_usuario") \
         .join(clientes, "id_usuario") \
-        .filter(transacoes.valor > (cliente_stats.media_gasto + (3 * cliente_stats.desvio_padrao_gasto)))
+        .filter(transacoes_cartao.valor > (cliente_stats.media_gasto + (3 * cliente_stats.desvio_padrao_gasto)))
 
 # 3. Análise de tendências de gastos ao longo do tempo
 def tendencias_gastos():
-    return transacoes.groupBy(date_trunc("month", "data_transacao").alias("mes"), "categoria") \
+    return transacoes_cartao.groupBy(date_trunc("month", "data_transacao").alias("mes"), "categoria") \
         .agg(count("*").alias("num_transacoes"), 
              sum("valor").alias("total_gastos"), 
              avg("valor").alias("media_gasto")) \
@@ -78,7 +92,7 @@ def tendencias_gastos():
 
 # 4. Segmentação de clientes com base em padrões de gastos
 def segmentacao_clientes():
-    cliente_metricas = transacoes.groupBy("id_usuario") \
+    cliente_metricas = transacoes_cartao.groupBy("id_usuario") \
         .agg(
             countDistinct(date_trunc("month", "data_transacao")).alias("meses_ativos"),
             sum("valor").alias("total_gastos"),
@@ -95,7 +109,7 @@ def segmentacao_clientes():
 
 # 5. Análise de correlação entre limite de crédito e gastos
 def correlacao_limite_gastos():
-    gastos_cliente = transacoes.groupBy("id_usuario") \
+    gastos_cliente = transacoes_cartao.groupBy("id_usuario") \
         .agg(sum("valor").alias("total_gastos"), count("*").alias("num_transacoes"))
     
     df_joined = clientes.join(gastos_cliente, "id_usuario") \

@@ -1,10 +1,12 @@
+USE banco_demo_jcaseiro; -- Substituir por _userXXX
+
 -- 1. Análise de gastos por cliente e categoria, com ranking
 WITH gastos_agregados AS (
   SELECT 
     t.id_usuario,
     t.categoria,
     SUM(t.valor) AS total_gastos
-  FROM bancodemo.transacoes_cartao t
+  FROM transacoes_cartao t
   GROUP BY t.id_usuario, t.categoria
 )
 SELECT 
@@ -14,7 +16,7 @@ SELECT
   g.total_gastos,
   RANK() OVER (PARTITION BY g.categoria ORDER BY g.total_gastos DESC) AS ranking_categoria
 FROM gastos_agregados g
-JOIN bancodemo.clientes c ON g.id_usuario = c.id_usuario;
+JOIN clientes c ON g.id_usuario = c.id_usuario;
 
 -- 2. Detecção de padrões de gastos anômalos
 WITH cliente_stats AS (
@@ -22,7 +24,7 @@ WITH cliente_stats AS (
     id_usuario,
     AVG(valor) AS media_gasto,
     STDDEV_POP(valor) AS desvio_padrao_gasto
-  FROM bancodemo.transacoes_cartao
+  FROM transacoes_cartao
   GROUP BY id_usuario
 )
 SELECT 
@@ -30,9 +32,9 @@ SELECT
   c.nome,
   s.media_gasto,
   s.desvio_padrao_gasto
-FROM bancodemo.transacoes_cartao t
+FROM transacoes_cartao t
 JOIN cliente_stats s ON t.id_usuario = s.id_usuario
-JOIN bancodemo.clientes c ON t.id_usuario = c.id_usuario
+JOIN clientes c ON t.id_usuario = c.id_usuario
 WHERE t.valor > (s.media_gasto + (3 * s.desvio_padrao_gasto));
 
 -- 3. Análise de tendências de gastos ao longo do tempo
@@ -44,7 +46,7 @@ SELECT
   AVG(valor) AS media_gasto,
   LEAD(AVG(valor), 1) OVER (PARTITION BY categoria ORDER BY DATE_FORMAT(data_transacao, 'yyyy-MM')) AS media_gasto_proximo_mes,
   ((LEAD(AVG(valor), 1) OVER (PARTITION BY categoria ORDER BY DATE_FORMAT(data_transacao, 'yyyy-MM')) - AVG(valor)) / AVG(valor)) * 100 AS variacao_percentual
-FROM bancodemo.transacoes_cartao
+FROM transacoes_cartao
 GROUP BY DATE_FORMAT(data_transacao, 'yyyy-MM'), categoria;
 
 -- 4. Segmentação de clientes
@@ -55,7 +57,7 @@ WITH cliente_metricas AS (
     SUM(t.valor) AS total_gastos,
     AVG(t.valor) AS media_gasto_por_transacao,
     COUNT(*) AS num_transacoes
-  FROM bancodemo.transacoes_cartao t
+  FROM transacoes_cartao t
   GROUP BY t.id_usuario
 )
 SELECT 
@@ -71,7 +73,7 @@ SELECT
     ELSE 'Inativo'
   END AS segmento_cliente
 FROM cliente_metricas m
-JOIN bancodemo.clientes c ON m.id_usuario = c.id_usuario;
+JOIN clientes c ON m.id_usuario = c.id_usuario;
 
 -- 5. Análise de correlação entre limite de crédito e gastos
 WITH dados_correlacao AS (

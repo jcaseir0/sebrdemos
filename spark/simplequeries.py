@@ -23,22 +23,36 @@ logger.debug(f"Loading username correctly? Var: {username}")
 database_name = config['DEFAULT'].get('dbname') + '_' + username
 logger.debug(f"Database name: {database_name}")
 
-# Load tables
-clientes = spark.table(f"{database_name}.clientes")
-transacoes = spark.table(f"{database_name}.transacoes_cartao")
+# Check if the 'iceberg' argument is there
+tableformat_iceberg = len(sys.argv) > 2 and sys.argv[2] == 'iceberg'
+
+# Get tables from config
+tables = config['DEFAULT']['tables'].split(',')
+
+# If sys.argv[2] exists and 'iceberg' value, change the table names
+if tableformat_iceberg:
+    tables = [f"{table.strip()}_miginplace" for table in tables]
+else:
+    tables = [table.strip() for table in tables]
+
+# Carrega as tabelas dinamicamente em variáveis
+for table in tables:
+    # Remove o sufixo para nomear a variável corretamente
+    var_name = table.replace('_miginplace', '') if tableformat_iceberg else table
+    globals()[var_name] = spark.table(f"{database_name}.{table}")
 
 # Contagem de linhas em cada tabela
 num_clientes = clientes.count()
-num_transacoes = transacoes.count()
+num_transacoes = transacoes_cartao.count()
 
 # 1. Total de gastos por cliente
-total_gastos = clientes.join(transacoes, "id_usuario") \
+total_gastos = clientes.join(transacoes_cartao, "id_usuario") \
     .groupBy("id_usuario", "nome") \
     .agg(sum("valor").alias("total_gastos")) \
     .orderBy("total_gastos", ascending=False)
 
 # 2. Número de transações por cliente
-num_transacoes = clientes.join(transacoes, "id_usuario") \
+num_transacoes = clientes.join(transacoes_cartao, "id_usuario") \
     .groupBy("id_usuario", "nome") \
     .agg(count("*").alias("total_transacoes")) \
     .orderBy("total_transacoes", ascending=False)
@@ -50,41 +64,41 @@ media_gastos = clientes.join(transacoes, "id_usuario") \
     .orderBy("media_gastos", ascending=False)
 
 # 4. Clientes com maior valor de transação única
-maior_transacao = clientes.join(transacoes, "id_usuario") \
+maior_transacao = clientes.join(transacoes_cartao, "id_usuario") \
     .groupBy("id_usuario", "nome") \
     .agg(max("valor").alias("maior_transacao")) \
     .orderBy("maior_transacao", ascending=False) \
     .limit(10)
 
 # 5. Total de gastos por categoria
-gastos_categoria = transacoes.groupBy("categoria") \
+gastos_categoria = transacoes_cartao.groupBy("categoria") \
     .agg(sum("valor").alias("total_gastos")) \
     .orderBy("total_gastos", ascending=False)
 
 # 6. Número de transações por status
-transacoes_status = transacoes.groupBy("status") \
+transacoes_status = transacoes_cartao.groupBy("status") \
     .agg(count("*").alias("total_transacoes")) \
     .orderBy("total_transacoes", ascending=False)
 
 # 7. Clientes com transações na categoria "Alimentação"
-clientes_alimentacao = clientes.join(transacoes, "id_usuario") \
-    .filter(transacoes.categoria == "Alimentação") \
+clientes_alimentacao = clientes.join(transacoes_cartao, "id_usuario") \
+    .filter(transacoes_cartao.categoria == "Alimentação") \
     .select("id_usuario", "nome").distinct()
 
 # 8. Total de gastos por cliente na categoria "Transporte"
-gastos_transporte = clientes.join(transacoes, "id_usuario") \
-    .filter(transacoes.categoria == "Transporte") \
+gastos_transporte = clientes.join(transacoes_cartao, "id_usuario") \
+    .filter(transacoes_cartao.categoria == "Transporte") \
     .groupBy("id_usuario", "nome") \
     .agg(sum("valor").alias("total_gastos_transporte")) \
     .orderBy("total_gastos_transporte", ascending=False)
 
 # 9. Clientes com transações negadas
-clientes_negados = clientes.join(transacoes, "id_usuario") \
-    .filter(transacoes.status == "Negada") \
+clientes_negados = clientes.join(transacoes_cartao, "id_usuario") \
+    .filter(transacoes_cartao.status == "Negada") \
     .select("id_usuario", "nome").distinct()
 
 # 10. Total de gastos mensais por cliente
-gastos_mensais = clientes.join(transacoes, "id_usuario") \
+gastos_mensais = clientes.join(transacoes_cartao, "id_usuario") \
     .withColumn("mes", date_format("data_transacao", "yyyy-MM")) \
     .groupBy("id_usuario", "nome", "mes") \
     .agg(sum("valor").alias("total_gastos")) \
