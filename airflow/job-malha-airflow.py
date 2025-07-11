@@ -15,6 +15,11 @@ dag = DAG(
     },
 )
 
+start = DummyOperator(
+        task_id="start",
+        dag=dag
+)
+
 create_table = CDEJobRunOperator(
     job_name='create-table_userXXX',
     depends_on_past=False,
@@ -47,6 +52,9 @@ insert_table_validation = CDEJobRunOperator(
     dag=dag,
 )
 
-create_table_validation << [create_table]
-insert_table << [create_table_validation]
-insert_table_validation << [insert_table]
+end = DummyOperator(
+        task_id="end",
+        dag=dag
+)
+
+start >> create_table >> create_table_validation >> insert_table >> insert_table_validation >> end
