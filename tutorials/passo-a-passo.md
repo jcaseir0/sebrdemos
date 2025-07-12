@@ -59,6 +59,26 @@ Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de p
 
 Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o repositório https://github.com/jcaseir0/sebrdemos.git na branch main.
 
+## Laboratórios:
+
+- [Demonstração: Implantação da Migração Iceberg no Cloudera Data Engineering (CDE)](#demonstração-implantação-da-migração-iceberg-no-cloudera-data-engineering-cde)
+  - [Requisitos](#requisitos)
+  - [Funcionalidades das aplicações python e arquivos complementares](#funcionalidades-das-aplicações-python-e-arquivos-complementares)
+  - [Parametrizações na criação das tabelas](#parametrizações-na-criação-das-tabelas)
+  - [Criação do recurso Python e do repositório](#criação-do-recurso-python-e-do-repositório)
+  - [Laboratórios:](#laboratórios)
+  - [Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github](#lab-1---preparação-do-ambiente-virtual-python-e-configuração-do-repositório-no-github)
+    - [Criação do recurso de ambiente virtual Python](#criação-do-recurso-de-ambiente-virtual-python)
+    - [Criação do repositório do Git](#criação-do-repositório-do-git)
+  - [Lab. 2 - Criação dos Jobs para criação dos dados e validação](#lab-2---criação-dos-jobs-para-criação-dos-dados-e-validação)
+    - [Criação dos Jobs Spark no CDE](#criação-dos-jobs-spark-no-cde)
+  - [Lab. 3 - Criação dos Jobs Airflow e agendado no CDE](#lab-3---criação-dos-jobs-airflow-e-agendado-no-cde)
+    - [Criação do job Airflow a partir de uma aplicação Python](#criação-do-job-airflow-a-partir-de-uma-aplicação-python)
+  - [Lab. 4 - Monitorando o job do airflow através do Airflow UI](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui)
+  - [Lab. 5 - Migração das tabelas para o formato de tabelas Iceberg](#lab-5---migração-das-tabelas-para-o-formato-de-tabelas-iceberg)
+    - [Criação do job airflow a partir do editor para criação da DAG](#criação-do-job-airflow-a-partir-do-editor-para-criação-da-dag)
+  - [Para finalizar, clique em **Run** e acompanhe a execução no menu **Job Status** e através do **Airflow UI**.](#para-finalizar-clique-em-run-e-acompanhe-a-execução-no-menu-job-status-e-através-do-airflow-ui)
+
 ## Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github
 
 ### Criação do recurso de ambiente virtual Python
@@ -240,12 +260,30 @@ Seguir os passos acima para a criação de mais objetos alterando apenas os iten
 
 **Execução de consultas na tabela migrada**
 1. Mesmo que o informado anteriormente, mas coloque à frente do CDE job recentemente criado
-3. **Primeiro Campo:** Migration Validation
+3. **Primeiro Campo:** Simple Migration Validation
 4. **Select job:** **userXXX_create-table-validation**
 5. Em **Variables**, **Name:** tableformat e **Value:** iceberg
 6. Na aba **Advanced**, selecione a opção **Depends on past**
 7. Por fim, passe o mouse em cima do primeiro **CDE job**, aparecerá pontos nas laterais e em cima, irá aparecer um símbolo de mais, então clique, segure e ligue no próximo CDE job.
 
+**Nova ingestão com o mesmo script anterior**
+1. Instrução identica ao passo 1 anterior
+3. **Primeiro Campo:** Data Ingestion
+4. **Select job:** **userXXX_insert-table**
+5. Na aba **Advanced**, selecione a opção **Depends on past**
+6. Por fim, passe o mouse em cima do primeiro **CDE job**, aparecerá pontos nas laterais e em cima, irá aparecer um símbolo de mais, então clique, segure e ligue no próximo CDE job.
+
+**Execução de consultas após ingestão na tabela Iceberg**
+1. Instrução identica ao passo 1 anterior
+3. **Primeiro Campo:** Complex Migration Validation
+4. **Select job:** **userXXX_insert-table-validation**
+5. Em **Variables**, **Name:** tableformat e **Value:** iceberg
+6. Na aba **Advanced**, selecione a opção **Depends on past**
+7. Por fim, passe o mouse em cima do primeiro **CDE job**, aparecerá pontos nas laterais e em cima, irá aparecer um símbolo de mais, então clique, segure e ligue no próximo CDE job.
+
+Depois da criação de toda a malha, clicar em **Save**. Abrirá uma notificação de **Saving to job...** e ao finalizar o aviso de **Pipeline saved to job**
+
+Para finalizar, clique em **Run** e acompanhe a execução no menu **Job Status** e através do [**Airflow UI**](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui).
 ---
 
 > Para detalhes completos das aplicações python e exemplos de uso, consulte o repositório e utilize os arquivos conforme o fluxo descrito acima.
