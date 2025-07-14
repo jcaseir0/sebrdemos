@@ -97,6 +97,7 @@ WHERE id_usuario = ${hivetableid} AND valor = ${hivetablevalor};
 ## 5. Validação Cruzada
 
 **Explicação:**
+
 Compara registros entre as tabelas usando subconjuntos de valores, útil para checagem cruzada de integridade após migração.
 
 ```sql
@@ -108,6 +109,7 @@ AND valor IN (SELECT valor FROM ${databasename}.transacoes_cartao LIMIT 10);
 ## 6. Controle de Versão com TAGs
 
 **Explicação:**
+
 Cria uma tag (marcador de versão) antes de operações críticas, permitindo rastrear e voltar a este ponto posteriormente.
 
 ```sql
@@ -124,6 +126,7 @@ SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
 ## 7.  Consulta de Histórico (Snapshots) - Antes do insert
 
 **Explicação:**
+
 Antes de fazer o insert de dados na tabela, vamos validar como estão os Snapshots dela.
 
 ```sql
@@ -133,6 +136,7 @@ SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
 ## 8. Inserção de Dados
 
 **Explicação:**
+
 Insere um novo registro na tabela Iceberg, simulando uma transação de cartão.
 
 ```sql
@@ -143,6 +147,7 @@ VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros',
 ## 9. Consulta de Histórico (Snapshots) - Depois do insert
  
 **Explicação:**
+
 Lista todos os snapshots (versões) da tabela, permitindo auditoria e time travel.
 
 Perceba que um novo Snapshot foi criado depois do processo de insert. 
@@ -154,6 +159,7 @@ SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
 ## 10. Consulta com Snapshot Específico
 
 **Explicação:**
+
 Podemos realizar consultas baseadas nas informações de snapshots diferentes, ou seja, versões diferentes da tabela.
 
 Consulta a tabela como ela estava em um determinado snapshot, útil para auditoria e recuperação de versões anteriores.
@@ -171,6 +177,7 @@ WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ## 11. Atualização de Dados
 
 **Explicação:**
+
 Antes de atualizar os dados, vamos criar uma nova tag e em seguida realizar um UPDATE nos dados.
 
 Criando uma nova tag:
@@ -199,6 +206,7 @@ Você consegue buscar os dados antes e depois do update?
 ## 12. Exclusão de Dados
 
 **Explicação:**
+
 Agora vamos criar uma tag antes da exclusão e em seguida remover um registro específico.
 
 ```sql
@@ -259,6 +267,7 @@ ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limi
 ## 14. Atualização em Massa com MERGE
 
 **Explicação:**
+
 Vamos atualizar a coluna `limite_credito`, que acabamos de criar, na tabela Iceberg com valores vindos da tabela de clientes, usando merge (upsert).
 
 ```sql
@@ -276,6 +285,7 @@ UPDATE SET limite_credito = COALESCE(c.limite_credito, t.limite_credito);
 ## 15. Time Travel por Timestamp
 
 **Explicação:**
+
 Outra funcionalidade marcante do Iceberg é o `Time Travel`, que pergmite que consultas sejam feitas olhando momentos passados da tabela.
 
 Vamos realizar uma consulta a tabela como ela estava em um determinado momento no tempo, usando o recurso de time travel do Iceberg, mas antes disso, precisamos coletar um timestamp para ser usado como filtro. 
@@ -318,6 +328,7 @@ Para qual valor de `current_at` temos resultado para essa consulta?
 ## 16. Tagging e Rollback
 
 **Explicação:**
+
 Vamos criar uma tag para um snapshot específico e fazer o rollback para um snapshot anterior, revertendo alterações.
 
 Vamos listar as tags atuais:
@@ -378,9 +389,10 @@ WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 Houve alguma diferença no resultado? Sabe dizer o motivo?
 
 
-## 16. Branching (Ramificações)
+## 17. Branching (Ramificações)
 
 **Explicação:**
+
 Outra forma de criar versões paralelas de uma mesma tabela é criando branches para elas.
 
 Vamos criar uma branch (ramificação) para desenvolvimento isolado, permitindo alterações sem afetar a branch principal.
@@ -423,6 +435,7 @@ Houve diferença no resultado?
 ## 18. Conversão de Tabela para Iceberg
 
 **Explicação:**
+
 Converte uma tabela Hive tradicional para o formato Iceberg, preservando dados e metadados.
 
 ```sql
@@ -446,6 +459,7 @@ OPTIMIZE TABLE transacoes_cartao_iceberg_ctas_hue REWRITE DATA;
 ## 20. Análise de Estatísticas
 
 **Explicação:**
+
 Calcula estatísticas da tabela e das colunas para otimizar o desempenho de consultas.
 
 ```sql
@@ -455,6 +469,7 @@ ANALYZE TABLE ${databasename}.transacoes_cartao COMPUTE STATISTICS;
 ## 21. Propriedades Avançadas
 
 **Explicação:**
+
 Define propriedades avançadas, como formato padrão de escrita (Parquet) e número máximo de versões de metadados a serem mantidas.
 
 ```sql
@@ -471,6 +486,3 @@ SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-ver
 Se precisar de exemplos práticos ou dúvidas sobre algum comando específico, peça detalhes!
 
 <div style="text-align: center">⁂</div>
-
-[^1]: iceberg_hue_hive.hql
-
