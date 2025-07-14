@@ -66,7 +66,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 1. Baixar o arquivo **[requirements.txt](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/requirements.txt)** local para seu desktop;
 2. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
 
-![alt text](../../img/cde.png)
+![alt text](../img/cde.png)
    
 3. Clicar em **Resources**, no menu da coluna à esquerda e na nova página, clicar no botão **Create a Resource** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 4. Na janela aberta, preencher os campos:
