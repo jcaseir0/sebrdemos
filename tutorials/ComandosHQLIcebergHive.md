@@ -429,7 +429,21 @@ Converte uma tabela Hive tradicional para o formato Iceberg, preservando dados e
 ALTER TABLE ${databasename}.transacoes_cartao CONVERT TO ICEBERG;
 ```
 
-## 19. Análise de Estatísticas
+## 19. Otimização e Compactação 
+
+**Explicação:**
+
+Uma funcionalidade presente no Impala é a de OPTIMIZE que reorganiza e compacta os arquivos da tabela para melhorar desempenho e eficiência no acesso aos dados.
+
+Este processo ajuda a lidar com a degradação do desempenho causada por arquivos de dados fragmentados que se acumulam ao longo do tempo devido a atualizações e exclusões frequentes.
+
+A instrução OPTIMIZE TABLE aciona um processo chamado compactação, que essencialmente reescreve os dados da tabela para combinar arquivos pequenos em arquivos maiores e mais eficientes (geralmente com mais de 100 MB). Ela também mescla arquivos excluídos com os arquivos de dados correspondentes.
+
+```sql
+OPTIMIZE TABLE transacoes_cartao_iceberg_ctas_hue REWRITE DATA;
+```
+
+## 20. Análise de Estatísticas
 
 **Explicação:**
 Calcula estatísticas da tabela e das colunas para otimizar o desempenho de consultas.
@@ -438,7 +452,7 @@ Calcula estatísticas da tabela e das colunas para otimizar o desempenho de cons
 ANALYZE TABLE ${databasename}.transacoes_cartao COMPUTE STATISTICS;
 ```
 
-## 20. Propriedades Avançadas
+## 21. Propriedades Avançadas
 
 **Explicação:**
 Define propriedades avançadas, como formato padrão de escrita (Parquet) e número máximo de versões de metadados a serem mantidas.
@@ -447,7 +461,6 @@ Define propriedades avançadas, como formato padrão de escrita (Parquet) e núm
 ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
 SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
 ```
-
 
 ### Observações Finais
 
