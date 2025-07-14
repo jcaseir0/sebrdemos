@@ -212,6 +212,13 @@ Agora vamos criar o job do Airflow:
 5. Clique em **Upload** e depois em **Select a file**, selecione o arquivo `job-malha-airflow_userXXX.py`.
 6. Na oção **Select a Resource** escolha **Create a Resource**, dê um nome para ele `job-malha-airflow_userXXX` e clique em Upload.
 7. Agora clique na seta azul e selecione Create.
+8. Uma vez que o job do Airflow foi criado, volte a lista de **Jobs**, clicando na esquerda. Localize o `job-malha-airflow_userXXX` na lista, clique nos três pontos, no final da tela a direita, e então em **Run Now**.
+
+O job do Airflow vai coordenar a execução dos outros 4 jobs na sequeência correta, você pode acompanhar a execução pela interface do Airflow, pode olhar os logs para entender o que está acontencedo. 
+
+A execução desses jobs é fundamental para execução desse Hands-On-Lab, esses jobs que vão criar as tabelas e os dados utilizados nos próximos tutoriais.
+
+Uma vez que todos os jobs executaram com sucesso, vamos voltar aos Labs do Hive **[Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/tutorials/ComandosHQLIcebergHive.md) 
 
 ---
 
