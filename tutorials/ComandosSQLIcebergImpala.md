@@ -129,7 +129,7 @@ DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue;
 Agora vamos explorar os recursos do snapshot e vamos consultar a tabela conforme o estado em um snapshot específico, permitindo auditoria de versões anteriores dos dados.
 
 Vamos alterar o valor do campo `${snapshot_id_insert}` na consulta. Na primeira execução, utilize o valor de `snapshot_id` cujo `parent_id` seja nulo.
-Na segunda execução, utiliza o valor do último `creation_time`. 
+Na segunda execução, utilize o maior valor do `creation_time`, ou seja, o snapshot mais recente. 
 
 Qual a diferença? 
 
