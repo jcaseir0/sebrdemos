@@ -218,7 +218,7 @@ O job do Airflow vai coordenar a execução dos outros 4 jobs na sequeência cor
 
 A execução desses jobs é fundamental para execução desse Hands-On-Lab, esses jobs que vão criar as tabelas e os dados utilizados nos próximos tutoriais.
 
-Uma vez que todos os jobs executaram com sucesso, vamos voltar aos Labs do Hive **[Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/tutorials/ComandosHQLIcebergHive.md) 
+Uma vez que todos os jobs executaram com sucesso, vamos inciar os Labs do Hive [Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/tutorials/ComandosHQLIcebergHive.md) 
 
 ---
 
