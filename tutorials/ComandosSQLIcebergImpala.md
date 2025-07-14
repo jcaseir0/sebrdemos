@@ -38,11 +38,11 @@ DESCRIBE FORMATTED ${databasename}.clientes;
 Conta o número de registros em cada tabela para validar se a migração copiou todos os dados corretamente.
 
 ```sql
-SELECT COUNT(*) FROM ${databasename}..clientes;
+SELECT COUNT(*) FROM ${databasename}.clientes;
 ```
 
 ```sql
-SELECT COUNT(*) FROM ${databasename}..clientes_iceberg_ctas_hue_impala;
+SELECT COUNT(*) FROM ${databasename}.clientes_iceberg_ctas_hue_impala;
 ```
 
 ## 4. Validação de Integridade dos Dados
@@ -51,12 +51,12 @@ SELECT COUNT(*) FROM ${databasename}..clientes_iceberg_ctas_hue_impala;
 Seleciona e compara registros específicos em ambas as tabelas para garantir a integridade dos dados após a migração.
 
 ```sql
-SELECT * FROM ${databasename}..clientes
+SELECT * FROM ${databasename}.clientes
 WHERE id_usuario IN ('896797859', '284689128', '103946766', '648027188', '187525572', '909350817', '091759804', '687691239', '951031954', '810429067');
 ```
 
 ```sql
-SELECT * FROM ${databasename}..clientes_iceberg_ctas_hue_impala
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue_impala
 WHERE id_usuario IN ('896797859', '284689128', '103946766', '648027188', '187525572', '909350817', '091759804', '687691239', '951031954', '810429067')
 ORDER BY 2;
 ```
@@ -67,7 +67,7 @@ ORDER BY 2;
 Lista todas as partições existentes na tabela Iceberg, útil para verificar o particionamento após a migração.
 
 ```sql
-SHOW PARTITIONS ${databasename}..clientes_iceberg_ctas_hue_impala;
+SHOW PARTITIONS ${databasename}.clientes_iceberg_ctas_hue_impala;
 ```
 
 
@@ -77,8 +77,8 @@ SHOW PARTITIONS ${databasename}..clientes_iceberg_ctas_hue_impala;
 Exibe o histórico de snapshots (versões) da tabela Iceberg, permitindo auditoria e análise de alterações nos últimos dias.
 
 ```sql
-DESCRIBE HISTORY ${databasename}..clientes_iceberg_ctas_hue_impala;
-DESCRIBE HISTORY ${databasename}..clientes_iceberg_ctas_hue_impala FROM now() - interval 5 days;
+DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue_impala;
+DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue_impala FROM now() - interval 5 days;
 ```
 
 ## 7. Inserção de Dados
@@ -87,7 +87,7 @@ DESCRIBE HISTORY ${databasename}..clientes_iceberg_ctas_hue_impala FROM now() - 
 Insere um novo registro na tabela Iceberg, simulando a inclusão de um cliente.
 
 ```sql
-INSERT INTO ${databasename}..clientes_iceberg_ctas_hue_impala
+INSERT INTO ${databasename}.clientes_iceberg_ctas_hue_impala
 VALUES ('000000035', 'João Silva', 'joao@email.com', '1990-01-01', 'Rua A, 123', 5000, '1234-5678-9012-3456', 'SP');
 ```
 
@@ -97,7 +97,7 @@ VALUES ('000000035', 'João Silva', 'joao@email.com', '1990-01-01', 'Rua A, 123'
 Consulta a tabela conforme o estado em um snapshot específico, permitindo auditoria de versões anteriores dos dados.
 
 ```sql
-SELECT * FROM ${databasename}..clientes_iceberg_ctas_hue_impala
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue_impala
 FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000035' AND nome = 'João Silva';
 ```
@@ -108,7 +108,7 @@ WHERE id_usuario = '000000035' AND nome = 'João Silva';
 Permite consultar os dados conforme estavam em um momento específico no tempo, utilizando o recurso de time travel do Iceberg.
 
 ```sql
-SELECT * FROM ${databasename}..clientes_iceberg_ctas_hue_impala
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue_impala
 FOR SYSTEM_TIME AS OF ${system_time}
 WHERE id_usuario = '000000035' AND nome = 'João Silva';
 ```
@@ -119,7 +119,7 @@ WHERE id_usuario = '000000035' AND nome = 'João Silva';
 Reverte a tabela para um snapshot anterior, desfazendo alterações e restaurando o estado anterior dos dados.
 
 ```sql
-ALTER TABLE ${databasename}..clientes_iceberg_ctas_hue_impala EXECUTE ROLLBACK(${snapshot_parent_id});
+ALTER TABLE ${databasename}.clientes_iceberg_ctas_hue_impala EXECUTE ROLLBACK(${snapshot_parent_id});
 ```
 
 ## 11. Propriedades Avançadas
@@ -128,7 +128,7 @@ ALTER TABLE ${databasename}..clientes_iceberg_ctas_hue_impala EXECUTE ROLLBACK($
 Define propriedades avançadas, como o formato padrão de escrita (Parquet) e o número máximo de versões antigas de metadados a serem mantidas.
 
 ```sql
-ALTER TABLE ${databasename}..clientes_iceberg_ctas_hue_impala
+ALTER TABLE ${databasename}.clientes_iceberg_ctas_hue_impala
 SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
 ```
 
@@ -138,11 +138,11 @@ SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-ver
 Adiciona ou remove colunas na tabela Iceberg de forma dinâmica, sem necessidade de recriação da tabela.
 
 ```sql
-ALTER TABLE ${databasename}..clientes_iceberg_ctas_hue_impala ADD COLUMNS (score FLOAT);
+ALTER TABLE ${databasename}.clientes_iceberg_ctas_hue_impala ADD COLUMNS (score FLOAT);
 ```
 
 ```sql
-ALTER TABLE ${databasename}..clientes_iceberg_ctas_hue_impala DROP COLUMN score;
+ALTER TABLE ${databasename}.clientes_iceberg_ctas_hue_impala DROP COLUMN score;
 ```
 
 ## 13. Otimização e Compaction
@@ -151,7 +151,7 @@ ALTER TABLE ${databasename}..clientes_iceberg_ctas_hue_impala DROP COLUMN score;
 Reorganiza e compacta os arquivos da tabela para melhorar desempenho e eficiência no acesso aos dados.
 
 ```sql
-OPTIMIZE TABLE ${databasename}..clientes_iceberg_ctas_hue_impala;
+OPTIMIZE TABLE ${databasename}.clientes_iceberg_ctas_hue_impala;
 ```
 
 ## 14. Conversão de Tabela para Iceberg
@@ -160,11 +160,11 @@ OPTIMIZE TABLE ${databasename}..clientes_iceberg_ctas_hue_impala;
 Converte uma tabela tradicional para o formato Iceberg, preservando dados e metadados, e define a versão do formato.
 
 ```sql
-ALTER TABLE ${databasename}..clientes CONVERT TO ICEBERG;
+ALTER TABLE ${databasename}.clientes CONVERT TO ICEBERG;
 ```
 
 ```sql
-ALTER TABLE ${databasename}..clientes SET TBLPROPERTIES('format-version'='2');
+ALTER TABLE ${databasename}.clientes SET TBLPROPERTIES('format-version'='2');
 ```
 
 ## 15. Consulta de Validação
@@ -173,7 +173,7 @@ ALTER TABLE ${databasename}..clientes SET TBLPROPERTIES('format-version'='2');
 Verifica a existência de um registro específico na tabela Iceberg, útil após inserções ou rollbacks.
 
 ```sql
-SELECT * FROM ${databasename}..clientes_iceberg_ctas_hue_impala
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue_impala
 WHERE id_usuario = '000000002' AND nome = 'Leonardo Gardom';
 ```
 
@@ -183,7 +183,7 @@ WHERE id_usuario = '000000002' AND nome = 'Leonardo Gardom';
 Insere manualmente um registro para validação de operações de rollback e auditoria.
 
 ```sql
-INSERT INTO ${databasename}..clientes_iceberg_ctas_hue_impala
+INSERT INTO ${databasename}.clientes_iceberg_ctas_hue_impala
 VALUES ('000000002', 'Leonardo Gardom', 'lgardom@email.com', '1990-01-01', 'Rua C, 127', 7000, '4321-8765-2109-6543', 'AM');
 ```
 
@@ -193,7 +193,7 @@ VALUES ('000000002', 'Leonardo Gardom', 'lgardom@email.com', '1990-01-01', 'Rua 
 Retorna uma amostra dos dados da tabela, útil para validação visual e conferência rápida.
 
 ```sql
-SELECT * FROM ${databasename}..clientes_iceberg_ctas_hue_impala LIMIT 10;
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue_impala LIMIT 10;
 ```
 
 ## 18. Consulta com Filtro Avançado
