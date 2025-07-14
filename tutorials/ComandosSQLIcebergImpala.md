@@ -1,4 +1,4 @@
-# # Passo a passo HQL das funcionalidades do Iceberg no Impala
+# Passo a passo HQL das funcionalidades do Iceberg no Impala
 
 Este documento detalha cada comando SQL utilizado no script para operações com Iceberg no Impala, apresentando explicações claras e exemplos SQL.
 
