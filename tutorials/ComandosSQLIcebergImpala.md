@@ -4,6 +4,21 @@ Este documento detalha cada comando SQL utilizado no script para operações com
 
 A demonstração pode ser feita tanto no HUE, editor SQL da Cloudera, em Data Hubs de Data Mart ou no Cloudera Data Warehouse com Impala.
 
+Para realizar as consultas, vamos utilizar o `Cloudera Data Warehouse`.
+
+![alt text](../img/cdw.png)
+
+Em seguida clique no Hue, do ambiente `impala-vw` que estiver disponivel.
+
+![alt text](../img/hue.png)
+
+> [!WARNING]
+> Será necessário usar o nome do banco de dados como parâmetro nas execuções.
+> Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
+
+![alt text](../img/create_database.png)
+
+
 ## 1. Criação de Tabela Iceberg com CTAS (Create Table As Select)
 
 **Explicação:**
