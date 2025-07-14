@@ -274,5 +274,3 @@ ALTER TABLE ${databasename}.clientes SET TBLPROPERTIES('format-version'='2');
 
 - Os comandos apresentados são compatíveis com Impala e Iceberg, aproveitando recursos de versionamento, time travel, rollback, evolução de esquema e otimização.
 - O uso de snapshots e propriedades avançadas garante governança, rastreabilidade e eficiência no ambiente analítico.
-
-<div style="text-align: center">⁂</div>
