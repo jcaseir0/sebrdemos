@@ -78,7 +78,6 @@ Exibe o histórico de snapshots (versões) da tabela Iceberg, permitindo auditor
 
 ```sql
 DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue_impala;
-DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue_impala FROM now() - interval 5 days;
 ```
 
 ## 7. Inserção de Dados
