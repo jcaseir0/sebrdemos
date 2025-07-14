@@ -37,7 +37,10 @@ AS SELECT * FROM ${databasename}.clientes;
 ## 2. Verificação de Atributos das Tabelas
 
 **Explicação:**
-Exibe detalhes estruturais e propriedades das tabelas, como tipo de armazenamento, particionamento e localização, permitindo comparação entre a tabela original e a migrada.
+
+Com o comando DESCRIBE FORMATTED podemos ver os metadados associados a cada uma das tabelas. Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, particionamento, localização e propriedades do Iceberg. Útil para comparar atributos entre a tabela original e a migrada.
+
+Perceba a diferança em relação ao tipo da tabela, qual é o parâmetro que foi alterado?
 
 ```sql
 DESCRIBE FORMATTED ${databasename}.clientes;
