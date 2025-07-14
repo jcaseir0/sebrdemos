@@ -12,7 +12,6 @@ Em seguida clique no Hue, do ambiente `impala-vw` que estiver disponivel.
 
 > [!WARNING]
 > Será necessário usar o nome do banco de dados como parâmetro nas execuções.
-
 > Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
 
 ![alt text](../img/create_database_impala.png)
