@@ -7,7 +7,7 @@ A demonstração pode ser feita tanto no HUE, editor SQL da Cloudera, em Data Hu
 ## 1. Criação de Tabela Iceberg com CTAS (Create Table As Select)
 
 **Explicação:**
-Cria uma nova tabela Iceberg particionada por `id_uf`, copiando todos os dados da tabela original `bancodemo.clientes`. O parâmetro `'format-version'='2'` define a versão do formato Iceberg.
+Cria uma nova tabela Iceberg particionada por `id_uf`, copiando todos os dados da tabela original `bancodemo_userXXX.clientes`. O parâmetro `'format-version'='2'` define a versão do formato Iceberg.
 
 ```sql
 use database ${databasename};
@@ -16,7 +16,7 @@ CREATE TABLE ${databasename}.clientes_iceberg_ctas_hue_impala
 PARTITIONED BY (id_uf)
 STORED AS ICEBERG
 TBLPROPERTIES ('format-version'='2')
-AS SELECT * FROM bancodemo.clientes;
+AS SELECT * FROM ${databasename}.clientes;
 ```
 
 ## 2. Verificação de Atributos das Tabelas
