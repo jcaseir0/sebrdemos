@@ -10,7 +10,7 @@ Para realizar as consultas, vamos utilizar o `Cloudera Data Warehouse`.
 
 Em seguida clique no Hue, do ambiente `impala-vw` que estiver disponivel.
 
-![alt text](../img/hue.png)
+![alt text](../img/hue_impala.png)
 
 > [!WARNING]
 > Será necessário usar o nome do banco de dados como parâmetro nas execuções.
