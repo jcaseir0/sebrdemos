@@ -72,7 +72,6 @@ Seleciona e compara registros específicos em ambas as tabelas para garantir a i
 SELECT * FROM ${databasename}.clientes LIMIT 10
 ```
 
--- VALIDAR
 ```sql
 SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue
 WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10);
