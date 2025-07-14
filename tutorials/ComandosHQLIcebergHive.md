@@ -486,6 +486,7 @@ SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-ver
 
 Uma vez que todos os comandos foram executaram com sucesso, vamos inciar os Labs do Imapala [Avaliação das funcionalidades e migração do Iceberg no Impala](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/tutorials/ComandosHQLIcebergImpala.md) 
 
+
 --
 Se precisar de exemplos práticos ou dúvidas sobre algum comando específico, peça detalhes!
 
