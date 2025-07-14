@@ -276,5 +276,3 @@ ALTER TABLE ${databasename}.clientes SET TBLPROPERTIES('format-version'='2');
 - O uso de snapshots e propriedades avançadas garante governança, rastreabilidade e eficiência no ambiente analítico.
 
 <div style="text-align: center">⁂</div>
-
-[^1]: iceberg_hue_impala.hql
