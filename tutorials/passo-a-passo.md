@@ -77,7 +77,6 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
   - [Lab. 4 - Monitorando o job do airflow através do Airflow UI](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui)
   - [Lab. 5 - Migração das tabelas para o formato de tabelas Iceberg](#lab-5---migração-das-tabelas-para-o-formato-de-tabelas-iceberg)
     - [Criação do job airflow a partir do editor para criação da DAG](#criação-do-job-airflow-a-partir-do-editor-para-criação-da-dag)
-  - [Para finalizar, clique em **Run** e acompanhe a execução no menu **Job Status** e através do **Airflow UI**.](#para-finalizar-clique-em-run-e-acompanhe-a-execução-no-menu-job-status-e-através-do-airflow-ui)
 
 ## Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github
 
@@ -131,15 +130,18 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 Iremos criar os outros Jobs necessários para o laboratório, **siga as instruções acima repetindo os passos de 3 a 10**, mas alterando os seguintes itens:
 
 **Job para a validação da criação das tabelas**
+
 3. **Name:** nome do job: userXXX-create-table-validation
 6. Selecione o diretório **spark** e depois o arquivo **simplequeries.py** -> **Select File**
 7.  Não há necessidade de alterar o perfil de recursos, manter padrão
 
 **Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes**
+
 3. **Name:** nome do job: userXXX-insert-table
 6. Selecione o arquivo **insert_table.py** -> **Select File**
 
 **Job para a validação da ingestão das tabelas**
+
 3. **Name:** nome do job: userXXX-insert-table-validation
 6. Selecione o diretório **spark** e depois o arquivo **complexqueries.py** -> **Select File**
 7.  Não há necessidade de alterar o perfil de recursos, manter padrão
@@ -281,9 +283,9 @@ Seguir os passos acima para a criação de mais objetos alterando apenas os iten
 6. Na aba **Advanced**, selecione a opção **Depends on past**
 7. Por fim, passe o mouse em cima do primeiro **CDE job**, aparecerá pontos nas laterais e em cima, irá aparecer um símbolo de mais, então clique, segure e ligue no próximo CDE job.
 
-Depois da criação de toda a malha, clicar em **Save**. Abrirá uma notificação de **Saving to job...** e ao finalizar o aviso de **Pipeline saved to job**
-
-Para finalizar, clique em **Run** e acompanhe a execução no menu **Job Status** e através do [**Airflow UI**](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui).
+Finalizando a criação do job ariflow:
+6. Depois da criação de toda a malha, clicar em **Save**. Abrirá uma notificação de **Saving to job...** e ao finalizar o aviso de **Pipeline saved to job**
+7. Para finalizar, clique em **Run** e acompanhe a execução no menu **Job Status** e através do [**Airflow UI**](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui).
 ---
 
 > Para detalhes completos das aplicações python e exemplos de uso, consulte o repositório e utilize os arquivos conforme o fluxo descrito acima.
