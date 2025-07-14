@@ -53,6 +53,7 @@ DESCRIBE FORMATTED ${databasename}.clientes_iceberg_ctas_hue;
 ## 3. Validação de Registros
 
 **Explicação:**
+
 Conta o número de registros em cada tabela para validar se a migração copiou todos os dados corretamente.
 
 ```sql
@@ -66,6 +67,7 @@ SELECT COUNT(*) FROM ${databasename}.clientes_iceberg_ctas_hue;
 ## 4. Validação de Integridade dos Dados
 
 **Explicação:**
+
 Seleciona e compara registros específicos em ambas as tabelas para garantir a integridade dos dados após a migração.
 
 ```sql
@@ -80,6 +82,7 @@ WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LI
 ## 5. Exibição de Partições
 
 **Explicação:**
+
 Lista todas as partições existentes na tabela Iceberg, útil para verificar o particionamento após a migração.
 
 A tabela esta particionado por qual campo? Os dados estão bem distribuídos?
@@ -91,6 +94,7 @@ SHOW PARTITIONS ${databasename}.clientes_iceberg_ctas_hue;
 ## 6. Histórico de Snapshots
 
 **Explicação:**
+
 Exibe o histórico de snapshots (versões) da tabela Iceberg, permitindo auditoria e análise de alterações nos últimos dias.
 
 ```sql
@@ -100,6 +104,7 @@ DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue;
 ## 7. Inserção de Dados
 
 **Explicação:**
+
 Insere um novo registro na tabela Iceberg, simulando a inclusão de um cliente.
 
 ```sql
@@ -110,15 +115,17 @@ VALUES ('000000035', 'João Silva', 'joao@email.com', '1990-01-01', 'Rua A, 123'
 ## 8. Validando os snapshots
 
 **Explicação:**
+
 Uma vez que fizemos um novo insert na tabela, o que acontece com os snapshots?
 
 ```sql
 DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue;
 ```
 
-## 8. Consulta com Snapshot Específico
+## 9. Consulta com Snapshot Específico
 
 **Explicação:**
+
 Agora vamos explorar os recursos do snapshot e vamos consultar a tabela conforme o estado em um snapshot específico, permitindo auditoria de versões anteriores dos dados.
 
 Vamos alterar o valor do campo `${snapshot_id_insert}` na consulta. Na primeira execução, utilize o valor de `snapshot_id` cujo `parent_id` seja nulo.
@@ -132,9 +139,10 @@ FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000035' AND nome = 'João Silva';
 ```
 
-## 9. Consulta por Timestamp (Time Travel)
+## 10. Consulta por Timestamp (Time Travel)
 
 **Explicação:**
+
 Outra forma de utilizar o comando seria utilizando o campo do `timestamp` , permite consultar os dados conforme estavam em um momento específico no tempo, utilizando o recurso de time travel do Iceberg.
 
 Pegue o valor do timestamp do item 8.
@@ -147,9 +155,10 @@ WHERE id_usuario = '000000035' AND nome = 'João Silva';
 
 Essa consulta rodou com sucesso? 
 
-## 10. Rollback de Tabela
+## 11. Rollback de Tabela
 
 **Explicação:**
+
 Reverte a tabela para um snapshot anterior, desfazendo alterações e restaurando o estado anterior dos dados.
 
 Com essa alteração, vamos reverter o processo de insert que foi realizado.
@@ -188,10 +197,10 @@ E o que aconteu com a lista de snapshots?
 DESCRIBE HISTORY ${databasename}.clientes_iceberg_ctas_hue;
 ```
 
-
-## 11. Propriedades Avançadas
+## 12. Propriedades Avançadas
 
 **Explicação:**
+
 Podemos também definir propriedades avançadas, como o formato padrão de escrita (Parquet) e o número máximo de versões antigas de metadados a serem mantidas.
 
 O Iceberg rastreia os metadados das tabelas usando arquivos JSON. Cada alteração em uma tabela produz um novo arquivo de metadados para garantir a atomicidade.
@@ -203,9 +212,10 @@ ALTER TABLE ${databasename}.clientes_iceberg_ctas_hue
 SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
 ```
 
-## 12. Evolução de Esquema (Schema Evolution)
+## 13. Evolução de Esquema (Schema Evolution)
 
 **Explicação:**
+
 Adiciona ou remove colunas na tabela Iceberg de forma dinâmica, sem necessidade de recriação da tabela.
 
 ```sql
@@ -231,7 +241,7 @@ Agora vamos remover essa nova coluna.
 ALTER TABLE ${databasename}.clientes_iceberg_ctas_hue DROP COLUMN score;
 ```
 
-## 13. Otimização e Compaction
+## 14. Otimização e Compaction
 
 **Explicação:**
 
@@ -245,9 +255,10 @@ A instrução OPTIMIZE TABLE aciona um processo chamado compactação, que essen
 OPTIMIZE TABLE ${databasename}.clientes_iceberg_ctas_hue;
 ```
 
-## 14. Conversão de Tabela para Iceberg
+## 15. Conversão de Tabela para Iceberg
 
 **Explicação:**
+
 Converte uma tabela tradicional para o formato Iceberg, preservando dados e metadados, e define a versão do formato.
 
 ```sql
@@ -259,7 +270,6 @@ ALTER TABLE ${databasename}.clientes SET TBLPROPERTIES('format-version'='2');
 ```
 
 
-
 ### Observações Finais
 
 - Os comandos apresentados são compatíveis com Impala e Iceberg, aproveitando recursos de versionamento, time travel, rollback, evolução de esquema e otimização.
@@ -268,4 +278,3 @@ ALTER TABLE ${databasename}.clientes SET TBLPROPERTIES('format-version'='2');
 <div style="text-align: center">⁂</div>
 
 [^1]: iceberg_hue_impala.hql
-
