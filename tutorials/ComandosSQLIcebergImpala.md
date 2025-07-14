@@ -75,8 +75,7 @@ SELECT * FROM ${databasename}.clientes LIMIT 10
 -- VALIDAR
 ```sql
 SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue
-WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10)
-AND valor IN (SELECT valor FROM ${databasename}.transacoes_cartao LIMIT 10);
+WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10);
 ```
 
 ## 5. Exibição de Partições
