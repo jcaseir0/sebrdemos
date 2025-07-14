@@ -21,6 +21,7 @@ Em seguida clique no Hue, do ambiente `impala-vw` que estiver disponivel.
 ## 1. Criação de Tabela Iceberg com CTAS (Create Table As Select)
 
 **Explicação:**
+
 Cria uma nova tabela Iceberg particionada por `id_uf`, copiando todos os dados da tabela original `bancodemo_userXXX.clientes`. O parâmetro `'format-version'='2'` define a versão do formato Iceberg.
 
 ```sql
