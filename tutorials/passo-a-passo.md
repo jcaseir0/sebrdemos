@@ -57,13 +57,13 @@ Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usa
 
 Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de projetos e promovam aplicativos de ambientes não-produtivos para ambientes produtivos. Atualmente, a Cloudera oferece suporte a provedores de Git, como GitHub, GitLab e Bitbucket.
 
-Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto https://github.com/jcaseir0/sebrdemos.git na branch main.
+Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/clouderajguimaraes/sebrdemos.git](https://github.com/clouderajguimaraes/sebrdemos) na branch `patch-1`.
 
 ## Lab. 1 - Preparação do ambiente virtual Python e configuração do projeto no Github
 
 ### Criação do recurso de ambiente virtual Python
 
-1. Baixar o arquivo **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/main/requirements.txt)** local para seu desktop;
+1. Baixar o arquivo **[requirements.txt](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/requirements.txt)** local para seu desktop;
 2. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
 3. Clicar em **Resources**, no menu da coluna à esquerda e na nova página, clicar no botão **Create a Resource** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 4. Na janela aberta, preencher os campos:
@@ -82,8 +82,8 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
    
    **Create A Repository**
    - **Repository Name:** nome do repositório: iceberg-demo_userXXX
-   - **URL:** https://github.com/jcaseir0/sebrdemos.git
-   - **Branch:** main
+   - **URL:** https://github.com/clouderajguimaraes/sebrdemos.git
+   - **Branch:** patch-1
    - **Manter o resto das configurações padrão**
    - Clicar em **Create**
 
