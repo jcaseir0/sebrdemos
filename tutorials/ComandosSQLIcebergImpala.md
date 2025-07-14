@@ -2,8 +2,6 @@
 
 Este documento detalha cada comando SQL utilizado no script para operações com Iceberg no Impala, apresentando explicações claras e exemplos SQL.
 
-A demonstração pode ser feita tanto no HUE, editor SQL da Cloudera, em Data Hubs de Data Mart ou no Cloudera Data Warehouse com Impala.
-
 Para realizar as consultas, vamos utilizar o `Cloudera Data Warehouse`.
 
 ![alt text](../img/cdw.png)
