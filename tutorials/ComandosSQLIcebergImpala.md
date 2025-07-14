@@ -66,14 +66,14 @@ SELECT COUNT(*) FROM ${databasename}.clientes_iceberg_ctas_hue;
 Seleciona e compara registros específicos em ambas as tabelas para garantir a integridade dos dados após a migração.
 
 ```sql
-SELECT * FROM ${databasename}.clientes
-WHERE id_usuario IN ('896797859', '284689128', '103946766', '648027188', '187525572', '909350817', '091759804', '687691239', '951031954', '810429067');
+SELECT * FROM ${databasename}.clientes LIMIT 10
 ```
 
+-- VALIDAR
 ```sql
-SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue;
-WHERE id_usuario IN ('896797859', '284689128', '103946766', '648027188', '187525572', '909350817', '091759804', '687691239', '951031954', '810429067')
-ORDER BY 2;
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue
+WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10)
+AND valor IN (SELECT valor FROM ${databasename}.transacoes_cartao LIMIT 10);
 ```
 
 ## 5. Exibição de Partições
@@ -84,7 +84,6 @@ Lista todas as partições existentes na tabela Iceberg, útil para verificar o 
 ```sql
 SHOW PARTITIONS ${databasename}.clientes_iceberg_ctas_hue;
 ```
-
 
 ## 6. Histórico de Snapshots
 
@@ -110,6 +109,8 @@ VALUES ('000000035', 'João Silva', 'joao@email.com', '1990-01-01', 'Rua A, 123'
 **Explicação:**
 Consulta a tabela conforme o estado em um snapshot específico, permitindo auditoria de versões anteriores dos dados.
 
+Pegue o valor do snapshot_id do item 6.
+
 ```sql
 SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue;
 FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
@@ -120,6 +121,8 @@ WHERE id_usuario = '000000035' AND nome = 'João Silva';
 
 **Explicação:**
 Permite consultar os dados conforme estavam em um momento específico no tempo, utilizando o recurso de time travel do Iceberg.
+
+Pegue o valor do timestamp do item 6.
 
 ```sql
 SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue;
