@@ -25,11 +25,11 @@ AS SELECT * FROM ${databasename}.clientes;
 Exibe detalhes estruturais e propriedades das tabelas, como tipo de armazenamento, particionamento e localização, permitindo comparação entre a tabela original e a migrada.
 
 ```sql
-DESCRIBE FORMATTED ${databasename}..clientes_iceberg_ctas_hue_impala;
+DESCRIBE FORMATTED ${databasename}.clientes_iceberg_ctas_hue_impala;
 ```
 
 ```sql
-DESCRIBE FORMATTED ${databasename}..clientes;
+DESCRIBE FORMATTED ${databasename}.clientes;
 ```
 
 ## 3. Validação de Registros
