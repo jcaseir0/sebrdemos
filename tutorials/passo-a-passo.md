@@ -202,7 +202,7 @@ Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jc
 
 Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário na linha: `8`, substitua `userXXX` pelo seu usuário, por exemplo.
 
-Altere o nome do arquivo no seu computador, para refletir o nome do seu usário, deve ficar: `job-malha-airflow_user001.py`.
+Antes de enviar o arquivo para o `CDE` vamos alterar o nome do arquivo no seu computador, para refletir o nome do seu usário, deve ficar: `job-malha-airflow_user001.py`.
 
 Agora vamos criar o job do Airflow:
 
