@@ -8,7 +8,7 @@ from dateutil import parser
 username = "user001" # Enter your username here
 
 dag = DAG(
-    dag_id='malha_airflow',
+    dag_id='malha_airflow_'+username,
     start_date=parser.isoparse('2025-07-10T13:00:18Z').replace(tzinfo=timezone.utc),
     schedule_interval=None,
     catchup=False,
