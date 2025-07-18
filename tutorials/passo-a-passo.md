@@ -1,5 +1,24 @@
 # Demonstração: Implantação da Migração Iceberg no Cloudera Data Engineering (CDE)
 
+## Índice de conteúdo
+
+- [Demonstração: Implantação da Migração Iceberg no Cloudera Data Engineering (CDE)](#demonstração-implantação-da-migração-iceberg-no-cloudera-data-engineering-cde)
+  - [Índice de conteúdo](#índice-de-conteúdo)
+  - [Requisitos](#requisitos)
+  - [Funcionalidades das aplicações python e arquivos complementares](#funcionalidades-das-aplicações-python-e-arquivos-complementares)
+  - [Parametrizações na criação das tabelas](#parametrizações-na-criação-das-tabelas)
+  - [Criação do recurso Python e do repositório](#criação-do-recurso-python-e-do-repositório)
+  - [Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github](#lab-1---preparação-do-ambiente-virtual-python-e-configuração-do-repositório-no-github)
+    - [Criação do recurso de ambiente virtual Python](#criação-do-recurso-de-ambiente-virtual-python)
+    - [Criação do repositório do Git](#criação-do-repositório-do-git)
+  - [Lab. 2 - Criação dos Jobs para criação dos dados e validação](#lab-2---criação-dos-jobs-para-criação-dos-dados-e-validação)
+    - [Criação dos Jobs Spark no CDE](#criação-dos-jobs-spark-no-cde)
+  - [Lab. 3 - Criação dos Jobs Airflow e agendado no CDE](#lab-3---criação-dos-jobs-airflow-e-agendado-no-cde)
+    - [Criação do job Airflow a partir de uma aplicação Python](#criação-do-job-airflow-a-partir-de-uma-aplicação-python)
+  - [Lab. 4 - Monitorando o job do airflow através do Airflow UI](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui)
+  - [Lab. 5 - Migração das tabelas para o formato de tabelas Iceberg](#lab-5---migração-das-tabelas-para-o-formato-de-tabelas-iceberg)
+    - [Criação do job airflow a partir do editor para criação da DAG](#criação-do-job-airflow-a-partir-do-editor-para-criação-da-dag)
+
 ## Requisitos
 
 - Python 3.7+
@@ -51,6 +70,12 @@ num_buckets = 0
 
 Ajuste estes valores conforme necessário antes de executar o script. As configurações permitem que você controle o número de registros gerados para cada tabela através da variável `num_records` para a criação e `num_records_update` para a aplicação de ingestão. O código lê este arquivo para determinar o nome do banco de dados, o número de registros a serem gerados para cada tabela e se a tabela será particionada/bucketing.
 
+> [NOTE]
+> Quando o container é provisionado, para a execução das aplicações, o diretório /app/mount é criado e os arquivos são direcionados para esse diretório. O arquivo de configuração config.ini fica nesse diretório e estou deixando como valor padrão na função para carregar essas informações:
+> ```python
+> def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini') -> configparser.ConfigParser:
+> ```
+
 ## Criação do recurso Python e do repositório
 
 Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usados por um trabalho ou uma sessão. Os recursos podem incluir código de aplicativo, arquivos de configuração, imagens personalizadas do Docker e especificações de ambiente virtual Python (requirements.txt).
@@ -58,25 +83,6 @@ Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usa
 Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de projetos e promovam aplicativos de ambientes não-produtivos para ambientes produtivos. Atualmente, a Cloudera oferece suporte a provedores de Git, como GitHub, GitLab e Bitbucket.
 
 Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o repositório https://github.com/jcaseir0/sebrdemos.git na branch main.
-
-## Laboratórios:
-
-- [Demonstração: Implantação da Migração Iceberg no Cloudera Data Engineering (CDE)](#demonstração-implantação-da-migração-iceberg-no-cloudera-data-engineering-cde)
-  - [Requisitos](#requisitos)
-  - [Funcionalidades das aplicações python e arquivos complementares](#funcionalidades-das-aplicações-python-e-arquivos-complementares)
-  - [Parametrizações na criação das tabelas](#parametrizações-na-criação-das-tabelas)
-  - [Criação do recurso Python e do repositório](#criação-do-recurso-python-e-do-repositório)
-  - [Laboratórios:](#laboratórios)
-  - [Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github](#lab-1---preparação-do-ambiente-virtual-python-e-configuração-do-repositório-no-github)
-    - [Criação do recurso de ambiente virtual Python](#criação-do-recurso-de-ambiente-virtual-python)
-    - [Criação do repositório do Git](#criação-do-repositório-do-git)
-  - [Lab. 2 - Criação dos Jobs para criação dos dados e validação](#lab-2---criação-dos-jobs-para-criação-dos-dados-e-validação)
-    - [Criação dos Jobs Spark no CDE](#criação-dos-jobs-spark-no-cde)
-  - [Lab. 3 - Criação dos Jobs Airflow e agendado no CDE](#lab-3---criação-dos-jobs-airflow-e-agendado-no-cde)
-    - [Criação do job Airflow a partir de uma aplicação Python](#criação-do-job-airflow-a-partir-de-uma-aplicação-python)
-  - [Lab. 4 - Monitorando o job do airflow através do Airflow UI](#lab-4---monitorando-o-job-do-airflow-através-do-airflow-ui)
-  - [Lab. 5 - Migração das tabelas para o formato de tabelas Iceberg](#lab-5---migração-das-tabelas-para-o-formato-de-tabelas-iceberg)
-    - [Criação do job airflow a partir do editor para criação da DAG](#criação-do-job-airflow-a-partir-do-editor-para-criação-da-dag)
 
 ## Lab. 1 - Preparação do ambiente virtual Python e configuração do repositório no Github
 
@@ -87,7 +93,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 3. Clicar em **Resources**, no menu da coluna à esquerda e na nova página, clicar no botão **Create a Resource** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 4. Na janela aberta, preencher os campos:
    **Create Resource**
-   - **Resource Name:** nome do recurso: env-py
+   - **Resource Name:** nome do recurso: py-env
    - **Type:** Python Environment
    - Clicar em **Create**
 5. Depois clicar em **Upload File** e selecionar o arquivo requirements.txt baixado anteriormente.
@@ -119,7 +125,7 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
 5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo**
 6. Selecione o arquivo **create_table.py** -> **Select File**
 7. **Arguments (Optional):** userXXX **(Obrigatório)**
-8. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py** e clicar em **Select Resource**
+8. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **py-env** e clicar em **Select Resource**
 9.  Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job. Para o nosso caso iremos definir esse perfil de recursos para o nosso job:
     - **Executor Cores:** 2
     - **Driver Memory:** 4
@@ -127,24 +133,40 @@ No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podend
     - **Manter o resto das configurações padrão**
 10.  Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
+> [NOTE]
+> O item 7 Arguments deve ser utilizado no código através da biblioteca nativa sys e pode ter quantos argumentos for necessários. O exemplo utilizado é para compor o nome do banco de dados, conforme trecho do código:
+> ```python
+> username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
+> logger.debug(f"Loading username correctly? Var: {username}")
+> database_name = config['DEFAULT'].get('dbname') + '_' + username
+> logger.debug(f"Database name: {database_name}")
+> ```
+
 Iremos criar os outros Jobs necessários para o laboratório, **siga as instruções acima repetindo os passos de 3 a 10**, mas alterando os seguintes itens:
 
 **Job para a validação da criação das tabelas**
 
 3. **Name:** nome do job: userXXX-create-table-validation
 6. Selecione o diretório **spark** e depois o arquivo **simplequeries.py** -> **Select File**
-7.  Não há necessidade de alterar o perfil de recursos, manter padrão
+7. **Arguments (Optional):** userXXX {{{tableformat}}}
+9.  Não há necessidade de alterar o perfil de recursos, manter padrão
+
+> [NOTE]
+> O item 7 Arguments foi adicionado uma segunda variável opcional, ela será utilizada para a criação de jobs do airflow nos próximos exercícios.
+> 
 
 **Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes**
 
 3. **Name:** nome do job: userXXX-insert-table
 6. Selecione o arquivo **insert_table.py** -> **Select File**
+7. **Arguments (Optional):** userXXX {{{tableformat}}}
 
 **Job para a validação da ingestão das tabelas**
 
 3. **Name:** nome do job: userXXX-insert-table-validation
 6. Selecione o diretório **spark** e depois o arquivo **complexqueries.py** -> **Select File**
-7.  Não há necessidade de alterar o perfil de recursos, manter padrão
+7. **Arguments (Optional):** userXXX {{{tableformat}}}
+9.  Não há necessidade de alterar o perfil de recursos, manter padrão
 
 ## Lab. 3 - Criação dos Jobs Airflow e agendado no CDE
 
@@ -191,9 +213,13 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 Adicionar o prefixo: `userXXX_` nas linhas abaixo, exemplo: De `dag_id='malha_airflow',` para `dag_id='userXXX_malha_airflow',`:
 
 **Linha 08:** `dag_id='malha_airflow',`
+
 **Linha 19:** `job_name='create-table',`
+
 **Linha 27:** `job_name='create-table-validation',`
+
 **Linha 35:** `job_name='insert-table',`
+
 **Linha 43:** `job_name='insert-table-validation',`
 
 Depois de efetuar as alterações no arquivo, seguir conforme abaixo:
