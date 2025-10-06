@@ -57,23 +57,25 @@ Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usa
 
 Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de projetos e promovam aplicativos de ambientes não-produtivos para ambientes produtivos. Atualmente, a Cloudera oferece suporte a provedores de Git, como GitHub, GitLab e Bitbucket.
 
-Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/clouderajguimaraes/sebrdemos.git](https://github.com/clouderajguimaraes/sebrdemos) na branch `patch-1`.
+Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/clouderajguimaraes/sebrdemos.git](https://github.com/clouderajguimaraes/sebrdemos) na branch `rfbhol`.
 
 ## Lab. 1 - Preparação do ambiente virtual Python e configuração do projeto no Github
 
 ### Criação do recurso de ambiente virtual Python
 
-1. Baixar o arquivo **[requirements.txt](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/requirements.txt)** local para seu desktop;
+1. Baixar o arquivo **[requirements.txt](https://github.com/clouderajguimaraes/sebrdemos/blob/rfbhol/requirements.txt)** local para seu desktop;
 2. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
 
 ![alt text](../img/cde.png)
    
 3. Clicar em **Resources**, no menu da coluna à esquerda e na nova página, clicar no botão **Create a Resource** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 4. Na janela aberta, preencher os campos:
+
    **Create Resource**
    - **Resource Name:** nome do recurso: env-py_userXXX
    - **Type:** Python Environment
    - Clicar em **Create**
+
 5. Depois clicar em **Upload File** e selecionar o arquivo requirements.txt baixado anteriormente.
 6. Após confirmar o upload do arquivo, será iniciado o processo de criação do ambiente virtual com a biblioteca(s) selecionada(s). Quando o botão de upload file aparecer novamente é que o processo foi encerrado e será apresentado as bibliotecas instaladas.
 
@@ -86,7 +88,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
    **Create A Repository**
    - **Repository Name:** nome do repositório: iceberg-demo_userXXX
    - **URL:** https://github.com/clouderajguimaraes/sebrdemos.git
-   - **Branch:** patch-1
+   - **Branch:** rfbhol
    - **Manter o resto das configurações padrão**
    - Clicar em **Create**
 
@@ -94,6 +96,9 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 
 No CDE, um job é uma tarefa automatizada que executa pipelines de dados, podendo ser de diversos tipos, como Spark, Python, Bash e principalmente Airflow. 
 Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necessidade do fluxo de dados da empresa.
+
+> [!WARNING]
+> Para a criação dos próximos 4 jobs, se atentar que serão apenas criados, não executá-los ainda.
 
 ### Criação dos Jobs Spark no CDE
 #### Job 1 - Job para criação das tabelas
@@ -193,7 +198,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 ### Lab. 3 - Criando o job do Airflow
 
-> [!WARNING]
+> [!IMPORTANT]
 > Será necessário editar o arquivo
 
 Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.
@@ -215,6 +220,86 @@ Agora vamos criar o job do Airflow:
 8. Uma vez que o job do Airflow foi criado, volte a lista de **Jobs**, clicando na esquerda. Localize o `job-malha-airflow_userXXX` na lista, clique nos três pontos, no final da tela a direita, e então em **Run Now**.
 
 O job do Airflow vai coordenar a execução dos outros 4 jobs na sequeência correta, você pode acompanhar a execução pela interface do Airflow, pode olhar os logs para entender o que está acontencedo. 
+
+### Lab. 4 - Monitoramento do job do Airflow na interface de usuário
+
+O monitoramento de jobs do Apache Airflow é uma etapa fundamental para garantir a execução eficiente e confiável dos fluxos de trabalho dentro do Cloudera Data Engineering (CDE). A interface de usuário do Airflow oferece uma visão detalhada sobre o estado das DAGs (Directed Acyclic Graphs), permitindo acompanhar a execução de tarefas, identificar falhas e analisar históricos de execução. No ambiente do CDE, essa interface se integra às ferramentas de orquestração e gerenciamento de recursos, possibilitando o acompanhamento em tempo real de pipelines de dados.
+
+Entre as principais funcionalidades disponíveis estão:
+
+- Os painéis de execução
+- Logs detalhados
+- Visualizações gráficas da DAG e alertas de status
+
+Recursos que facilitam a identificação de gargalos e o aprimoramento contínuo dos processos de automação.
+
+1. Iniciar clicando em **Job Runs** para acompanhar a execução do job iniciado acima: `job-malha-airflow_userXXX`. Se aparecer um sino à frente do Run ID, significa que o job está aguardando o auto-scaling do ambiente antes de iniciar.
+   ![job-malha-airflow](../img/airflow000.png)
+   -  O job principal será iniciado e os jobs que deverão ser executados na sequência irão iniciar e finalizar, um a um.
+   ![Sequência de execução](../img/airflow001.png)
+2. Para visualizar o job na interface do usuário no Airflow, na coluna de Menu à esquerda, clicar em **Administration**, selecionar o seu ambiente `rfb-hol-cdp-env` e na sessão **Virtual Clusters**, no virtual cluster onde seu job foi criado `rfb-hol-cde-vcXX`, clicar no segundo link **Virtual Clusters Details**
+   ![Virtual Clusters Details](../img/airflow002.png)
+3. Na página de administração do virtual cluster, clicar no link **Airflow UI**
+   ![Airflow UI](../img/airflow003.png)
+4. Na interface do usuário do Airflow, é possível ver em detalhes a DAG, execuções correntes e anteriores, Última execução e as tasks/jobs recentes em execução, se passar o mouse em cima dos jobs ou tasks, é apresentado o status e qual a ordem de execução.
+   ![Status do job](../img/airflow004.png)
+5. Clicar na DAG em execução `malha_airflow_userXXX`, é possível observar a situação do job, quantas vezes foram executados, duração, se tiveram sucesso ou não, na primeira coluna à esquerda da página. A direita, embaixo do título do job, tem um menu com diversos links para explorar os detalhes do job
+    ![Job details](../img/airflow005.png)
+6. Em **Graph**, é possível visualizar as DAGs na sequencia de execução:
+    ![Graph](../img/airflow006.png)
+7. Em **Gantt**, é possível verificar a tarefa/job apenas em execução e obter informações de duração de execução e quanto tempo ficou na espera (fila), número de tentativas e datas de execução. para obter os detalhes basta selecionar o job em execução (quadrado no verde mais claro no menu à esquerda) e passar o mouse em cima do gráfico de gantt:
+   ![Gantt](../img/airflow007.png)
+8. Em **Code**, é possível verificar a aplicação python na sua íntegra, vale observar que o nome do job na console deve ser o mesmo informado em dag_id do código
+   ![Code](../img/airflow008.png)
+  - É importante observar que além do nome do job do console, os jobs que foram criados no passo inicial devem manter os mesmos nome da criação dos outros jobs. E na última linha tem a ordem de execução dos jobs:
+   ![Code-order](../img/airflow009.png)
+9. Depois temos o **Event Log**, com a ordem de execução:
+   ![Event Log](../img/airflow010.png)
+  - E ao selecionar uma task/job, é possível verificar os logs da tarefa selecionada na aba **Logs**:
+   ![Logs](../img/airflow011.png)
+  - É possível verificar as **especificações dos PODs Kubernets**:
+   ![K8s PODs](../img/airflow012.png)
+  - Por fim, **Task Duration**, onde é possível comparar as execuções dos jobs e a diferença entre as execuções:
+   ![Task Duration](../img/airflow013.png)
+
+### Lab. 5 - Criando um job do Airflow a partir do Editor e agendado
+
+A criação de um job do Apache Airflow a partir do Editor no Cloudera Data Engineering (CDE) é um processo intuitivo que permite desenvolver, configurar e implementar pipelines de dados diretamente através de uma interface integrada e amigável. 
+O Editor do CDE oferece recursos essenciais para a construção de DAGs, como suporte a edição de código com realce de sintaxe, funcionalidades de autocompletar, gerenciamento de dependências e validação automática da estrutura do workflow. 
+Além disso, permite salvar e versionar scripts, facilitar testes antes da execução, e integrar com bibliotecas externas necessárias ao processamento. Essa abordagem centralizada agiliza o desenvolvimento e garante que toda a configuração do job seja realizada de forma consistente e segura dentro do ambiente de orquestração.
+
+1. Iniciar clicando em **Jobs**, depois em **Create Job** e completar conforme abaixo:
+   1. **Job Type:** Airflow
+   2. **Name:** new_ingestion_userXXX
+   3. **DAG File:** Editor
+   4. **Create**
+2. Na sessão **Pipeline Steps**, clicar e segurar o CDE job e arrastart para dentro do canvas, criar 3 CDE jobs e selecionar o primeiro para completar conforme a imagem e informações abaixo:
+   1. **Name:** Onde está escrito **cde_job_1**, sobrescrever para: **Table validation**
+   2. **Aba:** Configure
+   3. **Select Job:** create-table-validation_jcaseiro
+   ![cde_job_1](../img/editor001.png)
+3. Selecionar o próximo quadrado do CDE job: cde_job_2 e preencher conforme abaixo:
+   1. **Name:** Onde está escrito **cde_job_2**, sobrescrever para: **New ingestion**
+   2. **Aba:** Configure
+   3. **Select Job:** insert-table_jcaseiro
+   4. **Aba:** Advanced (Configuração da condição de dependência de sucesso do job anterior)
+   5. **Depends on past:** Selecionar
+   6. **Trigger rule:** all_success
+   ![cde_job_2](../img/editor002.png)
+4. Selecionar o próximo quadrado do CDE job: cde_job_2 e preencher conforme abaixo:
+   1. **Name:** Onde está escrito **cde_job_3**, sobrescrever para: **Ingestion validation**
+   2. **Aba:** Configure
+   3. **Select Job:** insert-table-validation_jcaseiro
+   4. **Aba:** Advanced (Configuração da condição de dependência de sucesso do job anterior)
+   5. **Depends on past:** Selecionar
+   6. **Trigger rule:** all_success
+5. Por fim, interligar os quadrados, se passar o mouse em cima, irão aparecer pontos para serem interligados, clique no ponto e arraste a seta até o próximo quadrado, quando ele ficar com um circulo verde, soltar a seta arrastada para efetuar a ligação. Ligue o primeiro quadrado ao segundo e o segundo ao terceiro.
+   ![Job Configuration](../img/editor003.png)
+6. Depois clicar em **Configurations**, apenas para informar, é possível agendar o job criado, role o mouse para baixo para conhecer todas as opções existentes. Depois disso, clique no X para fechar a janela e salve o Job.
+   ![Save Job](../img/editor004.png)
+7. Aparecerá um notificação `Saving job...` e com a conclusão uma notificação de sucesso que o pipeline foi criado com sucesso.
+8. Depois clique em **Run**, aparecerá outra notificação dizendo que o job foi submetido e outra informando o id do novo job em execução.
+9. Monitorar o job no menu **Job Runs** e é possível monitorar também na interface de usuário do Airflow.
 
 A execução desses jobs é fundamental para execução desse Hands-On-Lab, esses jobs que vão criar as tabelas e os dados utilizados nos próximos tutoriais.
 
