@@ -49,6 +49,7 @@ DESCRIBE FORMATTED ${databasename}.clientes;
 ```sql
 DESCRIBE FORMATTED ${databasename}.clientes_iceberg_ctas_hue;
 ```
+Se atentar ao `Table Parameter` : `table_type` = `ICEBERG`
 
 ## 3. Validação de Registros
 
@@ -274,3 +275,210 @@ ALTER TABLE ${databasename}.clientes SET TBLPROPERTIES('format-version'='2');
 
 - Os comandos apresentados são compatíveis com Impala e Iceberg, aproveitando recursos de versionamento, time travel, rollback, evolução de esquema e otimização.
 - O uso de snapshots e propriedades avançadas garante governança, rastreabilidade e eficiência no ambiente analítico.
+
+## Bônus: Assistente de IA no Hue do Impala
+
+O uso do Assistente de IA integrado ao Hue para consultas Impala no ambiente Cloudera traz uma camada adicional de produtividade e precisão para analistas e desenvolvedores SQL. Com opções de configuração de LLM (Large Language Model) adaptáveis à necessidade do negócio — como ajuste de temperatura para controlar a criatividade das respostas, definição de contexto de dados e escolha de modelos de diferentes famílias — é possível criar interações personalizadas que aceleram a construção de queries complexas. 
+Ter um assistente de IA diretamente no editor SQL significa contar com sugestões inteligentes, explicações detalhadas de comandos e geração automática de consultas baseadas em linguagem natural, reduzindo erros e aumentando a eficiência.
+
+No contexto de análise de dados financeiros, utilizando as tabelas clientes e transacoes_cartao (relacionadas por id_usuario), é possível formular perguntas avançadas para o assistente, como:
+
+    "Liste todos os clientes com gasto total acima de R$ 50.000 no último semestre, agrupando por nome e exibindo o limite de crédito disponível."
+
+    "Encontre os 10 estabelecimentos onde clientes com limite de crédito superior a R$ 20.000 mais gastaram, mostrando categoria e valor médio por transação."
+
+    "Identifique clientes nascidos antes de 1980 que tiveram compras recusadas (status = 'recusada') no último trimestre, incluindo endereço e número do cartão."
+
+Esses exemplos evidenciam como a integração do LLM no Hue pode transformar perguntas em consultas SQL otimizadas, sem que o usuário precise elaborar manualmente cada cláusula, garantindo rapidez e segurança na exploração dos dados.
+
+### Passos para utilização do Assistente de IA no Hue do Impala
+
+#### Usando linguagem natural
+
+1. Certifique-se que o banco de dados onde estão as tabelas esteja selecionado:
+![Database](../img/ia001.png)
+
+2. Depois clique em **GENERATE**
+![IAGENERATE](../img/ia002.png)
+
+3. Depois basta criar a sua frase com linguagem natural ou utilizar algumas fornecidas acima para testar
+
+```text
+Liste todos os clientes com gasto total acima de R$ 50.000 no último semestre, agrupando por nome e exibindo o limite de crédito disponível.
+```
+
+4. A consulta SQL gerada apresenta diversas premissas inferidas pela IA e para o caso acima, informa que está utilizando uma função que pode ser desconhecida pelo Impala e um provável erro de sintaxe por não conhecer essa função:
+
+![IASyntax](../img/ia003.png)
+
+Escolha **Cancel** e vamos melhorar nosso prompt:
+
+```text
+Liste todos os clientes com gasto total acima de R$ 50.000 no último semestre, agrupando por nome e exibindo o limite de crédito disponível utilizando uma função diferente do CURRENT_DATE, pois deve ser compatível com o Impala do Cloudera
+```
+
+5. A nova opção apresenta mais algumas premissas, mas dessa vez utiliza de uma forma diferente a mesma função que estava recomendando anteriormente. Escolha **Insert** para adicionar a consulta ao editor do Hue, selecione a consulta e clique na seta de execução.
+
+#### Usando os recursos de **EXPLAIN**, **OPTIMIZE** e **COMMENT**
+
+Para entendimento desses recursos, criamos uma consulta que combina múltiplos filtros temporais, agregações, junções, que explora grandes intervalos de tempo e todos os clientes do banco. Com essa complexidade é gerado um alto volume de dados e uma otimização pode ser exigida pelo assistente de IA do Hue para melhor utilização de recursos.
+
+Segue a consulta:
+
+```sql
+SELECT
+  c.id_usuario,
+  c.nome,
+  t.estabelecimento,
+  t.categoria,
+  t.status,
+  COUNT(*) AS total_transacoes,
+  SUM(t.valor) AS valor_total,
+  AVG(t.valor) AS valor_medio,
+  MAX(t.data_transacao) AS ultima_compra
+FROM
+  clientes c
+JOIN
+  transacoes_cartao t
+ON
+  c.id_usuario = t.id_usuario
+WHERE
+  LOWER(t.status) = 'aprovada'
+  AND t.data_transacao >= '2023-01-01'
+GROUP BY
+  c.id_usuario, c.nome, t.estabelecimento, t.categoria, t.status
+HAVING
+  SUM(t.valor) > 50000
+ORDER BY
+  valor_total DESC
+```
+
+1. Antes de executá-la, vamos pedir uma explicação para entender do que se trata essa consulta. Selecionar essa consulta, colar e copiar no edito sql do Hue, selecioná-la mais uma vez e clicar em **EXPLAIN**
+
+2. O assistente irá gerar a explicação de negócio dessa consulta e permite inserir como comentário:
+
+```text
+The provided SQL query retrieves data from the tables clientes and transacoes_cartao in 
+the bancodemo_jcaseiro database. It joins the two tables on the id_usuario column and 
+filters the results based on certain conditions. The query selects the id_usuario, nome, 
+estabelecimento, categoria, status, counts the total number of transactions, calculates 
+the total value of transactions, calculates the average transaction value, and finds the 
+latest transaction date for each user. The results are grouped by id_usuario, nome, 
+estabelecimento, categoria, and status. The query then filters the results based on the 
+status being 'aprovada', transactions occurring after '2023-01-01', and the total 
+transaction value being greater than 50000. Finally, the results are sorted by the total 
+transaction value in descending order.
+
+This query essentially retrieves information about 
+users who have made approved transactions after a certain date, with a total transaction 
+value exceeding a certain threshold. It provides insights into the users' transaction 
+behavior and helps identify high-value customers.
+
+A consulta SQL fornecida recupera dados das tabelas clientes e transacoes_cartao no 
+banco de dados bancodemo_jcaseiro. Ela une as duas tabelas na coluna id_usuario e 
+filtra os resultados com base em determinadas condições. A consulta seleciona id_usuario, nome, 
+estabelecimento, categoria, status, conta o número total de transações, calcula 
+o valor total das transações, calcula o valor médio das transações e encontra a 
+data da transação mais recente para cada usuário. Os resultados são agrupados por id_usuario, nome, 
+estabelecimento, categoria e status. A consulta então filtra os resultados com base no 
+status “aprovada”, transações ocorridas após “2023-01-01” e o valor total 
+da transação superior a 50000. Por fim, os resultados são classificados pelo valor total 
+da transação em ordem decrescente.
+
+Essa consulta basicamente recupera informações sobre 
+usuários que fizeram transações aprovadas após uma determinada data, com um valor total da transação 
+superior a um determinado limite. Ela fornece insights sobre o comportamento de transação dos usuários 
+e ajuda a identificar clientes de alto valor.
+```
+
+3. Execute a consulta.
+
+4. Para a otimização da consulta, vamos ajudar a IA para auxiliar a otimização, no final da consulta adicione esse comentário:
+
+```text
+/*
+Uso da função LOWER() em t.status dentro do WHERE. O correto seria Aprovada.
+*/
+```
+
+Depois clique em **Optimize**, será apresentado uma explicação e opção de otimizar a consulta.
+
+```text
+Explanation
+
+The optimization made in the query was removing the LOWER() function from the WHERE clause and changing 'aprovada' to 'Aprovada' to match the correct case. This change simplifies the query and improves performance by avoiding unnecessary function calls on the status column.
+```
+
+5. Execute agora com a correção.
+
+6. Para a opção COMMENT, basta clicar nessa opção e será adicionado comentários por linha para explicação de cada uma delas:
+
+```sql
+SELECT
+  c.id_usuario, /* Selecting the user ID */
+  c.nome, /* Selecting the user's name */
+  t.estabelecimento, /* Selecting the establishment of the transaction */
+  t.categoria, /* Selecting the category of the transaction */
+  t.status, /* Selecting the status of the transaction */
+  COUNT(*) AS total_transacoes, /* Counting the total number of transactions */
+  SUM(t.valor) AS valor_total, /* Calculating the total value of transactions */
+  AVG(t.valor) AS valor_medio, /* Calculating the average value of transactions */
+  MAX(t.data_transacao) AS ultima_compra /* Finding the date of the latest transaction */
+FROM
+  clientes c /* Selecting from the 'clientes' table */
+JOIN
+  transacoes_cartao t /* Joining with the 'transacoes_cartao' table */
+ON
+  c.id_usuario = t.id_usuario /* Joining based on the user ID */
+WHERE
+  t.status = 'Aprovada' /* Filtering for transactions with status 'Aprovada' */
+  AND t.data_transacao >= '2023-01-01' /* Filtering for transactions after January 1, 2023 */
+GROUP BY
+  c.id_usuario, c.nome, t.estabelecimento, t.categoria, t.status /* Grouping by user ID, name, establishment, category, and status */
+HAVING
+  SUM(t.valor) > 50000 /* Having a total transaction value greater than 50000 */
+ORDER BY
+  valor_total DESC /* Ordering the results by total value of transactions in descending 
+order */ 
+```
+
+#### Usando o recurso de FIX
+
+A função FIX do assistente de IA no Hue para o Impala no Cloudera Public Cloud é um recurso que identifica automaticamente problemas e erros de sintaxe em consultas SQL e fornece uma versão corrigida dessas consultas.
+
+1. Tente executar a consulta abaixo:
+
+```sql
+SELECT 
+  c.id_usuario,
+  c.nome,
+  t.estabelecimento,
+  t.categoria,
+  t.status,
+  SUM(t.valorr) AS total_valor,
+  COUNT(*) AS contador_transacoes
+FROM 
+  clientes c
+JOIN 
+  transacoes_cartao t
+ON 
+  c.id_usuario = t.id_usuario
+WHERE
+  t.data_transacao > '2023-01-01' AND
+  t.status = 'aprovada'
+GROUP BY 
+  c.id_usuario, c.nome, t.estabelecimento, t.categoria, t.status
+ORDER BY 
+  total_valor DESC
+LIMIT 500
+```
+
+2. Será presentado erro de sintaxe na execução. Clicar em FIX para verificar os possíveis erros e suas correções.
+
+![IASyntaxError](../img/ia004.png)
+
+Explanation
+
+The corrected query fixed the syntax error in the SUM function by changing 'valorr' to 'valor' to match the column name in the transacoes_cartao table. Additionally, the status condition 'aprovada' was changed to 'Aprovada' to match the case sensitivity of the data in the transacoes_cartao table. The table names were also fully qualified with the database name to avoid any ambiguity.
+
+3. Inserir a correção e executar a consulta.

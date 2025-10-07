@@ -84,7 +84,7 @@ O **Cloudera Data Engineering (CDE)** é uma plataforma gerenciada para orquestr
 
 - Passo-a-passo para implementar o laboratório com CDE: [Tutorial](tutorials/passo-a-passo.md)
 
-#### Cloudera Data Warehouse e Data Hub
+#### Cloudera Data Warehouse: Hive e Impala
 
 - Avaliação das funcionalidades e migração do Iceberg no Hive: [Tutorial](tutorials/ComandosHQLIcebergHive.md)
 - Avaliação das funcionalidades e migração do Iceberg no Impala: [Tutorial](tutorials/ComandosSQLIcebergImpala.md)

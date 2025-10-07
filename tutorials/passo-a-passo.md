@@ -10,12 +10,12 @@
 
 A seguir, os scripts principais para implantação da migração no CDE:
 
-- **[common_functions.py](https://github.com/jcaseir0/sebrdemos/blob/main/common_functions.py)**: Consolidação de funções que serão utilizadas pelas outras aplicações python como: validação de metastore, análise de tabelas, geração de dados sintéticos e manipulação de schemas.
-- **[create_table.py](https://github.com/jcaseir0/sebrdemos/blob/main/create_table.py)**: Criação de tabelas Hive/Parquet com suporte a particionamento e bucketing, validação de estruturas e remoção segura de tabelas antigas caso existam.
-- **[insert_table.py](https://github.com/jcaseir0/sebrdemos/blob/main/insert_table.py)**: Inserção e atualização de dados nas tabelas, com controle de particionamento e bucketing, geração de amostras e validação de integridade dos dados.
-- **[schemas/clientes.json](https://github.com/jcaseir0/sebrdemos/blob/main/schemas/clientes.json) e [schemas/transacoes_cartao.json](https://github.com/jcaseir0/sebrdemos/blob/main/schemas/transacoes_cartao.json)**: Schemas JSON para as tabelas de clientes e transações, garantindo consistência dos dados e facilidade na visualização e alteração dos tipos de dados das colunas.
-- **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/main/requirements.txt)**: Dependências do projeto, incluindo geração de dados sintéticos com Faker.
-- **[config.ini](https://github.com/jcaseir0/sebrdemos/blob/main/config.ini)**: Parâmetros para personalização das tabelas.
+- **[common_functions.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/common_functions.py)**: Consolidação de funções que serão utilizadas pelas outras aplicações python como: validação de metastore, análise de tabelas, geração de dados sintéticos e manipulação de schemas.
+- **[create_table.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/create_table.py)**: Criação de tabelas Hive/Parquet com suporte a particionamento e bucketing, validação de estruturas e remoção segura de tabelas antigas caso existam.
+- **[insert_table.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/insert_table.py)**: Inserção e atualização de dados nas tabelas, com controle de particionamento e bucketing, geração de amostras e validação de integridade dos dados.
+- **[schemas/clientes.json](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/schemas/clientes.json) e [schemas/transacoes_cartao.json](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/schemas/transacoes_cartao.json)**: Schemas JSON para as tabelas de clientes e transações, garantindo consistência dos dados e facilidade na visualização e alteração dos tipos de dados das colunas.
+- **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/requirements.txt)**: Dependências do projeto, incluindo geração de dados sintéticos com Faker.
+- **[config.ini](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/config.ini)**: Parâmetros para personalização das tabelas.
 
 ## Parametrizações na criação das tabelas
 
@@ -57,13 +57,13 @@ Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usa
 
 Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de projetos e promovam aplicativos de ambientes não-produtivos para ambientes produtivos. Atualmente, a Cloudera oferece suporte a provedores de Git, como GitHub, GitLab e Bitbucket.
 
-Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/clouderajguimaraes/sebrdemos.git](https://github.com/clouderajguimaraes/sebrdemos) na branch `rfbhol`.
+Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/jcaseir0/sebrdemos.git](https://github.com/jcaseir0/sebrdemos) na branch `rfbhol`.
 
 ## Lab. 1 - Preparação do ambiente virtual Python e configuração do projeto no Github
 
 ### Criação do recurso de ambiente virtual Python
 
-1. Baixar o arquivo **[requirements.txt](https://github.com/clouderajguimaraes/sebrdemos/blob/rfbhol/requirements.txt)** local para seu desktop;
+1. Baixar o arquivo **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/requirements.txt)** local para seu desktop;
 2. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
 
 ![alt text](../img/cde.png)
@@ -87,7 +87,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
    
    **Create A Repository**
    - **Repository Name:** nome do repositório: iceberg-demo_userXXX
-   - **URL:** https://github.com/clouderajguimaraes/sebrdemos.git
+   - **URL:** https://github.com/jcaseir0/sebrdemos.git
    - **Branch:** rfbhol
    - **Manter o resto das configurações padrão**
    - Clicar em **Create**
@@ -203,7 +203,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.
 
-Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/airflow/job-malha-airflow.py)**.
+Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/airflow/job-malha-airflow.py)**.
 
 Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário na linha: `8`, substitua `userXXX` pelo seu usuário, por exemplo.
 
@@ -303,7 +303,7 @@ Além disso, permite salvar e versionar scripts, facilitar testes antes da execu
 
 A execução desses jobs é fundamental para execução desse Hands-On-Lab, esses jobs que vão criar as tabelas e os dados utilizados nos próximos tutoriais.
 
-Uma vez que todos os jobs executaram com sucesso, vamos inciar os Labs do Hive [Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/clouderajguimaraes/sebrdemos/blob/patch-1/tutorials/ComandosHQLIcebergHive.md) 
+Uma vez que todos os jobs executaram com sucesso, vamos inciar os Labs do Hive [Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/tutorials/ComandosHQLIcebergHive.md) 
 
 ---
 
