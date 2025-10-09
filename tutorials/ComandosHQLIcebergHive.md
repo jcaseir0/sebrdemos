@@ -1,281 +1,226 @@
+<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" class="logo" width="120"/>
+
 # Documentação dos Comandos HQL do Script Iceberg + Hive
 
 Este documento apresenta uma explicação detalhada de cada comando HQL (Hive Query Language) presente no script fornecido, organizado por tópicos. Cada comando é apresentado em uma caixa de código SQL, seguido de uma explicação clara sobre seu propósito e funcionamento.
 
-Para realizar as consultas, vamos utilizar o `Cloudera Data Warehouse`.
-
-![alt text](../img/cdw.png)
-
-Em seguida clique no Hue, do ambiente `hive-vw` que estiver disponivel.
-
-![alt text](../img/hue.png)
-
-> [!WARNING]
-> Será necessário usar o nome do banco de dados como parâmetro nas execuções.
-> 
-> Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
-
-![alt text](../img/create_database.png)
-
 ## 1. Criação de Tabela Iceberg com CTAS
-
-**Explicação:**
 
 Cria uma tabela externa Iceberg no Hive, particionada por `data_execucao`, usando o storage handler do Iceberg. O comando copia todos os dados da tabela original `transacoes_cartao` para a nova tabela Iceberg, já no formato Iceberg e na versão 2 do formato.
 
-O CTAS é a forma de criar uma tabela usando o padrão `Create Table As Select`.
-
 ```sql
-use database ${databasename};
-
-CREATE EXTERNAL TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
+CREATE EXTERNAL TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 PARTITIONED BY (data_execucao)
 STORED BY 'org.apache.iceberg.mr.hive.HiveIcebergStorageHandler'
 TBLPROPERTIES ('format-version'='2')
-AS SELECT * FROM ${databasename}.transacoes_cartao;
+AS SELECT * FROM bancodemo.transacoes_cartao;
 ```
+
+**Observação:** Cláusula diferente para o Impala = STORED BY
 
 ## 2. Verificação de Metadados das Tabelas
 
-**Explicação:**
-
-Com o comando `DESCRIBE FORMATTED` podemos ver os metadados associados a cada uma das tabelas. 
 Mostra os detalhes e propriedades das tabelas, como tipo de armazenamento, particionamento, localização e propriedades do Iceberg. Útil para comparar atributos entre a tabela original e a migrada.
 
-Perceba a diferança em relação ao tipo da tabela, qual é o parâmetro que foi alterado?
-
-Tabela transacoes_cartao
+**Atenção:** Observe que para a tabela Iceberg, dentro de `Table Parameters`:`table_type`:`ICEBERG`
 
 ```sql
-DESCRIBE FORMATTED ${databasename}.transacoes_cartao;
-```
+DESCRIBE FORMATTED bancodemo.transacoes_cartao;
 
-Tabela transacoes_cartao_iceberg_ctas_hue
-
-```sql
-DESCRIBE FORMATTED ${databasename}.transacoes_cartao_iceberg_ctas_hue;
+DESCRIBE FORMATTED bancodemo.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 ## 3. Validação de Registros
 
-**Explicação:**
-
 Conta o número de registros em cada tabela, permitindo validar se a migração copiou todos os dados corretamente.
 
-Tabela transacoes_cartao
-
 ```sql
-SELECT COUNT(*) FROM ${databasename}.transacoes_cartao;
-```
+SELECT COUNT(*) FROM bancodemo.transacoes_cartao;
 
-Tabela transacoes_cartao_iceberg_ctas_hue
-
-```sql
-SELECT COUNT(*) FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue;
+SELECT COUNT(*) FROM bancodemo.transacoes_cartao_iceberg_ctas_hue;
 ```
 
 ## 4. Validação de Integridade
 
-**Explicação:**
+Exibe amostras de dados das duas tabelas para validação manual e compara registros específicos usando o id_usuario da consulta da tabela antes da conversão.
 
-Exibe amostras de dados das duas tabelas para validação manual e compara registros específicos usando filtros.
-
-Guarde os valores dos campos `id_usuario` e `valor` da primeira consulta, esses valores serão utilizados na consulta da tabela `transacoes_cartao_iceberg_ctas_hue`
-
-Tabela transacoes_cartao
+**Dica:** Após a primeira consulta, escolha uma linha e colete os dados das colunas id_usuario e valor para ser utilizada na segunda consulta.
 
 ```sql
-SELECT * FROM ${databasename}.transacoes_cartao LIMIT 10;
-```
+SELECT * FROM bancodemo.transacoes_cartao LIMIT 10;
 
-Tabela transacoes_cartao_iceberg_ctas_hue
-
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = ${hivetableid} AND valor = ${hivetablevalor};
 ```
 
 ## 5. Validação Cruzada
 
-**Explicação:**
-
-Compara registros entre as tabelas usando subconjuntos de valores, útil para checagem cruzada de integridade após migração.
+Compara registros entre as tabelas, usando subconjuntos de valores da tabela antes da conversão, útil para checagem cruzada de integridade após migração.
 
 ```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
-WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10)
-AND valor IN (SELECT valor FROM ${databasename}.transacoes_cartao LIMIT 10);
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
+WHERE id_usuario IN (SELECT id_usuario FROM bancodemo.transacoes_cartao LIMIT 10)
+AND valor IN (SELECT valor FROM bancodemo.transacoes_cartao LIMIT 10);
 ```
 
 ## 6. Controle de Versão com TAGs
 
-**Explicação:**
+A funcionalidade de Tagging do Iceberg no Hive permite criar rótulos imutáveis (tags) para snapshots específicos de uma tabela Iceberg, facilitando o controle de versões e o rastreamento de retenção de dados para auditorias e conformidade (por exemplo, com GDPR).
 
-Cria uma tag (marcador de versão) antes de operações críticas, permitindo rastrear e voltar a este ponto posteriormente.
+**Como funciona o Tagging**
+
+- Tags identificam snapshots importantes e ajudam a proteger versões de tabela contra deleção automática, possibilitando retenção por tempo determinado.
+- É possível criar tags usando comandos SQL no Hive, baseando-se em versões (snapshot IDs), timestamp, ou no branch atual.
+- Consultas SQL podem referenciar um tag diretamente, facilitando acesso a dados históricos sem manipular IDs de snapshot.
+
+**Benefícios**
+
+- Facilita a auditoria, conformidade e reprodução isolada de dados.
+- Simplifica a recuperação e referência a versões sem a necessidade de lidar com IDs complexos de snapshots.
+- Ajuda a implementar políticas de retenção e proteção de dados conforme exigências regulatórias.
+
+Criar uma tag antes de operações críticas, permitindo rastrear e voltar a este ponto posteriormente de forma facilitada.
 
 ```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_insert;
 ```
 
-Para validar que a tag foi criada corretamente:
-
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
-```
-
-## 7.  Consulta de Histórico (Snapshots) - Antes do insert
-
-**Explicação:**
-
-Antes de fazer o insert de dados na tabela, vamos validar como estão os Snapshots dela.
-
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
-```
-
-## 8. Inserção de Dados
-
-**Explicação:**
+## 7. Inserção de Dados
 
 Insere um novo registro na tabela Iceberg, simulando uma transação de cartão.
 
 ```sql
-INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue
+INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue
 VALUES ('000000036', '2024-06-24 15:10:06', 702.99, 'Mercado Bitcoin', 'Outros', 'Aprovada', '06-02-2025');
 ```
 
-## 9. Consulta de Histórico (Snapshots) - Depois do insert
- 
-**Explicação:**
+## Como funcionam os Snapshots no Iceberg?
 
-Lista todos os snapshots (versões) da tabela, permitindo auditoria e time travel.
+Os snapshots no Iceberg funcionam como versões imutáveis de uma tabela, criadas automaticamente a cada operação de escrita, como INSERT, UPDATE ou MERGE. Cada snapshot representa o estado exato da tabela em um momento, sendo essencial para processos de auditoria, conformidade e recuperação de dados.
 
-Perceba que um novo Snapshot foi criado depois do processo de insert. 
+### Operações comuns com Snapshots
+
+- Cada modificação na tabela gera um novo snapshot, acumulando um histórico de alterações.
+- É possível consultar a tabela em versões antigas usando o snapshot correspondente, viabilizando queries de "viagem no tempo".
+- Pode-se definir qual snapshot será usado como referência, modificando o estado atual da tabela para aquele ponto histórico:
+  ```sql
+  ALTER TABLE <nome_tabela> EXECUTE SET_CURRENT_SNAPSHOT (<snapshot_id>);
+  ```
+- Snapshots podem ser expirados/removidos para evitar crescimento excessivo do metadados e garantir compliance, inclusive selecionando por data, ID ou faixa de tempo:
+  ```sql
+  ALTER TABLE <nome_tabela> EXECUTE EXPIRE_SNAPSHOTS('<snapshot_id>');
+  ALTER TABLE <nome_tabela> EXECUTE EXPIRE_SNAPSHOTS('2022-08-15 13:50:00');
+  ```
+- É possível configurar o mínimo de snapshots a manter usando a propriedade `history.expire.min-snapshots-to-keep`, protegendo versões recentes por intervalo ou quantidade.
+
+Definição de propriedades como formato padrão de escrita (Parquet) e número máximo de versões de metadados a serem mantidas iguais a 5:
 
 ```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
+SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
 ```
 
-## 10. Consulta com Snapshot Específico
+### Benefícios dos snapshots
 
-**Explicação:**
+- Permitem recuperação rápida de dados após erros ou incidentes.
+- Facilitam auditoria e conformidade, já que cada estado da tabela pode ser acessado e mantido conforme política regulatória.[1][5]
+- Evitam leituras e escritas diretas em arquivos, mantendo metadados otimizados no sistema.[2][5]
 
-Podemos realizar consultas baseadas nas informações de snapshots diferentes, ou seja, versões diferentes da tabela.
+## 8. Consulta de Histórico
+
+Lista todos os snapshots da tabela, permitindo auditoria e time travel.
+
+```sql
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue.history;
+```
+
+## 9. Consulta com snapshot específico usando o time travel
 
 Consulta a tabela como ela estava em um determinado snapshot, útil para auditoria e recuperação de versões anteriores.
 
-Nessa consulta, devemos usar o `snapshot_id`, coluna de resultado da consulta anterior.
-
-Faça um teste usando cada um dos snapshots disponíveis, o que mudou?
-
 ```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
+SELECT * FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 FOR SYSTEM_VERSION AS OF ${snapshot_id_insert}
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
 
-## 11. Atualização de Dados
+## 10. Marcação com Tagging do momento
 
-**Explicação:**
-
-Antes de atualizar os dados, vamos criar uma nova tag e em seguida realizar um UPDATE nos dados.
-
-Criando uma nova tag:
+Marca o estado corrente com uma tag e atualiza o valor de uma transação específica.
 
 ```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_update;
-```
 
-Validando a tag, perceba que cada tag está associada a um snapshot:
-
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
-```
-
-Atualizando os dados:
-
-```sql
-UPDATE ${databasename}.transacoes_cartao_iceberg_ctas_hue
+UPDATE bancodemo.transacoes_cartao_iceberg_ctas_hue
 SET valor = 510.99
 WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
 ```
 
-Você consegue buscar os dados antes e depois do update? 
+## 11. Exclusão de Dados
 
-## 12. Exclusão de Dados
-
-**Explicação:**
-
-Agora vamos criar uma tag antes da exclusão e em seguida remover um registro específico.
+Criação de uma tag antes da exclusão e remove registros de um usuário específico.
 
 ```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue
 CREATE TAG pre_delete;
-```
 
-Validando a tag:
-
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs;
-```
-
-Removendo registros:
-
-```sql
-DELETE FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
+DELETE FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 WHERE id_usuario = '000000036';
 ```
 
-Agora vamos tentar buscar a linha que foi apagada da tabela. 
+## 12. Evolução de Esquema (Schema Evolution)
+
+O schema evolution no Iceberg permite alterar dinamicamente a estrutura das tabelas, possibilitando adaptar o modelo conforme novos requisitos, sem afetar a leitura dos dados antigos.
+
+### Principais funcionalidades
+
+- É possível adicionar, remover, renomear, atualizar o tipo ou reordenar colunas usando comandos SQL do Hive (ALTER TABLE).
+- Mudanças são realizadas no metadado (metadata.json), tornando o processo eficiente e sem necessidade de reescrever arquivos de dados.
+- Cada coluna possui um identificador único, o que garante integridade e evita problemas em operações como remoções e renomeações.
+- Alterações seguras de tipo, como int para long, float para double, ou aumento de precisão de decimal, são permitidas.
+- Após a evolução do schema, o metadado é atualizado e um commit é registrado, mas não é criado um novo snapshot da tabela.
+
+### Benefícios
+
+- Permite atualização e adaptação contínua dos modelos de dados, inclusive em produção.
+- Garante leitura consistente dos dados, mesmo após múltiplas mudanças no schema.
+- Evita custos e interrupções causadas por reprocessamento de grandes volumes de dados.
+
+As limitações do schema evolution no Iceberg incluem principalmente restrições de tipos de alterações, suporte parcial a mudanças e considerações específicas para garantir integridade dos dados:
+
+### Limitações principais
+
+- Alterações consideradas inseguras, que exigiriam atualização linha a linha dos dados, não são permitidas (ex.: alterações complexas de tipo que não sejam ampliação segura como int para long).
+- Tipos de mudança suportados incluem adicionar colunas, renomear, remover e mudar tipos de forma segura, mas renomeação não é completamente transparente em todos os cenários e pode causar problemas em alguns formatos legados.
+- Em engines ou formatos que usam posição (ex: CSV/TSV), schema evolution é limitado ou não suportado, pois alterações podem causar deslocamento incorreto de dados.
+- Mudanças feitas fora do Hive (por exemplo, via Spark) devem ser sincronizadas para refletir no schema do Hive/Impala e vice-versa, sendo essa sincronização um ponto de atenção.
+
+Adiciona uma nova coluna à tabela Iceberg de forma dinâmica, sem recriar a tabela.
 
 ```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
-WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limite_credito INT);
 ```
 
-Quando executamos essa consulta, ela vai ser executa na versão atual da tabela e não na Tag que criamos.
-Por isso o resultado é que aquela linha foi apagada.
+## 13. Atualização em Massa com MERGE
 
-Para buscar em tag especifica, podemos usar a seguinte sintaxe: 
+A cláusula MERGE no Hive usando Iceberg permite unir dados de uma tabela fonte com uma tabela destino, realizando atualizações, inserções ou exclusões condicionais com base em uma condição de junção. As operações de merge com Iceberg provê atomicidade e isolamento, aproveitando o gerenciamento de metadados.
 
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.tag_pre_delete
-WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
-```
+**Detalhes relevantes relacionados a chaves primárias**
 
-Hove alteração no resultado? 
+- Embora seja possível usar colunas para identificar unicamente linhas em operações como MERGE, essas chaves são lógicas para as operações e não garantem restrições físicas de unicidade.
+- O Iceberg gerencia integridade e consistência por meio de snapshots e metadados, e não pelo modelo tradicional de chave primária.
+- Em algumas integrações, a lógica de unicidade pode ser implementada via aplicação ou processos ETL que usam o Iceberg, mas isso fica fora do controle nativo do formato.
+- O Hive tradicional não suporta criação de constraints físicas (como primary keys), nem o Iceberg no Hive da Cloudera adiciona essa funcionalidade disponível hoje.
 
-## 13. Evolução de Esquema (Schema Evolution)
-
-**Explicação:**
-Uma das funcionalidades do Iceberg é a capacidade de modificar o schema das tabelas sem a necessidade de reescrever os dados.
-
-Isso significa que você pode adicionar, remover, renomear ou reordenar colunas, alterar tipos de dados e até mesmo ajustar estratégias de partição sem afetar os dados ou consultas existentes. O Iceberg rastreia alterações de esquema em metadados, garantindo compatibilidade com versões anteriores e futuras.
-
-O Iceberg armazena informações de esquema em metadados, separando-as dos arquivos de dados reais.
-Quando você faz uma alteração de esquema, o Iceberg atualiza os metadados, criando um novo snapshot do schema da tabela.
-Consultas mais antigas continuam a trabalhar com seu esquema original, enquanto consultas mais recentes podem ver o esquema atualizado.
-Essa abordagem evita a reescrita de todo o conjunto de dados para alterações de esquema, tornando o processo rápido e eficiente.
-
-Vamos adicionar uma nova coluna à tabela Iceberg de forma dinâmica, sem recriar a tabela.
+Atualiza a coluna `limite_credito` na tabela Iceberg com valores vindos da tabela de clientes, usando merge (upsert em outras distribuições).
 
 ```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue ADD COLUMNS (limite_credito INT);
-```
-
-## 14. Atualização em Massa com MERGE
-
-**Explicação:**
-
-Vamos atualizar a coluna `limite_credito`, que acabamos de criar, na tabela Iceberg com valores vindos da tabela de clientes, usando merge (upsert).
-
-```sql
-MERGE INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue AS t
+MERGE INTO bancodemo.transacoes_cartao_iceberg_ctas_hue AS t
 USING (
   SELECT id_usuario, MAX(limite_credito) AS limite_credito
-  FROM ${databasename}.clientes
+  FROM bancodemo.clientes
   GROUP BY id_usuario
 ) AS c
 ON t.id_usuario = c.id_usuario
@@ -283,205 +228,268 @@ WHEN MATCHED THEN
 UPDATE SET limite_credito = COALESCE(c.limite_credito, t.limite_credito);
 ```
 
-## 15. Time Travel por Timestamp
+## 14. Time Travel por Timestamp
 
-**Explicação:**
+O time travel usando Iceberg permite consultar versões históricas de uma tabela, acessando os dados em estados anteriores através de snapshots que armazenam o estado da tabela em momentos específicos.
 
-Outra funcionalidade marcante do Iceberg é o `Time Travel`, que pergmite que consultas sejam feitas olhando momentos passados da tabela.
+### Como funciona
 
-Vamos realizar uma consulta a tabela como ela estava em um determinado momento no tempo, usando o recurso de time travel do Iceberg, mas antes disso, precisamos coletar um timestamp para ser usado como filtro. 
+- Cada modificação cria um snapshot imutável da tabela, que guarda o estado completo naquele instante.
+- É possível fazer consultas apontando para um snapshot por ID (FOR SYSTEM_VERSION AS OF) ou por timestamp (FOR SYSTEM_TIME AS OF) para ver dados antigos sem alterar a tabela atual.
+- O Hive usa o schema mais recente para interpretar dados nos snapshots anteriores, garantindo consistência mesmo com evolução do esquema.
 
-O primeiro snapshot é o que contém o campo `parent_id` vazio. 
+### Benefícios
 
-O último snapshot é o que tiver o maior valor no campo `made_current_at`, que é o timestamp do momento em que aquele snapshot foi realizado.
+- Facilita auditoria, compliance e análise histórica.
+- Permite debug e validação de qualidade de dados, acessando estados anteriores.
+- Possibilita rollback para estado anterior da tabela em caso de erro.
+- Usa snapshots incrementais que mantêm a eficiência e gerenciam o tamanho do histórico.
 
-```sql
-SELECT * FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history;
-```
-
-Podemos também, trazer as informações das tags, junto ao snapshot.
-
-```sql
-SELECT
-hist.snapshot_id,
-hist.made_current_at,
-hist.parent_id,
-refs.snapshot_id,
-refs.name,
-refs.type
-FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue.history hist
-FULL OUTER JOIN ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs refs
-ON hist.snapshot_id = refs.snapshot_id ;
-```
-
-Com essas informações podemos realizar uma consulta de time travel usando como filtro um timestamp.
-Basta usar a coluna `current_at` como valor para `system_time`.
+Consulta a tabela conforme ela estava em um determinado momento no tempo, usando o recurso de time travel do Iceberg.
 
 ```sql
 SELECT *
-FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
+FROM bancodemo.transacoes_cartao_iceberg_ctas_hue
 FOR SYSTEM_TIME AS OF '${system_time}'
-WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
+LIMIT 10;
 ```
 
-Para qual valor de `current_at` temos resultado para essa consulta? 
+## 15. Tagging e Rollback
 
-## 16. Tagging e Rollback
+O rollback usando Iceberg permite restaurar uma tabela a um estado anterior com base em um snapshot específico ou timestamp, criando um novo snapshot correspondente a essa versão antiga.
+
+### Como funciona
+
+- Cada modificação gera um snapshot imutável da tabela.
+- O rollback cria um novo snapshot com a data e hora da operação, mas o snapshot_id permanece o mesmo do snapshot para o qual se está fazendo rollback.
+- Só é possível fazer rollback para snapshots que ainda sejam "current ancestor" na história da tabela — não é possível "rollback a um rollback".
+
+### Benefícios
+
+- Permite corrigir problemas ocorridos em alterações recentes da tabela.
+- Mantém o histórico completo das versões da tabela para auditoria e recuperação.
+- É suportado tanto no Hive quanto no Impala no Cloudera.
+
+Em resumo, o rollback é uma função de restauração de versão que garante segurança e integridade, criando novos snapshots para manter a linha do tempo dos dados.
+
+Cria uma tag para um snapshot específico e faz rollback para um snapshot anterior, revertendo alterações.
+
+```sql
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE TAG tag_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
+
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_rollback});
+
+--Ou com o timestamp
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK('${timestamp_id_insert}');
+```
+
+## 16. Branching (Ramificações)
+
+No Iceberg do Cloudera no Hive, branching permite criar ramificações (branches) de uma tabela para isolar alterações, facilitando desenvolvimento paralelo, testes ou experimentos sem impactar a tabela principal.
+
+### Funcionamento do Branching
+
+- Um branch é uma linha independente de snapshots derivada do snapshot atual ou específico da tabela.
+- Operações de leitura e escrita podem ser feitas de forma isolada em cada branch.
+- Branches facilitam workflows de desenvolvimento, QA, e prototipagem em paralelo com a produção.
+
+### Limitações
+
+- O recurso está em technical preview no Hive, não recomendado para produção crítica.
+- Não suportado por todas engines, especialmente não disponível no Impala.
+- Pode haver restrições no gerenciamento de snapshots e na sincronização entre branches.
+- Branches adicionam complexidade na governança, exigindo controle cuidadoso para evitar conflitos ou perda de dados.
+- Ainda não há suporte completo para operações avançadas, como merges automáticos entre branches, o que exige intervenção manual.
+
+### Recomendação
+
+- Usar branches para experimentação e ambientes de desenvolvimento.
+- Testar extensivamente antes de adotar em ambientes produtivos.
+- Acompanhar atualizações da Cloudera para a estabilidade futura do recurso.
+
+Cria uma branch para desenvolvimento isolado, permitindo alterações sem afetar a branch principal.
+
+```sql
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH dev_branch;
+
+INSERT INTO bancodemo.transacoes_cartao_iceberg_ctas_hue.branch_dev_branch VALUES (...);
+```
+
+## 17. Melhores práticas para publicação de branches e situações de conflito
+
+Para publicar (fazer merge) de uma branch `dev_branch` para a branch `main` no Iceberg, utiliza-se um comando de merge SQL padrão, conforme exemplo:
+
+```sql
+MERGE INTO main AS T
+USING dev_branch AS S
+T.id_usuario = S.id_usuario
+WHEN MATCHED THEN UPDATE SET <colunas_valores>
+WHEN NOT MATCHED THEN INSERT VALUES (<valores>);
+```
+
+Na prática, o procedimento seria:
+
+1. Criar e trabalhar na branch `dev_branch`.
+2. Quando apta, fazer merge dos dados para `main` com a cláusula MERGE.
+3. Opcionalmente, deletar a branch `dev_branch` após o merge.
+
+***
+
+Quanto à situação de duas branches criadas simultaneamente a partir da mesma versão inicial da main e com alterações independentes em paralelo:
+
+- Ambas as branches possuem a mesma origem (snapshot base).
+- Cada branch pode acumular alterações diferentes isoladamente.
+- Quando for feita a publicação (merge) de uma branch para a main, o merge só terá sucesso se a main não tiver sido alterada desde o snapshot base daquela branch.
+- Se tentar publicar a segunda branch sem atualizar primeiro a base (main), ocorrerá conflito de commit, pois o snapshot base da branch não é mais o atual da main.
+- Portanto, a main final após duas publicações concorrentes não conterá automaticamente as alterações de ambas as branches.
+
+Para garantir que a main contenha ambas as alterações, a segunda publicação deve:
+
+1. Atualizar a branch (rebase/fast-forward) com o estado atual da main (com as alterações da primeira branch já publicadas).
+2. Resolver possíveis conflitos.
+3. Fazer o merge atualizado na main.
+
+Sem esses passos, a publicação da segunda branch falhará ou sobrescreverá o conteúdo, omitindo alterações da outra branch.
+
+### Atualização fast-forward de branch
+
+No Hive, para atualizar um branch com as últimas alterações de outro (por exemplo, atualizar a branch `main` para o estado atual da branch `dev_branch`) usa-se o comando `EXECUTE FAST FORWARD`. Este comando move o ponteiro do branch alvo para o snapshot atual do branch de origem, sem criar merge commits.
+
+```sql
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST-FORWARD 'main' TO 'dev_branch';
+```
+
+Ou via procedimento:
+
+```sql
+CALL hive_catalog.system.fast_forward(
+  table => 'bancodemo.transacoes_cartao_iceberg_ctas_hue',
+  branch => 'main',
+  to => 'dev_branch'
+);
+```
+
+Isso atualiza a `main` para o mesmo estado da `dev_branch` exatamente, se `main` for um ancestral de `dev_branch` (fast-forward possível).
+
+***
+
+### Rebase de branches no Iceberg do Hive Cloudera
+
+Apesar de o Iceberg não possuir comando explícito para rebase como no Git, a ideia equivalente é:
+
+1. Atualizar o branch de destino (`main`) com um fast-forward para a versão mais atual.
+2. Criar ou atualizar outro branch baseado no novo estado do `main`.
+3. Aplicar as alterações da branch paralela "rebaseando" seus commits sobre o estado atualizado.
+
+Embora não haja sintaxe SQL direta para "rebase", um padrão é:
+
+- Atualizar `main` (como no exemplo fast-forward)
+- Excluir a branch paralela e criar novamente ela baseada em `main` atualizado
+- Reaplicar as alterações na branch paralela (via inserções, merges etc.)
+
+```sql
+-- Atualizar main para dev_branch
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST FORWARD 'main' TO 'dev_branch';
+
+-- Apagar branch antiga
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue DROP BRANCH dev_branch2;
+
+-- Criar branch dev_branch2 baseada em main atualizada
+ALTER TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH dev_branch2 FOR REF main;
+
+-- Aplicar alterações antigas da dev_branch2 na dev_branch2 nova através de comandos de MERGE ou INSERT
+```
+
+***
+
+### Considerações finais
+
+- O fast-forward somente aplica mudanças quando a branch alvo é ancestral da branch de origem.
+- Caso contrário, será necessário resolver conflitos manualmente via operações de merge.
+- Não há mecanismo nativo automático de merge ou rebase como no Git, exige coordenação e scripts para manter branches sincronizados.
+- Essas operações garantem que as alterações das branches paralelas sejam aplicadas ordenadamente sem perder mudanças.
+
+***
+
+Esse comportamento é similar ao modelo de controle de versão distribuído (como git), exigindo cuidado para sincronizar branches antes de publicar em produção em Iceberg com Hive no Cloudera.
+
+## 18. Otimização e Compaction
+
+O table maintenance no Iceberg envolve operações para otimizar o desempenho e a gestão dos dados da tabela, principalmente para compaction e limpeza de arquivos antigos.
+
+### Comando OPTIMIZE
+
+- O comando `OPTIMIZE` é usado para compactar arquivos pequenos em arquivos maiores e otimizados para leitura.
+- Essa compactação melhora a performance de queries, reduz overhead de metadados e melhora o gerenciamento do armazenamento.
+- Sintaxe típica no Hive com Iceberg:
+- Pode ser configurado para otimizar toda a tabela ou particionamento específico, dependendo das propriedades definidas.
+
+### Benefícios da manutenção da tabela
+
+- Reduz fragmentação de arquivos e melhora a eficiência de leitura.
+- Ajuda a controlar o crescimento do número de arquivos pequenos após muitas inserções, atualizações ou deleções.
+- Mantém o catálogo da tabela enxuto e gerenciável, evitando lentidão no acesso.
+
+### Considerações adicionais
+
+- O Iceberg gerencia automaticamente os snapshots e operações atômicas, garantindo consistência mesmo durante operações de manutenção.
+- Outras operações de manutenção incluem expiração de snapshots antigos (`EXPIRE SNAPSHOTS`) e limpeza de arquivos não referenciados (`REMOVE ORPHAN FILES`).
+- É recomendado executar o `OPTIMIZE` regularmente em tabelas com muitas operações de escrita para manter performance ideal.
+
+Essa combinação de manutenção com `OPTIMIZE` permite garantir a saúde da tabela e a performance consistente no Hive com Iceberg na plataforma Cloudera.
+
+Compacta arquivos pequenos e reorganiza os dados da tabela para melhorar desempenho e eficiência:
+
+```sql
+OPTIMIZE TABLE bancodemo.transacoes_cartao_iceberg_ctas_hue;
+```
+
+## 19. Conversão de Tabela para Iceberg
+
+```sql
+ALTER TABLE bancodemo.transacoes_cartao CONVERT TO ICEBERG;
+```
 
 **Explicação:**
-
-Vamos criar uma tag para um snapshot específico e fazer o rollback para um snapshot anterior, revertendo alterações.
-
-Vamos listar as tags atuais:
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs ;
-```
-
-Vamos buscar qual é o menor snapshot_id, para criar a tag baseada nesse snapshot. 
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue.history ;
-```
-
-Criando a tag baseada em um snapshot_id
-
-```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue CREATE TAG tag_insert FOR SYSTEM_VERSION AS OF ${snapshot_id_insert};
-```
-
-Listando a nova tag:
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs ;
-```
-
-Percebemos que a tag `tag_insert` e `pre_insert`, estão associadas ao mesmo snapshot.
-
-Executando o ROLLBACK, com esse comando, podemos voltar a qualquer estado que tenhamos snapshot. 
-Antes de executar, vamos validar uma linha da tabela:
-
-```sql
-SELECT *
-FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
-WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
-```
-
-Listando as tags atuais:
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs ;
-```
-
-Faça o ROLLBACK para o snapshot_id da tag `pre_update`. 
-
-```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue EXECUTE ROLLBACK(${snapshot_parent_id});
-```
-
-Feito o ROLLBACK, vamos executar novamente a consulta:
-
-```sql
-SELECT *
-FROM ${databasename}.transacoes_cartao_iceberg_ctas_hue
-WHERE id_usuario = '000000036' AND estabelecimento = 'Mercado Bitcoin';
-```
-
-Houve alguma diferença no resultado? Sabe dizer o motivo?
-
-
-## 17. Branching (Ramificações)
-
-**Explicação:**
-
-Outra forma de criar versões paralelas de uma mesma tabela é criando branches para elas.
-
-Vamos criar uma branch (ramificação) para desenvolvimento isolado, permitindo alterações sem afetar a branch principal.
-
-```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue CREATE BRANCH dev_branch;
-```
-
-Visualizando a nova branch:
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue.refs ;
-```
-
-```sql
-INSERT INTO ${databasename}.transacoes_cartao_iceberg_ctas_hue.branch_dev_branch
-VALUES ('000000037', '2025-06-24 17:12:14', 109.32, 'Mercado Bitcoin', 'Outros', 'Aprovada', '09-02-2025', '2000');
-```
-
-Perceba que foi adicionado o nome da branch no final da tabela e que, como ela foi criada após a adição da nova coluna, precisamos refletir essa alteração no insert.
-
-Agora vamos fazer algumas consultas:
-
-Sem a branch
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue
-WHERE id_usuario = '000000037' AND estabelecimento = 'Mercado Bitcoin';
-```
-
-Na branch
-
-```sql
-select * from ${databasename}.transacoes_cartao_iceberg_ctas_hue.branch_dev_branch
-WHERE id_usuario = '000000037' AND estabelecimento = 'Mercado Bitcoin';
-```
-
-Houve diferença no resultado?
-
-## 18. Conversão de Tabela para Iceberg
-
-**Explicação:**
-
 Converte uma tabela Hive tradicional para o formato Iceberg, preservando dados e metadados.
-
-```sql
-ALTER TABLE ${databasename}.transacoes_cartao CONVERT TO ICEBERG;
-```
-
-## 19. Otimização e Compactação 
-
-**Explicação:**
-
-Uma funcionalidade presente no Impala é a de OPTIMIZE que reorganiza e compacta os arquivos da tabela para melhorar desempenho e eficiência no acesso aos dados.
-
-Este processo ajuda a lidar com a degradação do desempenho causada por arquivos de dados fragmentados que se acumulam ao longo do tempo devido a atualizações e exclusões frequentes.
-
-A instrução OPTIMIZE TABLE aciona um processo chamado compactação, que essencialmente reescreve os dados da tabela para combinar arquivos pequenos em arquivos maiores e mais eficientes (geralmente com mais de 100 MB). Ela também mescla arquivos excluídos com os arquivos de dados correspondentes.
-
-```sql
-OPTIMIZE TABLE transacoes_cartao_iceberg_ctas_hue REWRITE DATA;
-```
 
 ## 20. Análise de Estatísticas
 
-**Explicação:**
+Mesmo com a atualização automática de estatísticas pelo Iceberg a cada snapshot, ainda é recomendado executar a análise de estatísticas no Hive para otimizar o planejamento e execução de queries.
 
-Calcula estatísticas da tabela e das colunas para otimizar o desempenho de consultas.
+### Quando executar a análise de estatísticas
 
-```sql
-ANALYZE TABLE ${databasename}.transacoes_cartao COMPUTE STATISTICS;
-```
+- Após operações significativas de escrita na tabela, como inserções em grande volume, atualizações e deleções que impactem dados e distribuição.
+- Antes de cargas de trabalho analíticas críticas que dependam fortemente de planos de execução otimizados.
+- Periodicamente em tabelas com uso frequente para garantir que as estatísticas estejam atualizadas em sistemas de consulta.
 
-## 21. Propriedades Avançadas
+### Melhores práticas
 
-**Explicação:**
+- Executar o comando ANALYZE TABLE do Hive após processos de ingestão ou em janelas de manutenção programadas:
+  ```sql
+  ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS;
+  ```
+- Utilizar a função de análise granular para colunas específicas, quando aplicável:
+  ```sql
+  ANALYZE TABLE bancodemo.transacoes_cartao COMPUTE STATISTICS FOR COLUMNS limite_credito;
+  ```
+- Integrar a análise de estatísticas em pipelines de dados para manter estatísticas atualizadas automaticamente.
+- Monitorar a validade das estatísticas no ambiente e reexecutar análises conforme necessidade, equilibrando custo de processamento e ganho de performance.
 
-Define propriedades avançadas, como formato padrão de escrita (Parquet) e número máximo de versões de metadados a serem mantidas.
+### Racional
 
-```sql
-ALTER TABLE ${databasename}.transacoes_cartao_iceberg_ctas_hue
-SET TBLPROPERTIES('write.format.default'='parquet', 'write.metadata.previous-versions-max'='5');
-```
+- Iceberg mantém metadados detalhados e estatísticas por arquivo, mas o Hive precisa das estatísticas agregadas para seu otimizador.
+- A análise no Hive complementa as estatísticas do Iceberg, ajudando em melhor geração de planos e filtragens.
+- Ignorar a análise pode levar a planos subótimos e maior tempo de consulta apesar dos dados recentes estarem atualizados.
+
+Assim, a execução da análise de estatísticas no momento certo é um passo recomendado para garantir desempenho consistente no Hive com tabelas Iceberg na Cloudera.
 
 ### Observações Finais
 
-- **Tags** e **branches** são recursos avançados do Iceberg no Hive, permitindo controle de versões, auditoria e desenvolvimento seguro.
+- **Tags** e **branches** são recursos avançados do Iceberg no Hive, mas ainda em Tech Preview, permitindo controle de versões, auditoria e desenvolvimento seguro. Entretanto não é recomendável ainda usar em produção. (Registro efetuado em 09/10/2025)
 - O **time travel** permite consultar dados históricos facilmente.
-- O uso de comandos como **MERGE**, **ROLLBACK** facilita a manutenção e governança de dados em ambientes analíticos modernos.
+- O uso de comandos como **MERGE**, **ROLLBACK** e **OPTIMIZE** facilita a manutenção e governança de dados em ambientes analíticos modernos.
 
-Uma vez que todos os comandos foram executaram com sucesso, vamos inciar os Labs do Imapala [Avaliação das funcionalidades e migração do Iceberg no Impala](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/tutorials/ComandosSQLIcebergImpala.md) 
+## BÔNUS - Aprofundamento no funcionamento do Iceberg no HDFS
+
+**Em Desenvolvimento**

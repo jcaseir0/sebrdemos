@@ -1,8 +1,9 @@
-import os,sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import sum, count, avg, rank, stddev, lead, date_trunc, when, corr, col, countDistinct, lit
 from pyspark.sql.window import Window
-import logging
+import logging, sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common_functions import load_config, create_spark_session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -10,42 +11,50 @@ logger = logging.getLogger(__name__)
 
 # Initialize Spark session
 logger.info("Initializing Spark session")
-spark = SparkSession.builder \
-    .appName("FinancialAnalysis") \
-    .config("spark.sql.catalogImplementation", "hive") \
-    .enableHiveSupport() \
-    .getOrCreate()
+
+app_name = "ComplexFinancialAnalysis"
+extra_conf = {"spark.sql.catalogImplementation": "hive"}
+spark = create_spark_session(logger, app_name, extra_conf)
 
 logger.info("Spark session initialized successfully")
 
-# Read tables
-username = sys.argv[1]
-print("PySpark Runtime Arg: ", sys.argv[1])
+# Load Variables
+config = load_config(logger)
+username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
+logger.debug(f"Loading username correctly? Var: {username}")
+database_name = config['DEFAULT'].get('dbname') + '_' + username
+logger.debug(f"Database name: {database_name}")
 
-username_final = '_' + username
+# Check if the 'iceberg' argument is there
+tableformat_iceberg = len(sys.argv) > 2 and sys.argv[2] == 'iceberg'
 
-clientes = spark.table(f"bancodemo{username_final}.clientes")
-transacoes = spark.table(f"bancodemo{username_final}.transacoes_cartao")
+# Get tables from config
+tables = config['DEFAULT']['tables'].split(',')
 
-# Exibir amostras das tabelas para verificar os dados
-logger.info("Displaying sample data from tables\n")
-logger.info("Transações")
-transacoes.show(5)
-logger.info("Clientes")
-clientes.show(5)
+# If sys.argv[2] exists and 'iceberg' value, change the table names
+if tableformat_iceberg:
+    tables = [f"{table.strip()}_miginplace" for table in tables]
+else:
+    tables = [table.strip() for table in tables]
+
+# Carrega as tabelas dinamicamente em variáveis
+for table in tables:
+    # Remove o sufixo para nomear a variável corretamente
+    var_name = table.replace('_miginplace', '') if tableformat_iceberg else table
+    globals()[var_name] = spark.table(f"{database_name}.{table}")
 
 # Contagem de linhas em cada tabela
 num_clientes = clientes.count()
-num_transacoes = transacoes.count()
+num_transacoes = transacoes_cartao.count()
 
 # 1. Análise de gastos por cliente e categoria, com ranking
 def gastos_por_cliente_categoria():
     # Verificar se as tabelas foram carregadas corretamente
-    if 'id_usuario' not in transacoes.columns or 'categoria' not in transacoes.columns:
+    if 'id_usuario' not in transacoes_cartao.columns or 'categoria' not in transacoes_cartao.columns:
         raise ValueError("As colunas esperadas não estão presentes na tabela transacoes_cartao.")
     
     # Calcular o total de gastos por usuário e categoria
-    gastos_agregados = transacoes.groupBy("id_usuario", "categoria") \
+    gastos_agregados = transacoes_cartao.groupBy("id_usuario", "categoria") \
         .agg(sum("valor").alias("total_gastos"))
     
     # Criar uma janela para o ranking por categoria
@@ -58,16 +67,16 @@ def gastos_por_cliente_categoria():
 
 # 2. Detecção de padrões de gastos anômalos
 def gastos_anomalos():
-    cliente_stats = transacoes.groupBy("id_usuario") \
+    cliente_stats = transacoes_cartao.groupBy("id_usuario") \
         .agg(avg("valor").alias("media_gasto"), stddev("valor").alias("desvio_padrao_gasto"))
     
-    return transacoes.join(cliente_stats, "id_usuario") \
+    return transacoes_cartao.join(cliente_stats, "id_usuario") \
         .join(clientes, "id_usuario") \
-        .filter(transacoes.valor > (cliente_stats.media_gasto + (3 * cliente_stats.desvio_padrao_gasto)))
+        .filter(transacoes_cartao.valor > (cliente_stats.media_gasto + (3 * cliente_stats.desvio_padrao_gasto)))
 
 # 3. Análise de tendências de gastos ao longo do tempo
 def tendencias_gastos():
-    return transacoes.groupBy(date_trunc("month", "data_transacao").alias("mes"), "categoria") \
+    return transacoes_cartao.groupBy(date_trunc("month", "data_transacao").alias("mes"), "categoria") \
         .agg(count("*").alias("num_transacoes"), 
              sum("valor").alias("total_gastos"), 
              avg("valor").alias("media_gasto")) \
@@ -76,7 +85,7 @@ def tendencias_gastos():
 
 # 4. Segmentação de clientes com base em padrões de gastos
 def segmentacao_clientes():
-    cliente_metricas = transacoes.groupBy("id_usuario") \
+    cliente_metricas = transacoes_cartao.groupBy("id_usuario") \
         .agg(
             countDistinct(date_trunc("month", "data_transacao")).alias("meses_ativos"),
             sum("valor").alias("total_gastos"),
@@ -93,7 +102,7 @@ def segmentacao_clientes():
 
 # 5. Análise de correlação entre limite de crédito e gastos
 def correlacao_limite_gastos():
-    gastos_cliente = transacoes.groupBy("id_usuario") \
+    gastos_cliente = transacoes_cartao.groupBy("id_usuario") \
         .agg(sum("valor").alias("total_gastos"), count("*").alias("num_transacoes"))
     
     df_joined = clientes.join(gastos_cliente, "id_usuario") \
@@ -106,6 +115,13 @@ def correlacao_limite_gastos():
 # Execute and show results
 print(f"\nNúmero de linhas da tabela clientes: {num_clientes}")
 print(f"\nNúmero de linhas da tabela transacoes_cartao: {num_transacoes}")
+
+# Exibir amostras das tabelas para verificar os dados
+logger.info("Displaying sample data from tables\n")
+logger.info("Clientes")
+clientes.show(5)
+logger.info("Transações")
+transacoes_cartao.show(5)
 
 logger.info("\nExecuting financial analysis queries\n")
 
