@@ -1,4 +1,3 @@
-from pyspark.sql import SparkSession
 from pyspark.sql.functions import sum, count, avg, max, date_format
 import logging, sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -58,7 +57,7 @@ num_transacoes = clientes.join(transacoes_cartao, "id_usuario") \
     .orderBy("total_transacoes", ascending=False)
 
 # 3. Média de gastos por transação para cada cliente
-media_gastos = clientes.join(transacoes, "id_usuario") \
+media_gastos = clientes.join(transacoes_cartao, "id_usuario") \
     .groupBy("id_usuario", "nome") \
     .agg(avg("valor").alias("media_gastos")) \
     .orderBy("media_gastos", ascending=False)
