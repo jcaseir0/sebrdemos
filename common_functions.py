@@ -1,5 +1,5 @@
 import os, logging, random, time, re, hashlib
-from typing import Dict, Tuple
+from typing import Dict, Optional
 from itertools import count as itertools_count
 import configparser
 from datetime import datetime, timedelta
@@ -67,7 +67,7 @@ def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini'
         logger.error(f"Error loading configuration: {str(e)}")
         raise
 
-def create_spark_session(logger: logging.Logger, app_name: str) -> SparkSession:
+def create_spark_session(logger: logging.Logger, app_name: str, extra_conf: Optional[Dict[str, str]] = None) -> SparkSession:
     """
     Creates and configures a Spark session optimized for Cloudera environments,
     specifically enabling Hive Metastore support for unified data access.
@@ -103,7 +103,13 @@ def create_spark_session(logger: logging.Logger, app_name: str) -> SparkSession:
         # For example, enabling Adaptive Query Execution (AQE)
         spark_conf.set("spark.sql.adaptive.enabled", "true")
 
-        # 2. Building the SparkSession
+        # 2. Apply Extra Configurations (Opcional)
+        if extra_conf:
+            logger.info(f"Applying {len(extra_conf)} extra Spark configurations.")
+            spark_conf.setAll(extra_conf.items())
+            logger.debug(f"Extra configurations applied: {extra_conf}")
+
+        # 3. Building the SparkSession
         spark = SparkSession \
             .builder \
             .appName(app_name) \
