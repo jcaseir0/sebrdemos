@@ -5,6 +5,7 @@ import configparser
 from datetime import datetime, timedelta
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import SparkSession
+from pyspark import SparkConf
 from faker import Faker
 from pyspark.sql.functions import col
 
@@ -64,6 +65,58 @@ def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini'
         return config
     except Exception as e:
         logger.error(f"Error loading configuration: {str(e)}")
+        raise
+
+def create_spark_session(logger: logging.Logger, app_name: str) -> SparkSession:
+    """
+    Creates and configures a Spark session optimized for Cloudera environments,
+    specifically enabling Hive Metastore support for unified data access.
+
+    This function sets critical Spark configurations required for integrating
+    with the Cloudera Hive Metastore (e.g., in a Cloudera Data Engineering
+    (CDE) Virtual Cluster environment).
+
+    Args:
+        logger (logging.Logger): A pre-configured Python logging instance.
+        app_name (str): The name to assign to the Spark application.
+
+    Returns:
+        SparkSession: The configured and running Spark session.
+
+    Raises:
+        Exception: If any error occurs during the Spark session creation process.
+    """
+    if not app_name:
+        raise ValueError("The 'app_name' parameter must not be empty.")
+        
+    logger.info(f"Attempting to create Spark session for application: '{app_name}'")
+    
+    try:
+        # 1. Configuration for Cloudera Hive Metastore integration
+        spark_conf = SparkConf()
+        
+        # Essential for CDE/CDP to connect Spark to the Hive Metastore
+        spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
+        spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
+        
+        # Optional: Add best practice configuration for improved performance/reliability
+        # For example, enabling Adaptive Query Execution (AQE)
+        spark_conf.set("spark.sql.adaptive.enabled", "true")
+
+        # 2. Building the SparkSession
+        spark = SparkSession \
+            .builder \
+            .appName(app_name) \
+            .config(conf=spark_conf) \
+            .enableHiveSupport() \
+            .getOrCreate()
+
+        logger.info(f"Spark session '{app_name}' created successfully. Spark UI: {spark.sparkContext.uiWebUrl}")
+        return spark
+        
+    except Exception as e:
+        logger.error(f"FATAL ERROR: Failed to create Spark session for app '{app_name}'. Details: {e}", exc_info=True)
+        # Re-raise the exception for upstream error handling
         raise
 
 def table_exists(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str) -> bool:

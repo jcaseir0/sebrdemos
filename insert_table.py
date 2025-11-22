@@ -2,34 +2,10 @@ import logging, sys
 from configparser import ConfigParser
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-from common_functions import load_config, gerar_dados, table_exists, get_table_columns
+from common_functions import create_spark_session, load_config, gerar_dados, table_exists, get_table_columns
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-def create_spark_session(logger: logging.Logger) -> SparkSession:
-    """Creates and configures a Spark session.
-
-    Returns:
-        SparkSession: Configured Spark session.
-    """
-    logger.info("Creating Spark session")
-    try:
-        spark_conf = SparkConf()
-        spark_conf.set("hive.metastore.client.factory.class", "com.cloudera.spark.hive.metastore.HivemetastoreClientFactory")
-        spark_conf.set("spark.sql.hive.metastore.jars", "builtin")
-
-        spark = SparkSession \
-        .builder \
-        .appName("UpdateTable") \
-        .enableHiveSupport() \
-        .getOrCreate()
-
-        logger.info("Spark session created successfully")
-        return spark
-    except Exception as e:
-        logger.error(f"Error creating Spark session: {e}")
-        raise
 
 def insert_data(logger: logging.Logger, spark: SparkSession, database_name: str, table_name: str, columns: list,
                 partition_by: str = None, is_bucketed: bool = False) -> None:
@@ -259,7 +235,8 @@ def main():
         username = sys.argv[1]
         print("PySpark Runtime Arg: ", sys.argv[1])
         
-        spark = create_spark_session(logger)
+        app_name = "Insert_Table_Data"
+        spark = create_spark_session(logger, app_name)
         spark.sql("SET spark.sql.sources.partitionOverwriteMode=dynamic")
         database_name_ini = config.get("DEFAULT", "dbname")
         database_name = database_name_ini + '_' + username

@@ -10,12 +10,12 @@
 
 A seguir, os scripts principais para implantação da migração no CDE:
 
-- **[common_functions.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/common_functions.py)**: Consolidação de funções que serão utilizadas pelas outras aplicações python como: validação de metastore, análise de tabelas, geração de dados sintéticos e manipulação de schemas.
-- **[create_table.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/create_table.py)**: Criação de tabelas Hive/Parquet com suporte a particionamento e bucketing, validação de estruturas e remoção segura de tabelas antigas caso existam.
-- **[insert_table.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/insert_table.py)**: Inserção e atualização de dados nas tabelas, com controle de particionamento e bucketing, geração de amostras e validação de integridade dos dados.
-- **[schemas/clientes.json](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/schemas/clientes.json) e [schemas/transacoes_cartao.json](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/schemas/transacoes_cartao.json)**: Schemas JSON para as tabelas de clientes e transações, garantindo consistência dos dados e facilidade na visualização e alteração dos tipos de dados das colunas.
-- **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/requirements.txt)**: Dependências do projeto, incluindo geração de dados sintéticos com Faker.
-- **[config.ini](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/config.ini)**: Parâmetros para personalização das tabelas.
+- **[common_functions.py](https://github.com/jcaseir0/sebrdemos/blob/onprem/common_functions.py)**: Consolidação de funções que serão utilizadas pelas outras aplicações python como: validação de metastore, análise de tabelas, geração de dados sintéticos e manipulação de schemas.
+- **[create_table.py](https://github.com/jcaseir0/sebrdemos/blob/onprem/create_table.py)**: Criação de tabelas Hive/Parquet com suporte a particionamento e bucketing, validação de estruturas e remoção segura de tabelas antigas caso existam.
+- **[insert_table.py](https://github.com/jcaseir0/sebrdemos/blob/onprem/insert_table.py)**: Inserção e atualização de dados nas tabelas, com controle de particionamento e bucketing, geração de amostras e validação de integridade dos dados.
+- **[schemas/clientes.json](https://github.com/jcaseir0/sebrdemos/blob/onprem/schemas/clientes.json) e [schemas/transacoes_cartao.json](https://github.com/jcaseir0/sebrdemos/blob/onprem/schemas/transacoes_cartao.json)**: Schemas JSON para as tabelas de clientes e transações, garantindo consistência dos dados e facilidade na visualização e alteração dos tipos de dados das colunas.
+- **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/onprem/requirements.txt)**: Dependências do projeto, incluindo geração de dados sintéticos com Faker.
+- **[config.ini](https://github.com/jcaseir0/sebrdemos/blob/onprem/config.ini)**: Parâmetros para personalização das tabelas.
 
 ## Parametrizações na criação das tabelas
 
@@ -57,13 +57,15 @@ Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usa
 
 Os repositórios Git permitem que as equipes colaborem, gerenciem artefatos de projetos e promovam aplicativos de ambientes não-produtivos para ambientes produtivos. Atualmente, a Cloudera oferece suporte a provedores de Git, como GitHub, GitLab e Bitbucket.
 
-Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/jcaseir0/sebrdemos.git](https://github.com/jcaseir0/sebrdemos) na branch `rfbhol`.
+Para a nossa demonstração iremos criar um recurso de ambiente virtual python para fornecer a biblioteca adicional para nossas aplicações e um repositório apontando para o projeto [https://github.com/jcaseir0/sebrdemos.git](https://github.com/jcaseir0/sebrdemos) na branch `onprem`.
 
-## Lab. 1 - Preparação do ambiente virtual Python e configuração do projeto no Github
+## Lab. 1 - Preparação do ambiente: Criação do recurso Python, configuração do projeto no Github e configuração de autenticação
+
+> **NOTA:** Laboratório testado no Cloudera On-premises 7.1.9 e Data Services na versão 1.5.4
 
 ### Criação do recurso de ambiente virtual Python
 
-1. Baixar o arquivo **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/requirements.txt)** local para seu desktop;
+1. Baixar o arquivo **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/onprem/requirements.txt)** local para seu desktop;
 2. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
 
 ![alt text](../img/cde.png)
@@ -86,11 +88,82 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 3. Na janela aberta, preencher os campos:
    
    **Create A Repository**
-   - **Repository Name:** nome do repositório: iceberg-demo_userXXX
+   - **Repository Name:** nome do repositório: cde-demo_userXXX
    - **URL:** https://github.com/jcaseir0/sebrdemos.git
-   - **Branch:** rfbhol
+   - **Branch:** onprem
    - **Manter o resto das configurações padrão**
    - Clicar em **Create**
+
+### Configuração de autenticação Kerberos
+
+#### Baixar o arquivo de keytab kerberos
+
+1.  No Cloudera Manager, Hosts clique em Roles e copie o nome do host gateway/utility
+2.  Escolha e abra o software utilizado para utilizar como terminal (Usando o Terminal dentro do [MS VS Code](https://code.visualstudio.com/))
+3.  No terminal, acesse o servidor com o seguinte comando e coloque a senha do usuário:
+
+```shell
+ssh userXXX@gateway.domain.com
+```
+
+4. Primeiro confirme o domínio do Kerberos, caso não conheça ainda. Copie o domínio e cole no editor de texto.
+
+```shell
+cat /etc/krb5.conf | grep default_realm
+```
+
+5. Gerar o arquivo de keytab kerberos
+
+> **NOTA:** O domínio do Kerberos será usado agora, sua senha será solicitada novamente e dica: seta para cima repete o último comando executado
+
+```shell
+ktutil
+addent -password -p <userXXX>@EXAMPLE.COM -k 1 -f
+addent -password -p <userXXX>@EXAMPLE.COM -k 2 -f
+wkt <userXXX>.keytab
+q
+```
+
+6. Listar o arquivo gerado, testar o funcionamento e baixá-lo para a computador local
+
+```shell
+ls -ltr <userXXX>.keytab
+# Verificar se existe algum ticket iniciado
+klist
+# Caso tenha e não seja o criado
+kdestroy
+# Verificar o Principal a ser utilizado na autenticação
+klist -kt <userXXX>.keytab
+# Iniciar o ticket kerberos
+kinit -kt <userXXX>.keytab <userXXX>@EXAMPLE.COM
+# Valide o ticket criado
+klist
+```
+   
+7. Copiar a keytab para o computador local
+
+```shell
+# Logout do servidor gateway onde a keytab foi gerada
+exit
+# Baixar a keytab para a máquina local
+scp userXXX@gateway.domain.com:<userXXX>.keytab .
+```
+
+> **NOTA:** O ponto no final do comando acima é necessário e informa para baixar o arquivo no diretório corrente.
+
+#### Configuração da autenticação através do Kerberos
+
+- No console **Cloudera**, clique no mosaico do **Data Engineering**
+- Clique em **Administration** no menu de navegação à esquerda
+- Na coluna Serviços, selecione o ambiente para o qual deseja configurar a autenticação Hadoop e clique em Detalhes do serviço.
+- Clique em Autenticação Hadoop
+- Preencha conforme abaixo:
+
+*** Principal:** <userXXX>@EXAMPLE.COM
+*** Keytab file:** Selecione o arquivo <userXXX>.keytab que acabou de baixar
+**Authenticate**
+
+> **NOTA:** Uma notificação em verde irá aparecer informando que a autenticação foi um sucesso.
 
 ## Lab. 2 - Criação dos Jobs para criação dos dados e validação
 
@@ -104,10 +177,10 @@ Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necess
 #### Job 1 - Job para criação das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. Selecione o tipo **Spark 3.5.1**.
+2. Selecione o tipo **Spark 3.3.2**.
 3. **Name:** nome do job: create-table_userXXX
 4. **Select Application Files:** Repository
-5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, selecione o arquivo **create_table.py** -> **Select File**
+5. **+ Add from Repository** -> Selecione o repositório criado: **cde-demo_userXXX**, selecione o arquivo **create_table.py** -> **Select File**
 6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 8. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
@@ -123,10 +196,10 @@ Vamos criar os outros Jobs necessários para o laboratório.
 #### Job 2 - Job para a validação da criação das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-3. Selecione o tipo **Spark 3.5.1**.
+3. Selecione o tipo **Spark 3.3.2**.
 3. **Name:** nome do job: create-table-validation_userXXX
 4. **Select Application Files:** Repository
-5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
+5. **+ Add from Repository** -> Selecione o repositório criado: **cde-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
 6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 7. Não há necessidade de selecionar o **Python Environment**
 8. Não há necessidade de alterar o perfil de recursos, manter padrão
@@ -135,10 +208,10 @@ Vamos criar os outros Jobs necessários para o laboratório.
 #### Job 3 - Job para nova ingestão de dados usando o particionamento e bucketing das tabelas existentes
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. Selecione o tipo **Spark 3.5.1**.
+2. Selecione o tipo **Spark 3.3.2**.
 3. **Name:** nome do job: insert-table_userXXX
 4. **Select Application Files:** Repository
-5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
+5. **+ Add from Repository** -> Selecione o repositório criado: **cde-demo_userXXX** e selecione o arquivo **insert_table.py** -> **Select File**
 6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 8. Em **Advanced Options** é possivel adicionar mais fontes de bibliotecas e classes para sua aplicação, além de aumentar a quantidade de recurso para seu job.
@@ -152,10 +225,10 @@ Vamos criar os outros Jobs necessários para o laboratório.
 #### Job 4 - Job para a validação da ingestão das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-2. Selecione o tipo **Spark 3.5.1**.
+2. Selecione o tipo **Spark 3.3.2**.
 3. **Name:** nome do job: insert-table-validation_userXXX
 4. **Select Application Files:** Repository
-5. **+ Add from Repository** -> Selecione o repositório criado: **iceberg-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
+5. **+ Add from Repository** -> Selecione o repositório criado: **cde-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
 6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
 7. Não há necessidade de selecionar o **Python Environment**
 8. Não há necessidade de alterar o perfil de recursos, manter padrão
@@ -203,7 +276,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.
 
-Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/airflow/job-malha-airflow.py)**.
+Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/onprem/airflow/job-malha-airflow.py)**.
 
 Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário na linha: `8`, substitua `userXXX` pelo seu usuário, por exemplo.
 
@@ -303,7 +376,7 @@ Além disso, permite salvar e versionar scripts, facilitar testes antes da execu
 
 A execução desses jobs é fundamental para execução desse Hands-On-Lab, esses jobs que vão criar as tabelas e os dados utilizados nos próximos tutoriais.
 
-Uma vez que todos os jobs executaram com sucesso, vamos inciar os Labs do Hive [Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/tutorials/ComandosHQLIcebergHive.md) 
+Uma vez que todos os jobs executaram com sucesso, vamos inciar os Labs do Hive [Avaliação das funcionalidades e migração do Iceberg no Hive](https://github.com/jcaseir0/sebrdemos/blob/onprem/tutorials/ComandosHQLIcebergHive.md) 
 
 ---
 
