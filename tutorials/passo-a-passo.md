@@ -159,8 +159,10 @@ scp userXXX@gateway.domain.com:<userXXX>.keytab .
 - Clique em Autenticação Hadoop
 - Preencha conforme abaixo:
 
-*** Principal:** <userXXX>@EXAMPLE.COM
-*** Keytab file:** Selecione o arquivo <userXXX>.keytab que acabou de baixar
+**Principal:** <userXXX>@EXAMPLE.COM
+
+**Keytab file:** Selecione o arquivo <userXXX>.keytab que acabou de baixar
+
 **Authenticate**
 
 > **NOTA:** Uma notificação em verde irá aparecer informando que a autenticação foi um sucesso.
