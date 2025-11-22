@@ -201,7 +201,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 4. **Select Application Files:** Repository
 5. **+ Add from Repository** -> Selecione o repositório criado: **cde-demo_userXXX**, em seguida **spark** e depois o arquivo **simplequeries.py** e clique em **Select File**
 6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-7. Não há necessidade de selecionar o **Python Environment**
+7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 8. Não há necessidade de alterar o perfil de recursos, manter padrão
 9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
@@ -230,7 +230,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 4. **Select Application Files:** Repository
 5. **+ Add from Repository** -> Selecione o repositório criado: **cde-demo_userXXX**, depois a pasta **spark** e selecione o arquivo  arquivo **complexqueries.py** -> **Select File**
 6. **Arguments:** Coloque o nome do seu usuário: `userXXX`
-7. Não há necessidade de selecionar o **Python Environment**
+7. Em **Python Environment**, clique em **Select Python Environment**, selecione o ambiente criado: **env-py_userXXX** e clicar em **Select Resource**
 8. Não há necessidade de alterar o perfil de recursos, manter padrão
 9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
