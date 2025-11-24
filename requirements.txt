@@ -1,2 +1,1 @@
 faker[pt_BR]
-airflow-provider-apache-cde

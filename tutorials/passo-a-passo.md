@@ -281,28 +281,33 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 ### Lab. 3 - Criando o job do Airflow
 
-> [!Important]
+> [!IMPORTANT]
 > Será necessário editar o arquivo
 
-Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.
+Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário:
 
-Baixe no seu computador o arquivo **[job-malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/onprem/airflow/job-malha-airflow.py)**.
+1. Baixe no seu computador o arquivo **[malha-airflow.py](https://github.com/jcaseir0/sebrdemos/blob/rfbhol/airflow/malha-airflow.py)**.
+2. Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário na linha: `9`, conforme o exemplo:
 
-Agora precisamos alterar o nome dos jobs que serão executados, adicione o seu nome de usuário na linha: `8`, substitua `userXXX` pelo seu usuário, por exemplo.
+```python
+username_arg = "userXXX"
+```
 
-Antes de enviar o arquivo para o `CDE` vamos alterar o nome do arquivo no seu computador, para refletir o nome do seu usário, deve ficar: `job-malha-airflow_user001.py`.
+3. Alterar o nome do arquivo no seu computador, para refletir o registro utilizado no script, deve ficar: `malha_airflow_user001.py`.
 
-Agora vamos criar o job do Airflow:
+Para criar o job do Airflow seguir os passos abaixo:
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
-3. Selecione o tipo **Airflow**
-4. **Name:** nome do job: job-malha-airflow_userXXX
-5. Clique em **Upload** e depois em **Select a file**, selecione o arquivo `job-malha-airflow_userXXX.py`.
-6. Na oção **Select a Resource** escolha **Create a Resource**, dê um nome para ele `job-malha-airflow_userXXX` e clique em Upload.
-7. Agora clique na seta azul e selecione Create.
-8. Uma vez que o job do Airflow foi criado, volte a lista de **Jobs**, clicando na esquerda. Localize o `job-malha-airflow_userXXX` na lista, clique nos três pontos, no final da tela a direita, e então em **Run Now**.
+2. Selecione o tipo **Airflow**
+3. **Name:** nome do job: malha-airflow_userXXX
+4. Em **DAG File**, selecione a opção **Resource** e depois clique em **Upload**
+5. Clique em **Select a file** -> Selecione o arquivo que você acabou de editar: `malha_airflow_user001.py`
+6. Depois **Select a Resource**, garantir que **Create a Resource** esteja selecionado.
+7. Na oção **Resource Name**, defina o nome do recurso: **fileres_userXXX**
+8. Mantenha as outras configurações com os valores padrão.
+9. Agora clique no botão **Create and Run**
 
-O job do Airflow vai coordenar a execução dos outros 4 jobs na sequeência correta, você pode acompanhar a execução pela interface do Airflow, pode olhar os logs para entender o que está acontencedo. 
+É possível verificar a situação da execução do job na opção **Job Runs**. O job do Airflow vai coordenar a execução dos outros 4 jobs na sequeência correta, você pode acompanhar a execução pela interface do Airflow, pode olhar os logs para entender o que está acontencedo. 
 
 ### Lab. 4 - Monitoramento do job do Airflow na interface de usuário
 

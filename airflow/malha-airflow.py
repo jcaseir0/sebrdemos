@@ -2,15 +2,11 @@ from airflow import DAG
 from airflow.utils import timezone
 from airflow.operators.dummy_operator import DummyOperator
 from cloudera.cdp.airflow.operators.cde_operator import CDEJobRunOperator
-from datetime import timedelta
 from dateutil import parser
-import sys
 
 # --- Variable Collection and Configuration Block ---
-# Accesses the first argument passed (sys.argv[1]), if it exists.
-# If there is no argument (only sys.argv[0] - the script name),
-# sets username as an empty string ("").
-username_arg = sys.argv[1] if len(sys.argv) > 1 else ""
+# Sets username here: userXXX (inside the double quotes) or keep as an empty string ("").
+username_arg = ""
 
 # Builds the suffix of the job name and dag_id
 # If username_arg is not empty, the suffix will be '_' + username_arg (e.g., '_user001')
