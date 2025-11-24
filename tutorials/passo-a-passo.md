@@ -1,11 +1,5 @@
 # Demonstração: Implantação da Migração Iceberg no Cloudera Data Engineering (CDE)
 
-## Requisitos
-
-- Python 3.7+
-- Spark 3.5+
-- Faker
-
 ## Funcionalidades das aplicações python e arquivos complementares
 
 A seguir, os scripts principais para implantação da migração no CDE:
@@ -51,7 +45,14 @@ num_buckets = 0
 
 Ajuste estes valores conforme necessário antes de executar o script. As configurações permitem que você controle o número de registros gerados para cada tabela através da variável `num_records` para a criação e `num_records_update` para a aplicação de ingestão. O código lê este arquivo para determinar o nome do banco de dados, o número de registros a serem gerados para cada tabela e se a tabela será particionada/bucketing.
 
-## Criação do recurso Python e do repositório
+> [!Note]
+>  Quando o container é provisionado, para a execução das aplicações, o diretório /app/mount é criado e os arquivos são direcionados para esse diretório. O arquivo de configuração config.ini fica nesse diretório e estou deixando como valor padrão na função para carregar essas informações:
+
+```python
+def load_config(logger: logging.Logger, config_path: str='/app/mount/config.ini') -> configparser.ConfigParser:
+```
+
+## Pré-requisito: Criação do recurso Python e do repositório
 
 Um recurso no Cloudera Data Engineering é uma coleção nomeada de arquivos usados por um trabalho ou uma sessão. Os recursos podem incluir código de aplicativo, arquivos de configuração, imagens personalizadas do Docker e especificações de ambiente virtual Python (requirements.txt).
 
@@ -66,9 +67,9 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 ### Criação do recurso de ambiente virtual Python
 
 1. Baixar o arquivo **[requirements.txt](https://github.com/jcaseir0/sebrdemos/blob/onprem/requirements.txt)** local para seu desktop;
-2. Acessar o **console do Cloudera Data Platform (CDP)** e depois no **Data Engineering**;
+2. Acessar o **console do Cloudera Data Services** e depois no **Data Engineering**;
 
-![alt text](../img/cde.png)
+![alt text](../img/lab01_dataservices.png)
    
 3. Clicar em **Resources**, no menu da coluna à esquerda e na nova página, clicar no botão **Create a Resource** (O botão aparecerá centralizado caso não exista nenhum recurso criado ainda ou no canto superior à direita.);
 4. Na janela aberta, preencher os campos:
@@ -78,7 +79,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
    - **Type:** Python Environment
    - Clicar em **Create**
 
-5. Depois clicar em **Upload File** e selecionar o arquivo requirements.txt baixado anteriormente.
+5. Depois clicar em **Upload File** e selecionar o arquivo `requirements.txt` baixado anteriormente.
 6. Após confirmar o upload do arquivo, será iniciado o processo de criação do ambiente virtual com a biblioteca(s) selecionada(s). Quando o botão de upload file aparecer novamente é que o processo foi encerrado e será apresentado as bibliotecas instaladas.
 
 ### Criação do repositório do Git
@@ -99,7 +100,7 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 #### Baixar o arquivo de keytab kerberos
 
 1.  No Cloudera Manager, Hosts clique em Roles e copie o nome do host gateway/utility
-2.  Escolha e abra o software utilizado para utilizar como terminal (Usando o Terminal dentro do [MS VS Code](https://code.visualstudio.com/))
+2.  Escolha e abra o software utilizado para utilizar como terminal (Usando o Terminal dentro do editor de códigos [MS VS Code](https://code.visualstudio.com/))
 3.  No terminal, acesse o servidor com o seguinte comando e coloque a senha do usuário:
 
 ```shell
@@ -130,7 +131,7 @@ q
 ls -ltr <userXXX>.keytab
 # Verificar se existe algum ticket iniciado
 klist
-# Caso tenha e não seja o criado
+# Caso o ticket esteja iniciado, para efetuar os testes, remova o ticket
 kdestroy
 # Verificar o Principal a ser utilizado na autenticação
 klist -kt <userXXX>.keytab
@@ -151,19 +152,17 @@ scp userXXX@gateway.domain.com:<userXXX>.keytab .
 
 > **NOTA:** O ponto no final do comando acima é necessário e informa para baixar o arquivo no diretório corrente.
 
-#### Configuração da autenticação através do Kerberos
+#### Configuração da autenticação através do Kerberos no CDE
 
 - No console **Cloudera**, clique no mosaico do **Data Engineering**
 - Clique em **Administration** no menu de navegação à esquerda
-- Na coluna Serviços, selecione o ambiente para o qual deseja configurar a autenticação Hadoop e clique em Detalhes do serviço.
+- Na coluna Serviços, selecione o ambiente para o qual deseja configurar a autenticação Hadoop e clique em **Service Details**.
 - Clique em Autenticação Hadoop
 - Preencha conforme abaixo:
-
-**Principal:** <userXXX>@EXAMPLE.COM
-
-**Keytab file:** Selecione o arquivo <userXXX>.keytab que acabou de baixar
-
-**Authenticate**
+> **NOTA:** Utilizar o mesmo principal coletado anteriormente a partir da <userXXX>.keytab
+  - **Principal:** <userXXX>@EXAMPLE.COM
+  - **Keytab file:** Selecione o arquivo <userXXX>.keytab que acabou de baixar
+  - **Authenticate**
 
 > **NOTA:** Uma notificação em verde irá aparecer informando que a autenticação foi um sucesso.
 
@@ -176,6 +175,7 @@ Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necess
 > Para a criação dos próximos 4 jobs, se atentar que serão apenas criados, não executá-los ainda.
 
 ### Criação dos Jobs Spark no CDE
+
 #### Job 1 - Job para criação das tabelas
 
 1. No painel do CDE, clique em **Jobs** e depois em **Create Job**.
@@ -192,6 +192,14 @@ Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necess
     - **Executor Memory:** 4
     - **Manter o resto das configurações padrão**
 9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
+
+> **NOTA:** O item 7 Arguments deve ser utilizado no código através da biblioteca nativa sys e pode ter quantos argumentos for necessários. O exemplo utilizado é para compor o nome do banco de dados, conforme trecho do código:
+
+```python
+username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
+...
+database_name = config['DEFAULT'].get('dbname') + '_' + username
+```
 
 Vamos criar os outros Jobs necessários para o laboratório.
 
@@ -236,7 +244,7 @@ Vamos criar os outros Jobs necessários para o laboratório.
 8. Não há necessidade de alterar o perfil de recursos, manter padrão
 9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
-## Lab. 3 - Criação dos Jobs Airflow e agendado no CDE
+## Lab. 3 - Criação dos Jobs Airflow no CDE
 
 O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAGs (Directed Acyclic Graphs), muito utilizada para automatizar pipelines de dados. No CDE, cada cluster virtual já inclui uma instância embutida do Airflow, facilitando a criação, agendamento e monitoramento de workflows sem necessidade de infraestrutura adicional
 
@@ -273,7 +281,7 @@ O Apache Airflow é uma plataforma de orquestração de workflows baseada em DAG
 
 ### Lab. 3 - Criando o job do Airflow
 
-> [!IMPORTANT]
+> [!Important]
 > Será necessário editar o arquivo
 
 Antes de criar esse job, precisamos atualizar o arquivo do Airflow com as informações do seu usuário.

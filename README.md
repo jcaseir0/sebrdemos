@@ -1,4 +1,4 @@
-# Migração de Tabelas Hive Parquet para Iceberg em um Grande Banco Financeiro
+# Laboratório: Migração de Tabelas Hive Parquet para Iceberg em um Grande Banco Financeiro
 
 ## Introdução
 
