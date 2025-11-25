@@ -62,7 +62,8 @@ Para a nossa demonstração iremos criar um recurso de ambiente virtual python p
 
 ## Lab. 1 - Preparação do ambiente: Criação do recurso Python, configuração do projeto no Github e configuração de autenticação
 
-> **NOTA:** Laboratório testado no Cloudera On-premises 7.1.9 e Data Services na versão 1.5.4
+> [!Note]
+> Laboratório testado no Cloudera On-premises 7.1.9 e Data Services na versão 1.5.4
 
 ### Criação do recurso de ambiente virtual Python
 
@@ -115,7 +116,8 @@ cat /etc/krb5.conf | grep default_realm
 
 5. Gerar o arquivo de keytab kerberos
 
-> **NOTA:** O domínio do Kerberos será usado agora, sua senha será solicitada novamente e dica: seta para cima repete o último comando executado
+> [!Note]
+> O domínio do Kerberos será usado agora, sua senha será solicitada novamente e dica: seta para cima repete o último comando executado
 
 ```shell
 ktutil
@@ -150,7 +152,8 @@ exit
 scp userXXX@gateway.domain.com:<userXXX>.keytab .
 ```
 
-> **NOTA:** O ponto no final do comando acima é necessário e informa para baixar o arquivo no diretório corrente.
+> [!Note]
+> O ponto no final do comando acima é necessário e informa para baixar o arquivo no diretório corrente.
 
 #### Configuração da autenticação através do Kerberos no CDE
 
@@ -164,7 +167,8 @@ scp userXXX@gateway.domain.com:<userXXX>.keytab .
   - **Keytab file:** Selecione o arquivo <userXXX>.keytab que acabou de baixar
   - **Authenticate**
 
-> **NOTA:** Uma notificação em verde irá aparecer informando que a autenticação foi um sucesso.
+> [!Note]
+> Uma notificação em verde irá aparecer informando que a autenticação foi um sucesso.
 
 ## Lab. 2 - Criação dos Jobs para criação dos dados e validação
 
@@ -193,7 +197,8 @@ Os jobs podem ser executados sob demanda ou de forma agendada, conforme a necess
     - **Manter o resto das configurações padrão**
 9. Por fim, **NÃO CLICAR EM** Create and Run, passar o mouse sobre a seta ao lado e clique em **Create**
 
-> **NOTA:** O item 7 Arguments deve ser utilizado no código através da biblioteca nativa sys e pode ter quantos argumentos for necessários. O exemplo utilizado é para compor o nome do banco de dados, conforme trecho do código:
+> [!Note]
+> O item 7 Arguments deve ser utilizado no código através da biblioteca nativa sys e pode ter quantos argumentos for necessários. O exemplo utilizado é para compor o nome do banco de dados, conforme trecho do código:
 
 ```python
 username = sys.argv[1] if len(sys.argv) > 1 else 'forgetArguments'
@@ -301,13 +306,13 @@ Para criar o job do Airflow seguir os passos abaixo:
 2. Selecione o tipo **Airflow**
 3. **Name:** nome do job: malha-airflow_userXXX
 4. Em **DAG File**, selecione a opção **Resource** e depois clique em **Upload**
-5. Clique em **Select a file** -> Selecione o arquivo que você acabou de editar: `malha_airflow_user001.py`
+5. Clique em **Select a file** -> Selecione o arquivo que você acabou de editar: `malha_airflow_userXXX.py`
 6. Depois **Select a Resource**, garantir que **Create a Resource** esteja selecionado.
 7. Na oção **Resource Name**, defina o nome do recurso: **fileres_userXXX**
 8. Mantenha as outras configurações com os valores padrão.
 9. Agora clique no botão **Create and Run**
 
-É possível verificar a situação da execução do job na opção **Job Runs**. O job do Airflow vai coordenar a execução dos outros 4 jobs na sequeência correta, você pode acompanhar a execução pela interface do Airflow, pode olhar os logs para entender o que está acontencedo. 
+É possível verificar a situação da execução do job na opção **Job Runs**. O job do Airflow vai coordenar a execução dos outros 4 jobs na sequência correta, você pode acompanhar a execução pela interface do Airflow e observar os logs para entender o que está acontencedo. 
 
 ### Lab. 4 - Monitoramento do job do Airflow na interface de usuário
 
@@ -321,15 +326,15 @@ Entre as principais funcionalidades disponíveis estão:
 
 Recursos que facilitam a identificação de gargalos e o aprimoramento contínuo dos processos de automação.
 
-1. Iniciar clicando em **Job Runs** para acompanhar a execução do job iniciado acima: `job-malha-airflow_userXXX`. Se aparecer um sino à frente do Run ID, significa que o job está aguardando o auto-scaling do ambiente antes de iniciar.
-   ![job-malha-airflow](../img/airflow000.png)
+1. Iniciar clicando em **Job Runs** para acompanhar a execução do job iniciado acima: `malha_airflow_userXXX.py`. Se aparecer um sino à frente do Run ID, significa que o job está aguardando o auto-scaling do ambiente antes de iniciar.
+   ![malha_airflow](../img/airflow000.png)
    -  O job principal será iniciado e os jobs que deverão ser executados na sequência irão iniciar e finalizar, um a um.
    ![Sequência de execução](../img/airflow001.png)
-2. Para visualizar o job na interface do usuário no Airflow, na coluna de Menu à esquerda, clicar em **Administration**, selecionar o seu ambiente `rfb-hol-cdp-env` e na sessão **Virtual Clusters**, no virtual cluster onde seu job foi criado `rfb-hol-cde-vcXX`, clicar no segundo link **Virtual Clusters Details**
+2. Para visualizar o job na interface do usuário no Airflow, na coluna de Menu à esquerda, clicar em **Administration**, selecionar o seu ambiente e na sessão **Virtual Clusters**, no virtual cluster onde seu job foi criado, clicar no segundo link **Virtual Clusters Details**
    ![Virtual Clusters Details](../img/airflow002.png)
 3. Na página de administração do virtual cluster, clicar no link **Airflow UI**
    ![Airflow UI](../img/airflow003.png)
-4. Na interface do usuário do Airflow, é possível ver em detalhes a DAG, execuções correntes e anteriores, Última execução e as tasks/jobs recentes em execução, se passar o mouse em cima dos jobs ou tasks, é apresentado o status e qual a ordem de execução.
+4. Na interface do usuário do Airflow, é possível ver em detalhes a DAG, execuções correntes e anteriores, última execução e as tasks/jobs recentes em execução, se passar o mouse em cima dos jobs ou tasks, é apresentado o status e qual a ordem de execução.
    ![Status do job](../img/airflow004.png)
 5. Clicar na DAG em execução `malha_airflow_userXXX`, é possível observar a situação do job, quantas vezes foram executados, duração, se tiveram sucesso ou não, na primeira coluna à esquerda da página. A direita, embaixo do título do job, tem um menu com diversos links para explorar os detalhes do job
     ![Job details](../img/airflow005.png)
@@ -352,8 +357,10 @@ Recursos que facilitam a identificação de gargalos e o aprimoramento contínuo
 
 ### Lab. 5 - Criando um job do Airflow a partir do Editor e agendado
 
-A criação de um job do Apache Airflow a partir do Editor no Cloudera Data Engineering (CDE) é um processo intuitivo que permite desenvolver, configurar e implementar pipelines de dados diretamente através de uma interface integrada e amigável. 
-O Editor do CDE oferece recursos essenciais para a construção de DAGs, como suporte a edição de código com realce de sintaxe, funcionalidades de autocompletar, gerenciamento de dependências e validação automática da estrutura do workflow. 
+A criação de um job do Apache Airflow a partir do Editor no Cloudera Data Engineering (CDE) é um processo intuitivo que permite desenvolver, configurar e implementar pipelines de dados diretamente através de uma interface integrada e amigável.
+
+O Editor do CDE oferece recursos essenciais para a construção de DAGs, como suporte a edição de código com realce de sintaxe, funcionalidades de autocompletar, gerenciamento de dependências e validação automática da estrutura do workflow.
+
 Além disso, permite salvar e versionar scripts, facilitar testes antes da execução, e integrar com bibliotecas externas necessárias ao processamento. Essa abordagem centralizada agiliza o desenvolvimento e garante que toda a configuração do job seja realizada de forma consistente e segura dentro do ambiente de orquestração.
 
 1. Iniciar clicando em **Jobs**, depois em **Create Job** e completar conforme abaixo:
@@ -374,7 +381,7 @@ Além disso, permite salvar e versionar scripts, facilitar testes antes da execu
    5. **Depends on past:** Selecionar
    6. **Trigger rule:** all_success
    ![cde_job_2](../img/editor002.png)
-4. Selecionar o próximo quadrado do CDE job: cde_job_2 e preencher conforme abaixo:
+4. Selecionar o próximo quadrado do CDE job: cde_job_3 e preencher conforme abaixo:
    1. **Name:** Onde está escrito **cde_job_3**, sobrescrever para: **Ingestion validation**
    2. **Aba:** Configure
    3. **Select Job:** insert-table-validation_jcaseiro
@@ -386,8 +393,24 @@ Além disso, permite salvar e versionar scripts, facilitar testes antes da execu
 6. Depois clicar em **Configurations**, apenas para informar, é possível agendar o job criado, role o mouse para baixo para conhecer todas as opções existentes. Depois disso, clique no X para fechar a janela e salve o Job.
    ![Save Job](../img/editor004.png)
 7. Aparecerá um notificação `Saving job...` e com a conclusão uma notificação de sucesso que o pipeline foi criado com sucesso.
-8. Depois clique em **Run**, aparecerá outra notificação dizendo que o job foi submetido e outra informando o id do novo job em execução.
-9. Monitorar o job no menu **Job Runs** e é possível monitorar também na interface de usuário do Airflow.
+8. Antes de executar o job, acesse o Hue a partir do Data Warehouse que tem acesso ou através do Hue do cluster base
+9. Liste os bancos de dados para encontrar o objeto recém criado e procure por `bancodemo_userXXX`:
+
+```sql
+SHOW DATABASES;
+```
+
+10. Selecione a database, clicando no menu a esquerda, faça a contagem da quantidade de linhas das duas tabelas e guarde os valores:
+
+```sql
+USE bancodemo_userXXX;
+SELECT COUNT(*) FROM clientes;
+SELECT COUNT(*) FROM transacoes_cartao;
+```
+
+11. Depois volte para o **CDE**, vá até **Jobs**, clique nos três pontos na vertical do menu e selecione **Run**, aparecerá notificação que o job foi submetido, informando o id do novo job em execução.
+12. Monitorar o job no menu **Job Runs** e é possível monitorar também na interface de usuário do Airflow.
+13. Ao finalizar volte a executar as consultas do **item 10** para validar a quantidade da nova ingestão nas tabelas.
 
 A execução desses jobs é fundamental para execução desse Hands-On-Lab, esses jobs que vão criar as tabelas e os dados utilizados nos próximos tutoriais.
 
@@ -395,4 +418,5 @@ Uma vez que todos os jobs executaram com sucesso, vamos inciar os Labs do Hive [
 
 ---
 
+> [!Note]
 > Para detalhes completos dos scripts e exemplos de uso, consulte o repositório do projeto e utilize os scripts conforme o fluxo descrito acima.
