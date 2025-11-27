@@ -467,7 +467,7 @@ def gerar_transacao(logger: logging.Logger, fake: Faker, clientes_id_usuarios: l
         "valor": round(random.uniform(1, 99999), 2),
         "estabelecimento": fake.company(),
         "categoria": random.choice(["Alimentação", "Transporte", "Entretenimento", "Saúde", "Educação", "Outros"]),
-        "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Extornada"])
+        "status": random.choice(["Aprovada", "Negada", "Pendente", "Cancelada", "Estornada"])
     }
 
 def gerar_dados(logger: logging.Logger, table_name: str, num_records: int, clientes_id_usuarios: list=None) -> list:

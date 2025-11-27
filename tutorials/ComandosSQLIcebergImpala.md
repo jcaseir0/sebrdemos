@@ -1,19 +1,72 @@
-# Passo a passo HQL das funcionalidades do Iceberg no Impala
+# Laboratório Iceberg + Impala
 
-Este documento detalha cada comando SQL utilizado no script para operações com Iceberg no Impala, apresentando explicações claras e exemplos SQL.
+Este documento detalha cada comando Impala SQL utilizado no script para operações com Iceberg no Impala, apresentando explicações claras e exemplos SQL.
+
+## Impala SQL vs. HiveQL: A Natureza da Diferença
+
+Embora o Impala SQL e o HiveQL compartilhem a maior parte de sua sintaxe, a diferença não está apenas no nome, mas nas funcionalidades específicas que cada motor prioriza. 
+
+O Hive, que historicamente usou o nome **Hive Query Language (HiveQL)** para enfatizar suas raízes e diferenças em relação ao SQL padrão (especialmente em um contexto de MapReduce), o Impala foi projetado desde o início para ser um mecanismo de consulta MPP (Massively Parallel Processing) focado em conformidade com o padrão SQL (ANSI SQL) para consultas interativas, é tipicamente chamado apenas de **Impala SQL** ou **Impala's SQL dialect**.
+
+O Impala não suporta algumas instruções DDL/Utilitárias específicas do HiveQL, como `DESCRIBE COLUMN`, `EXPORT TABLE` ou `IMPORT TABLE`. Seu equivalente para `ANALYZE TABLE` é `COMPUTE STATS`.
+
+### A Diferença
+
+**Impala SQL:** SQL Interativo de Baixa Latência, com foco em desempenho e baixa latência para Business Intelligence (BI) e consultas interativas.
+
+**HiveQL:** SQL para ETL e Larga Escala, com foco em estabilidade, tolerância a falhas e processamento em batch (ETL de longa duração).
+
+| Característica | HiveQL	| Impala SQL |
+| :--- | :---: | :---: |
+| Execução | Principal	MapReduce, Tez, ou Spark |	MPP (Massively Parallel Processing) |
+| Latência |	Alta (ideal para batch) |	Baixa (ideal para interativo) |
+| Nome Comum | HiveQL |	Impala SQL / Dialeto SQL do Impala |
+| Sintaxe |	Baseado em SQL, com extensões |	Baseado em ANSI SQL, com extensões |
+
+## Cloudera Data Warehouse
+
+O Cloudera Data Warehouse (CDW) é um serviço analítico dentro do Cloudera Data Platform (CDP), projetado para fornecer um ambiente de Data Warehouse de alto desempenho, escalável e cloud-native sobre o seu Data Lake.
+
+O CDW permite que analistas de dados e usuários de BI executem consultas SQL interativas e de batch diretamente sobre dados armazenados em nuvens públicas (AWS S3, Azure ADLS, Google GCS), On-Premises (HDFS, Ozone) e também em fontes de dados externas e heterogêneas, graças à inclusão do Trino.
+
+### Componentes Principais e Workloads
+
+O CDW utiliza três engines de consulta principais, cada um otimizado para um tipo específico de workload:
+
+**Impala:** Utilizado para **Consultas Interativas de baixa latência** e alta concorrência (BI e análises em tempo quase real) sobre dados no Data Lake.
+
+**Hive (com LLAP):** Utilizado para **Consultas de Larga Escala e ETL** que exigem maior resiliência e que rodam em batch sobre dados no Data Lake.
+
+**Trino (PrestoSQL):** Adiciona recursos de **SQL de Federação e Fontes Múltiplas.** Permite executar consultas complexas que acessam e unem dados de várias fontes diferentes (Data Lake, RDBMSs, NoSQL, outros serviços de nuvem) em uma única instrução SQL.
+
+### Arquitetura Cloud-Native
+
+O CDW utiliza o conceito de Virtual Warehouses (VWs).
+
+**Isolamento:** Cada VW é um cluster de computação isolado e elástico (separado do storage), dedicado a um grupo específico de usuários ou workloads.
+
+**Elasticidade e Custo:** Permite o Auto-Scaling (escalonamento automático de recursos de computação) e o auto-suspending (pausa automática quando inativo) para otimização de custos em ambientes de nuvem.
+
+### Principais Benefícios
+
+**Data Lakehouse:** Combina a flexibilidade e economia do Data Lake (armazenamento de dados em formato aberto como Parquet/Iceberg) com a performance transacional (ACID) e a estrutura de um Data Warehouse tradicional.
+
+**Acesso a Dados Federado (Trino):** O Trino capacita o CDW a se tornar um mecanismo de consulta universal. Os usuários podem executar uma única consulta SQL para unir dados do Hive (no Data Lake) com dados de, por exemplo, um banco de dados PostgreSQL ou um cluster Kafka, sem precisar mover os dados.
+
+**Segurança e Governança Centralizadas:** Utiliza Apache Ranger e Apache Atlas (parte do CDP) para aplicar políticas de segurança, governança e data lineage de forma consistente e centralizada, mesmo quando o Trino consulta fontes externas.
 
 Para realizar as consultas, vamos utilizar o `Cloudera Data Warehouse`.
 
 ![alt text](../img/cdw.png)
 
-Em seguida clique no Hue, do ambiente `impala-vw` que estiver disponivel.
+Em seguida clique no Hue, do ambiente `impala` que estiver disponivel.
 
 ![alt text](../img/hue_impala.png)
 
 > [!WARNING]
 > Será necessário usar o nome do banco de dados como parâmetro nas execuções.
 > 
-> Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_user001`.
+> Na primeira execução, adicionar o nome do seu banco como parâmetro, por exemplo `bancodemo_userXXX`.
 
 ![alt text](../img/create_database_impala.png)
 
@@ -34,6 +87,12 @@ TBLPROPERTIES ('format-version'='2')
 AS SELECT * FROM ${databasename}.clientes;
 ```
 
+Validação da criação da nova tabela no formato ICERBERG:
+
+```sql
+SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue LIMIT 10;
+```
+
 ## 2. Verificação de Atributos das Tabelas
 
 **Explicação:**
@@ -42,14 +101,20 @@ Com o comando DESCRIBE FORMATTED podemos ver os metadados associados a cada uma 
 
 Perceba a diferança em relação ao tipo da tabela, qual é o parâmetro que foi alterado?
 
+> [!Note]
+> **Observação:** Observe que para a tabela Iceberg terá um parâmetro especificando o tipo de tabela: `Table Parameters`:`table_type`:`ICEBERG`
+
+Tabela de origem dos dados:
+
 ```sql
 DESCRIBE FORMATTED ${databasename}.clientes;
 ```
 
+Tabela criada com o formato de tabela Iceberg:
+
 ```sql
 DESCRIBE FORMATTED ${databasename}.clientes_iceberg_ctas_hue;
 ```
-Se atentar ao `Table Parameter` : `table_type` = `ICEBERG`
 
 ## 3. Validação de Registros
 
@@ -72,12 +137,8 @@ SELECT COUNT(*) FROM ${databasename}.clientes_iceberg_ctas_hue;
 Seleciona e compara registros específicos em ambas as tabelas para garantir a integridade dos dados após a migração.
 
 ```sql
-SELECT * FROM ${databasename}.clientes LIMIT 10;
-```
-
-```sql
 SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue
-WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.transacoes_cartao LIMIT 10);
+WHERE id_usuario IN (SELECT id_usuario FROM ${databasename}.clientes LIMIT 10);
 ```
 
 ## 5. Exibição de Partições
@@ -150,7 +211,7 @@ Pegue o valor do timestamp do item 8.
 
 ```sql
 SELECT * FROM ${databasename}.clientes_iceberg_ctas_hue
-FOR SYSTEM_TIME AS OF ${system_time}
+FOR SYSTEM_TIME AS OF '${system_time}'
 WHERE id_usuario = '000000035' AND nome = 'João Silva';
 ```
 
