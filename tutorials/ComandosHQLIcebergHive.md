@@ -786,4 +786,4 @@ Assim, a execução da análise de estatísticas no momento certo é um passo re
 
 - **Tags** e **branches** são recursos avançados do Iceberg no Hive, mas ainda em Tech Preview, permitindo controle de versões, auditoria e desenvolvimento seguro. Entretanto não é recomendável ainda usar em produção. (Registro efetuado em 28/11/2025)
 - O **time travel** permite consultar dados históricos facilmente.
-- O uso de comandos como **MERGE**, **ROLLBACK** e **OPTIMIZE** facilita a manutenção e governança de dados em ambientes analíticos modernos.
+- O uso de comandos como **MERGE** e **ROLLBACK** facilita a manutenção e governança de dados em ambientes analíticos modernos.
