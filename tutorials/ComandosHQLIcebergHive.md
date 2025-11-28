@@ -603,7 +603,9 @@ SELECT * FROM ${database}.transacoes_cartao_iceberg_ctas_hue.refs
 WHERE type = 'BRANCH';
 ```
 
-## Bônus - Gerenciar o desenvolvimento e teste de transformações de dados de forma isolada e segura, sem afetar os dados de produção (main)
+## Bônus - Caso de uso real financeiro
+
+Gerenciar o desenvolvimento e teste de transformações de dados de forma isolada e segura, sem afetar os dados de produção (main)
 
 ### Cenário: Teste de Nova Regra de Risco (Modelagem de Dados)
 
@@ -658,7 +660,7 @@ SELECT * FROM ${database}.transacoes_cartao_iceberg_ctas_hue LIMIT 10;
 5. Promover Mudanças para a Main (Merge)
 
 ```sql
-ALTER TABLE ${database}.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST-FORWARD 'main' TO 'dev_branch';
+ALTER TABLE ${database}.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST-FORWARD 'main' 'dev_branch';
 ```
 
 6. Validar se as alterações aparece na main:
@@ -678,10 +680,13 @@ DROP BRANCH dev_branch;
 
 Para publicar (fazer merge) de uma branch `dev_branch` para a branch `main` no Iceberg, utiliza-se um comando de merge SQL padrão, conforme exemplo:
 
+> [!Note]
+> Alterar os valores das variáveis que estão entre <variáveis>
+
 ```sql
 MERGE INTO main AS T
 USING dev_branch AS S
-T.id_usuario = S.id_usuario
+T.<common_column> = S.<common_column>
 WHEN MATCHED THEN UPDATE SET <colunas_valores>
 WHEN NOT MATCHED THEN INSERT VALUES (<valores>);
 ```
@@ -715,7 +720,7 @@ Sem esses passos, a publicação da segunda branch falhará ou sobrescreverá o 
 No Hive, para atualizar um branch com as últimas alterações de outro (por exemplo, atualizar a branch `main` para o estado atual da branch `dev_branch`) usa-se o comando `EXECUTE FAST FORWARD`. Este comando move o ponteiro do branch alvo para o snapshot atual do branch de origem, sem criar merge commits.
 
 ```sql
-ALTER TABLE ${database}.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST-FORWARD 'main' TO 'dev_branch';
+ALTER TABLE ${database}.transacoes_cartao_iceberg_ctas_hue EXECUTE FAST-FORWARD 'main' 'dev_branch';
 ```
 
 Isso atualiza a `main` para o mesmo estado da `dev_branch` exatamente, se `main` for um ancestral de `dev_branch` (fast-forward possível).
@@ -733,38 +738,7 @@ Isso atualiza a `main` para o mesmo estado da `dev_branch` exatamente, se `main`
 
 Esse comportamento é similar ao modelo de controle de versão distribuído (como git), exigindo cuidado para sincronizar branches antes de publicar em produção em Iceberg com Hive no Cloudera.
 
-## 18. Otimização e Compaction
-
-O table maintenance no Iceberg envolve operações para otimizar o desempenho e a gestão dos dados da tabela, principalmente para compaction e limpeza de arquivos antigos.
-
-### Comando OPTIMIZE
-
-- O comando `OPTIMIZE` é usado para compactar arquivos pequenos em arquivos maiores e otimizados para leitura.
-- Essa compactação melhora a performance de queries, reduz overhead de metadados e melhora o gerenciamento do armazenamento.
-- Sintaxe típica no Hive com Iceberg:
-- Pode ser configurado para otimizar toda a tabela ou particionamento específico, dependendo das propriedades definidas.
-
-### Benefícios da manutenção da tabela
-
-- Reduz fragmentação de arquivos e melhora a eficiência de leitura.
-- Ajuda a controlar o crescimento do número de arquivos pequenos após muitas inserções, atualizações ou deleções.
-- Mantém o catálogo da tabela enxuto e gerenciável, evitando lentidão no acesso.
-
-### Considerações adicionais
-
-- O Iceberg gerencia automaticamente os snapshots e operações atômicas, garantindo consistência mesmo durante operações de manutenção.
-- Outras operações de manutenção incluem expiração de snapshots antigos (`EXPIRE SNAPSHOTS`) e limpeza de arquivos não referenciados (`REMOVE ORPHAN FILES`).
-- É recomendado executar o `OPTIMIZE` regularmente em tabelas com muitas operações de escrita para manter performance ideal.
-
-Essa combinação de manutenção com `OPTIMIZE` permite garantir a saúde da tabela e a performance consistente no Hive com Iceberg na plataforma Cloudera.
-
-Compacta arquivos pequenos e reorganiza os dados da tabela para melhorar desempenho e eficiência:
-
-```sql
-OPTIMIZE TABLE ${database}.transacoes_cartao_iceberg_ctas_hue;
-```
-
-## 19. Conversão de Tabela para Iceberg In-place
+## 18. Conversão de Tabela para Iceberg In-place
 
 ```sql
 ALTER TABLE ${database}.transacoes_cartao CONVERT TO ICEBERG;
@@ -786,13 +760,17 @@ Mesmo com a atualização automática de estatísticas pelo Iceberg a cada snaps
 ### Melhores práticas
 
 - Executar o comando ANALYZE TABLE do Hive após processos de ingestão ou em janelas de manutenção programadas:
+
   ```sql
-  ANALYZE TABLE ${database}.transacoes_cartao COMPUTE STATISTICS;
+  ANALYZE TABLE ${database}.transacoes_cartao_iceberg_ctas_hue COMPUTE STATISTICS;
   ```
+
 - Utilizar a função de análise granular para colunas específicas, quando aplicável:
+
   ```sql
-  ANALYZE TABLE ${database}.transacoes_cartao COMPUTE STATISTICS FOR COLUMNS limite_credito;
+  ANALYZE TABLE ${database}.transacoes_cartao_iceberg_ctas_hue COMPUTE STATISTICS FOR COLUMNS limite_credito;
   ```
+
 - Integrar a análise de estatísticas em pipelines de dados para manter estatísticas atualizadas automaticamente.
 - Monitorar a validade das estatísticas no ambiente e reexecutar análises conforme necessidade, equilibrando custo de processamento e ganho de performance.
 
@@ -806,6 +784,6 @@ Assim, a execução da análise de estatísticas no momento certo é um passo re
 
 ### Observações Finais
 
-- **Tags** e **branches** são recursos avançados do Iceberg no Hive, mas ainda em Tech Preview, permitindo controle de versões, auditoria e desenvolvimento seguro. Entretanto não é recomendável ainda usar em produção. (Registro efetuado em 09/10/2025)
+- **Tags** e **branches** são recursos avançados do Iceberg no Hive, mas ainda em Tech Preview, permitindo controle de versões, auditoria e desenvolvimento seguro. Entretanto não é recomendável ainda usar em produção. (Registro efetuado em 28/11/2025)
 - O **time travel** permite consultar dados históricos facilmente.
 - O uso de comandos como **MERGE**, **ROLLBACK** e **OPTIMIZE** facilita a manutenção e governança de dados em ambientes analíticos modernos.
